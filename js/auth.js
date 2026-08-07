@@ -1,0 +1,166 @@
+// ─────────────────────────────────────────────────────────────
+// AUTH — accounts are required to post on Otakuchan now. This file
+// wires up: session state, the header's login/signup vs avatar
+// dropdown, sign up / log in / log out, and avatar uploads.
+// Included on every page (after supabase-config.js + common.js).
+// ─────────────────────────────────────────────────────────────
+
+let currentSession = null;
+let currentProfile = null;
+
+async function getProfile(userId) {
+  const { data } = await sb.from('profiles').select('*').eq('id', userId).single();
+  return data || null;
+}
+
+// Renders whatever should sit in the header's #auth-area — either
+// [Log in] [Sign up], or the avatar + username dropdown menu.
+async function renderAuthArea() {
+  const el = document.getElementById('auth-area');
+  if (!el) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  currentSession = session;
+
+  if (!session) {
+    currentProfile = null;
+    el.innerHTML = `<a href="login.html">Log in</a><span class="divider">|</span><a href="signup.html">Sign up</a>`;
+    refreshPostGates();
+    return;
+  }
+
+  currentProfile = await getProfile(session.user.id);
+  const uname = currentProfile?.username || 'user';
+  const avatar = avatarUrl(currentProfile?.avatar_url);
+
+  el.innerHTML = `
+    <div class="acct" id="acct-wrap">
+      <button class="acct-btn" id="acct-btn" onclick="toggleAcctMenu();return false;">
+        <img class="avatar pfp-md" src="${esc(avatar)}" alt="">
+        ${esc(uname)}
+      </button>
+      <div class="acct-menu" id="acct-menu">
+        <a href="profile.html?u=${encodeURIComponent(uname)}">My Profile</a>
+        <a href="profile.html?u=${encodeURIComponent(uname)}&edit=1">Edit Profile</a>
+        <button onclick="logOut()">Log out</button>
+      </div>
+    </div>`;
+  refreshPostGates();
+}
+
+function toggleAcctMenu() {
+  document.getElementById('acct-wrap')?.classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('acct-wrap');
+  if (wrap && !wrap.contains(e.target)) wrap.classList.remove('open');
+});
+
+// Board/thread pages call this to show either the real post form or a
+// "log in to post" gate, depending on session state.
+function refreshPostGates() {
+  document.querySelectorAll('[data-requires-auth]').forEach(elm => {
+    elm.style.display = currentSession ? '' : 'none';
+  });
+  document.querySelectorAll('[data-requires-anon]').forEach(elm => {
+    elm.style.display = currentSession ? 'none' : '';
+  });
+}
+
+function requireLogin() {
+  if (!currentSession) {
+    alert('You need an account to do that. Log in or sign up first.');
+    return false;
+  }
+  return true;
+}
+
+// ── SIGN UP ──
+async function doSignUp(e) {
+  e?.preventDefault();
+  const email    = document.getElementById('su-email').value.trim();
+  const username = document.getElementById('su-username').value.trim();
+  const password = document.getElementById('su-password').value;
+  const btn = document.getElementById('su-btn');
+  const errEl = document.getElementById('su-err');
+  clearErr(errEl);
+
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+    showErr(errEl, 'Username must be 3–20 characters: letters, numbers, underscore only.');
+    return;
+  }
+  if (password.length < 8) {
+    showErr(errEl, 'Password must be at least 8 characters.');
+    return;
+  }
+
+  btn.disabled = true; btn.value = 'Creating account…';
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { username } }
+    });
+    if (error) throw error;
+
+    if (data.session) {
+      // Email confirmation is off — user is logged in immediately.
+      location.href = 'index.html';
+    } else {
+      document.getElementById('su-form').style.display = 'none';
+      document.getElementById('su-ok').style.display = 'block';
+    }
+  } catch (err) {
+    showErr(errEl, err.message?.includes('duplicate') || err.message?.includes('unique')
+      ? 'That username or email is already taken.'
+      : (err.message || 'Sign up failed.'));
+    btn.disabled = false; btn.value = 'Sign Up';
+  }
+}
+
+// ── LOG IN ──
+async function doLogIn(e) {
+  e?.preventDefault();
+  const email    = document.getElementById('li-email').value.trim();
+  const password = document.getElementById('li-password').value;
+  const btn = document.getElementById('li-btn');
+  const errEl = document.getElementById('li-err');
+  clearErr(errEl);
+
+  btn.disabled = true; btn.value = 'Logging in…';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    location.href = 'index.html';
+  } catch (err) {
+    showErr(errEl, err.message === 'Invalid login credentials'
+      ? 'Incorrect email or password.'
+      : (err.message || 'Log in failed.'));
+    btn.disabled = false; btn.value = 'Log In';
+  }
+}
+
+// ── LOG OUT ──
+async function logOut() {
+  await sb.auth.signOut();
+  location.href = 'index.html';
+}
+
+// Uploads to avatars/<uid>/<random>.<ext> — the storage RLS policy
+// only allows a user to write inside their own <uid> folder.
+async function uploadAvatar(file, userId) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage.from('avatars').upload(path, file, {
+    cacheControl: '3600', upsert: false, contentType: file.type
+  });
+  if (error) throw error;
+  const { data } = sb.storage.from('avatars').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderAuthArea();
+  sb.auth.onAuthStateChange((_event, _session) => {
+    renderAuthArea();
+  });
+});
