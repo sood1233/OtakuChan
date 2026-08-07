@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thread — Otakuchan</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#8F2611">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="hdr">
+  <a class="logo" href="/">
+    <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+      <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="var(--mustard)"/>
+    </svg>
+    Otaku<em>chan</em>
+  </a>
+  <nav>
+    <a href="index.html">[Home]</a>
+    <a href="rules.html">[Rules]</a>
+    <a href="rules.html#faq">[FAQ]</a>
+  </nav>
+</div>
+
+<div id="board-hdr">
+  <h1>Thread</h1>
+  <p>/all/ &mdash; Global Board</p>
+</div>
+
+<div id="main" style="max-width:820px;">
+  <div id="feed" style="flex:1;">
+    <div class="sec-bar">Viewing Thread <a class="back" href="index.html">&larr; Back to board</a></div>
+    <div id="thread-root"><span class="spinner">Loading thread&hellip;</span></div>
+  </div>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--div);margin:0 12px;">
+<div id="ftr">
+  [<a href="index.html">&larr; Back to /all/</a>]
+  &nbsp;&mdash;&nbsp;
+  Images and comments are the responsibility of the poster.
+  <br><span style="font-size:10px;color:#AAA;">&copy; 2026 Otakuchan &mdash; <a href="rules.html">Rules</a> &mdash; <a href="rules.html#dmca">DMCA</a></span>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-bg" id="modal-report">
+  <div class="modal">
+    <a class="modal-close" href="#" onclick="closeReport();return false;">&#10005;</a>
+    <h2>Report Post</h2>
+    <label>Reason</label>
+    <select id="report-reason">
+      <option value="illegal">Illegal content</option>
+      <option value="spam">Spam</option>
+      <option value="doxxing">Doxxing / personal info</option>
+      <option value="harassment">Harassment</option>
+      <option value="other">Other</option>
+    </select>
+    <label>Details (optional)</label>
+    <textarea id="report-details" rows="3" maxlength="500"></textarea>
+    <button class="modal-btn" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/thread.js"></script>
+</body>
+</html>
