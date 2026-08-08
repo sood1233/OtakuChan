@@ -36,7 +36,7 @@ async function loadThread() {
           <div class="ph">
             ${pcNameHtml(p.profile)}
             <span class="dt">${timeAgo(p.created_at)}</span>
-            ${postMenuHtml(p.id)}
+            ${postMenuHtml(p.id, null, p.author_id)}
           </div>
           <div class="pb">${renderBody(p.body)}</div>
           ${renderMedia(p.media_url, p.media_type)}

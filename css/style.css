@@ -309,10 +309,12 @@ select {
 .pc-menu-wrap.open .pc-menu-dd { display:block; }
 .pc-menu-dd button {
   display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer;
-  font-family:inherit; font-size:14px; font-weight:700; color:var(--like);
+  font-family:inherit; font-size:14px; font-weight:700; color:var(--ink);
   padding:10px 14px;
 }
-.pc-menu-dd button:hover { background:var(--like-tint); }
+.pc-menu-dd button:hover { background:var(--hover-bg); }
+.pc-menu-dd button.pc-menu-danger { color:var(--like); }
+.pc-menu-dd button.pc-menu-danger:hover { background:var(--like-tint); }
 
 /* thread title — kept above the body since this board has subjects, Twitter has none */
 .subj { display:block; font-weight:800; font-size:14px; color:var(--ink); margin:1px 0 3px; }

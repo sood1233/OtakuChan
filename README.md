@@ -133,7 +133,11 @@ build already sets up for you, and what's still on you:
 
 ## Customizing
 - Colors/fonts/layout: `css/style.css`
-- Feed/thread/like/report/bookmark logic: `js/board.js`, `js/thread.js`, `js/common.js`
+- Feed/thread/like/report/bookmark/delete logic: `js/board.js`, `js/thread.js`, `js/common.js`.
+  Deleting is a soft delete (`posts.is_deleted = true`, same mechanism
+  replies already use) — the existing "users can edit own posts" RLS
+  policy already covers it, no schema change needed. A "Delete" option
+  appears in a post's "···" menu only for its own author.
 - Auth/profile logic: `js/auth.js`, `js/profile.js`
 - Search: `js/search.js` (ILIKE against `posts.body` / `profiles.username`,`display_name`;
   backed by the `pg_trgm` indexes added in `supabase/schema.sql`)

@@ -197,16 +197,45 @@ function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount 
     </div>`;
 }
 
-// The "···" header menu (Report). `replyId` set only for reply-card menus.
-function postMenuHtml(postId, replyId = null) {
+// The "···" header menu (Report, and Delete for your own posts).
+// `replyId` set only for reply-card menus. `authorId` is the post's
+// author_id — used to show Delete only when it's the logged-in
+// user's own post.
+function postMenuHtml(postId, replyId = null, authorId = null) {
   const target = replyId ? `'${postId}','${replyId}'` : `'${postId}'`;
+  const isOwner = !replyId && currentSession && authorId && currentSession.user.id === authorId;
   return `
     <div class="pc-menu-wrap" id="pmenu-${replyId || postId}">
       <button class="pc-menu-btn" onclick="togglePostMenu('${replyId || postId}', event)">${ICON.menu}</button>
       <div class="pc-menu-dd">
+        ${isOwner ? `<button class="pc-menu-danger" onclick="deletePost('${postId}', event)">Delete</button>` : ''}
         <button onclick="openReport(${target})">Report</button>
       </div>
     </div>`;
+}
+
+// Soft-deletes one of the current user's own posts (sets is_deleted =
+// true; RLS already lets an author update their own post — see
+// "users can edit own posts" in schema.sql — so no new policy is
+// needed for this). Removes the card from whichever page it's on;
+// on thread.html, where the post is the whole page, sends the user
+// back to the board instead.
+async function deletePost(postId, ev) {
+  if (ev) { ev.stopPropagation(); togglePostMenu(postId, ev); }
+  if (!requireLogin()) return;
+  if (!confirm('Delete this post? This can\'t be undone.')) return;
+  try {
+    const { error } = await sb.from('posts').update({ is_deleted: true })
+      .eq('id', postId).eq('author_id', currentSession.user.id);
+    if (error) throw error;
+    if (document.getElementById('op-post') && postId === (new URLSearchParams(location.search)).get('id')) {
+      location.href = 'index.html';
+      return;
+    }
+    document.getElementById(`post-${postId}`)?.remove();
+  } catch (e) {
+    alert(e.message || 'Could not delete that post.');
+  }
 }
 
 // Full tweet-style post card — used by the main feed and profile page.
@@ -222,11 +251,7 @@ function postCardHtml(p, flash = false) {
         <div class="ph">
           ${pcNameHtml(p.profile)}
           <span class="dt">${timeAgo(p.created_at)}</span>
-          ${postMenuHtml(p.id)}
-        </div>
-        <div class="pb">${renderBody(p.body)}</div>
-        ${renderMedia(p.media_url, p.media_type)}
-        ${postActionsHtml(p, { replyHref: `thread.html?id=${p.id}` })}
+          ${postMenuHtml(p.id, null, p.author_id)}
       </div>
     </div>
   </div>`;
