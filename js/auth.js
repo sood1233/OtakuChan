@@ -46,7 +46,7 @@ async function renderAuthArea() {
       </button>
       <div class="acct-menu" id="acct-menu">
         <a href="profile.html?u=${encodeURIComponent(uname)}">My Profile</a>
-        <a href="profile.html?u=${encodeURIComponent(uname)}&edit=1">Edit Profile</a>
+        <a href="editprofile.html">Edit Profile</a>
         <button onclick="logOut()">Log out</button>
       </div>
     </div>`;

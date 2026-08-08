@@ -512,7 +512,7 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
   border:none; border-bottom:1px solid var(--line); border-radius:0; box-shadow:none;
   padding:0 16px 14px; margin-bottom:0;
 }
-.profile-hdr::before { content:""; display:block; height:150px; margin:0 -16px 0; background:linear-gradient(135deg,#BEE3F8,#E6D9F7); }
+.profile-hdr::before { content:""; display:block; height:150px; margin:0 -16px 0; background:var(--banner-img, linear-gradient(135deg,#BEE3F8,#E6D9F7)) center/cover no-repeat; }
 .profile-id { flex:1; min-width:180px; padding-top:12px; }
 .uname-row { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:-52px; }
 .profile-id .uname { font-family:inherit; font-size:20px; font-weight:800; color:var(--ink); margin-top:56px; }
@@ -627,3 +627,59 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .settings-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; }
 .settings-row .lbl { font-size:14.5px; }
 .settings-row .val { font-size:14px; color:var(--muted); }
+
+/* ── TOGGLE SWITCH — used on settings.html for notification prefs ── */
+.toggle { position:relative; display:inline-block; width:40px; height:24px; flex:none; cursor:pointer; }
+.toggle input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track {
+  position:absolute; inset:0; background:#CFD9DE; border-radius:999px;
+  transition:background-color .15s ease;
+}
+.toggle-track::before {
+  content:""; position:absolute; left:3px; top:3px; width:18px; height:18px;
+  background:#fff; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.25);
+  transition:transform .15s ease;
+}
+.toggle input:checked + .toggle-track { background:var(--maroon); }
+.toggle input:checked + .toggle-track::before { transform:translateX(16px); }
+.toggle input:focus-visible + .toggle-track { box-shadow:0 0 0 2px var(--maroon-tint); }
+
+#ep-hdr, #fl-hdr { align-items:center; gap:0; }
+.sec-bar-title { display:flex; flex-direction:column; line-height:1.25; }
+.sec-bar-title .sub { font-size:12.5px; }
+
+/* ── "back arrow" circle button — editprofile.html / followlist.html ── */
+.ep-back {
+  width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  color:var(--ink); text-decoration:none; font-size:18px; margin-right:14px; flex:none;
+  transition:background-color .12s ease;
+}
+.ep-back:hover { background:var(--hover-bg); text-decoration:none; }
+
+/* ── EDIT PROFILE PAGE ── */
+.ep-banner-wrap {
+  position:relative; height:150px; background:var(--banner-img, linear-gradient(135deg,#BEE3F8,#E6D9F7)) center/cover no-repeat;
+  margin-bottom:52px;
+}
+.ep-avatar {
+  position:absolute; left:16px; bottom:-44px; width:88px; height:88px;
+  border:4px solid #fff; box-shadow:0 0 0 1px var(--line); background:var(--hover-bg);
+}
+.ep-banner-pick, .ep-avatar-pick {
+  position:absolute; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:rgba(15,20,25,.55); color:#fff; border-radius:50%; transition:background-color .12s ease;
+}
+.ep-banner-pick { top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:40px; }
+.ep-banner-pick svg { width:20px; height:20px; }
+.ep-avatar-pick { left:16px; bottom:-44px; width:88px; height:88px; opacity:0; }
+.ep-avatar-pick:hover, .ep-banner-pick:hover { background:rgba(15,20,25,.7); }
+.ep-avatar-pick:hover { opacity:1; }
+.ep-avatar-pick svg { width:26px; height:26px; }
+.ep-form { padding:0 16px 16px; }
+.ep-form label { display:block; font-size:12px; font-weight:700; color:var(--muted); margin:14px 0 4px; }
+.ep-form input[type="text"], .ep-form textarea { max-width:100%; }
+.ep-form textarea { height:80px; }
+
+/* ── FOLLOWERS / FOLLOWING LIST PAGE ── */
+.fl-row { display:flex; align-items:center; gap:8px; padding:4px 16px; }
+.fl-row .follow-btn { margin-top:0; flex:none; }

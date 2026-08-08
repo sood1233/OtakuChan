@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>People — Otakuchan</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#0EA5E9">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="xshell">
+  <div id="hdr">
+    <div class="sb-top">
+      <a class="logo" href="/">
+        <span class="badge">
+          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
+          </svg>
+        </span>
+        <span class="wordmark">Otaku<em>chan</em></span>
+      </a>
+      <nav id="side-nav"></nav>
+    </div>
+    <span id="auth-area" class="auth-area"></span>
+  </div>
+
+  <div id="main">
+    <div id="feed" style="max-width:600px;">
+      <div class="sec-bar" id="fl-hdr">
+        <a class="ep-back" href="index.html" id="fl-back">&larr;</a>
+        <div class="sec-bar-title">
+          <b id="fl-name">&nbsp;</b>
+          <span class="sub" id="fl-handle"></span>
+        </div>
+      </div>
+      <div id="fl-tabs" class="xtabs" style="border-bottom:1px solid var(--line);"></div>
+      <div id="followlist-root"><span class="spinner">Loading&hellip;</span></div>
+    </div>
+
+    <div id="sidebar">
+      <div class="xsearch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="side-search" placeholder="Search Otakuchan">
+      </div>
+      <div id="ftr" style="padding:0;">
+        [<a href="index.html">&larr; Back to Home</a>]
+        <br><span style="font-size:10px;color:#AAA;">&copy; 2026 Otakuchan</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/followlist.js"></script>
+</body>
+</html>

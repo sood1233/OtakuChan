@@ -22,6 +22,16 @@ password — there is no anonymous posting.
    - the realtime publication for live post/reply updates
    - two storage buckets: `media` (post/reply images & video, 5MB
      limit) and `avatars` (profile pictures, 2MB limit)
+3. Then run `supabase/settings.sql` (same SQL Editor → New query). This
+   adds the account "options" behind `settings.html`:
+   - `profiles.banner_url` — a cover photo, editable from `editprofile.html`
+   - `user_settings` — one row per user (auto-created), holding
+     notification toggles (likes / replies / follows) and a
+     "who can message you" (everyone / people you follow) privacy
+     setting, actually enforced by the `messages` table's RLS policy
+   - updated versions of the like/reply/follow triggers from
+     `schema.sql` that check those toggles before writing a
+     `notifications` row
 
 ## 3. Configure email auth
 Project Settings → Authentication → Providers → Email is on by
@@ -59,12 +69,14 @@ This is a plain static site — no build step, no Node server required.
 - `index.html` — board feed, new-thread form (accounts only), trending sidebar, realtime new-post updates
 - `thread.html?id=<uuid>` — single thread with all replies, realtime new-reply updates
 - `signup.html` / `login.html` — create an account / sign in
-- `profile.html?u=<username>` — a user's public profile (avatar, bio, their posts); viewing your own adds an "Edit Profile" panel for avatar/display name/bio
+- `profile.html?u=<username>` — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
+- `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
+- `followlist.html?u=<username>&tab=followers|following` — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
 - `search.html?q=<term>` — search posts (body) or people (username/display name), tabbed
 - `bookmarks.html` — posts you've bookmarked (private to you)
 - `notifications.html` — likes, replies, and new followers; marks itself read on view, live badge count in the sidebar
 - `chat.html` / `chat.html?u=<username>` — direct messages: conversation list, or a one-on-one thread with realtime delivery
-- `settings.html` — change email/password, link to profile editing, log out
+- `settings.html` — Notifications (toggle likes/replies/follows), Privacy (who can message you), Account (email/password), link to `editprofile.html`, log out
 - `rules.html` — rules, FAQ, DMCA contact info
 
 The left sidebar nav (`#side-nav`, filled in by `renderSideNav()` in
@@ -127,10 +139,19 @@ build already sets up for you, and what's still on you:
   backed by the `pg_trgm` indexes added in `supabase/schema.sql`)
 - Notifications: `js/notifications.js` — rows are only ever created by
   security-definer triggers on `likes`/`replies`/`follows` inserts (see
-  schema.sql), never inserted directly by the client
+  schema.sql / settings.sql), never inserted directly by the client, and
+  only when the recipient's `user_settings` toggle for that type is on
 - Chat: `js/chat.js` — flat `messages` table, RLS-scoped to sender/recipient,
-  realtime subscription per open thread
-- Settings: `js/settings.js` — email/password changes via `sb.auth.updateUser()`
+  realtime subscription per open thread; who's allowed to start a thread
+  with you is controlled by `user_settings.dm_privacy`
+- Settings: `js/settings.js` — email/password changes via `sb.auth.updateUser()`,
+  plus notification toggles and DM privacy, both read/written against
+  `user_settings` (see `supabase/settings.sql`)
+- Edit profile: `js/editprofile.js` — its own page, separate from
+  `profile.js`; banner/avatar upload + display name/bio, all against
+  the current session's own row
+- Followers/following: `js/followlist.js` — its own page, separate from
+  `profile.js`; reads `follows` joined to `profiles`
 - Max file size / allowed types: change in **both** `js/supabase-config.js`
   (client-side check, instant feedback) **and** `supabase/schema.sql`'s
   storage bucket insert (server-side enforcement — this is the one that

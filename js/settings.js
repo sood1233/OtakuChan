@@ -1,6 +1,24 @@
 // ─────────────────────────────────────────────────────────────
 // SETTINGS PAGE — /settings.html (requires login)
+// Notification toggles + DM privacy read/write against
+// public.user_settings (see supabase/settings.sql). Every account
+// always has exactly one row there (auto-created on signup), so
+// this never has to handle a "missing settings" case.
 // ─────────────────────────────────────────────────────────────
+function toggleRowHtml(id, label, sub, checked) {
+  return `
+    <div class="settings-row">
+      <div>
+        <div class="lbl">${label}</div>
+        <div class="pf-note" style="margin-top:2px;">${sub}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="saveNotifSetting('${id}')">
+        <span class="toggle-track"></span>
+      </label>
+    </div>`;
+}
+
 async function loadSettings() {
   const root = document.getElementById('settings-root');
   const { data: { session } } = await sb.auth.getSession();
@@ -13,11 +31,37 @@ async function loadSettings() {
   const profile = await getProfile(session.user.id);
   const uname = profile?.username || 'user';
 
+  const { data: settings } = await sb.from('user_settings').select('*').eq('user_id', session.user.id).single();
+  const s = settings || { notify_likes: true, notify_replies: true, notify_follows: true, dm_privacy: 'everyone' };
+
   root.innerHTML = `
     <div class="settings-section">
       <h2>Profile</h2>
-      <p class="sub">Display name, bio, and avatar are edited from your profile page.</p>
-      <a class="profile-edit-btn" href="profile.html?u=${encodeURIComponent(uname)}&edit=1">Edit Profile</a>
+      <p class="sub">Banner, avatar, display name, and bio.</p>
+      <a class="profile-edit-btn" href="editprofile.html">Edit Profile</a>
+    </div>
+
+    <div class="settings-section">
+      <h2>Notifications</h2>
+      <p class="sub">Choose what shows up on your Notifications page.</p>
+      ${toggleRowHtml('notify_likes', 'Likes', 'When someone likes your post', s.notify_likes)}
+      ${toggleRowHtml('notify_replies', 'Replies', 'When someone replies to your post', s.notify_replies)}
+      ${toggleRowHtml('notify_follows', 'New followers', 'When someone follows you', s.notify_follows)}
+    </div>
+
+    <div class="settings-section">
+      <h2>Privacy</h2>
+      <div class="settings-row">
+        <div>
+          <div class="lbl">Who can message you</div>
+          <div class="pf-note" style="margin-top:2px;">Applies to new conversations only.</div>
+        </div>
+        <select id="dm-privacy" onchange="saveDmPrivacy()" style="width:auto;">
+          <option value="everyone" ${s.dm_privacy === 'everyone' ? 'selected' : ''}>Everyone</option>
+          <option value="following" ${s.dm_privacy === 'following' ? 'selected' : ''}>People you follow</option>
+        </select>
+      </div>
+      <span id="dm-privacy-st" style="font-size:11px;color:var(--muted);"></span>
     </div>
 
     <div class="settings-section">
@@ -52,6 +96,29 @@ async function loadSettings() {
       <button class="pf-btn" style="background:var(--like);" onclick="logOut()">Log out</button>
     </div>
   `;
+}
+
+async function saveNotifSetting(id) {
+  const checked = document.getElementById(id).checked;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const { error } = await sb.from('user_settings').update({ [id]: checked }).eq('user_id', session.user.id);
+  if (error) {
+    document.getElementById(id).checked = !checked; // revert on failure
+    alert(error.message || 'Could not save that setting.');
+  }
+}
+
+async function saveDmPrivacy() {
+  const stEl = document.getElementById('dm-privacy-st');
+  const value = document.getElementById('dm-privacy').value;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  stEl.textContent = 'Saving…';
+  const { error } = await sb.from('user_settings').update({ dm_privacy: value }).eq('user_id', session.user.id);
+  stEl.textContent = error ? '' : 'Saved.';
+  if (error) alert(error.message || 'Could not save that setting.');
+  setTimeout(() => { stEl.textContent = ''; }, 1500);
 }
 
 async function updateEmail() {
