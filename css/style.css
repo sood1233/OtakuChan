@@ -54,6 +54,34 @@ html[data-theme="dark"] {
   --maroon-tint: rgba(14,165,233,.16); --like-tint: rgba(244,63,94,.16);
 }
 
+/* ── ACCENT COLOR — Settings → Appearance lets people swap the app's
+   one accent color (buttons, links, active states — everything that
+   reads var(--maroon)/var(--mustard)/var(--link)) between 5 options.
+   Applied via data-accent on <html>, set by settings.js (chooseAccent())
+   and persisted to localStorage, applied pre-paint by the same inline
+   <head> script that handles the theme, to avoid a flash. "Blue" is
+   the default and needs no override — it's just the :root values above. */
+html[data-accent="red"] {
+  --maroon:#DC2626; --maroon-dk:#B91C1C; --maroon-tint:rgba(220,38,38,.10);
+  --mustard:#DC2626; --mustard-dk:#B91C1C; --link:#DC2626;
+}
+html[data-accent="green"] {
+  --maroon:#16A34A; --maroon-dk:#15803D; --maroon-tint:rgba(22,163,74,.10);
+  --mustard:#16A34A; --mustard-dk:#15803D; --link:#16A34A;
+}
+html[data-accent="purple"] {
+  --maroon:#7C3AED; --maroon-dk:#6D28D9; --maroon-tint:rgba(124,58,237,.10);
+  --mustard:#7C3AED; --mustard-dk:#6D28D9; --link:#7C3AED;
+}
+html[data-accent="orange"] {
+  --maroon:#F97316; --maroon-dk:#C2410C; --maroon-tint:rgba(249,115,22,.10);
+  --mustard:#F97316; --mustard-dk:#C2410C; --link:#F97316;
+}
+html[data-theme="dim"][data-accent="red"],   html[data-theme="dark"][data-accent="red"]   { --maroon-tint:rgba(220,38,38,.16); }
+html[data-theme="dim"][data-accent="green"], html[data-theme="dark"][data-accent="green"] { --maroon-tint:rgba(22,163,74,.16); }
+html[data-theme="dim"][data-accent="purple"],html[data-theme="dark"][data-accent="purple"]{ --maroon-tint:rgba(124,58,237,.16); }
+html[data-theme="dim"][data-accent="orange"],html[data-theme="dark"][data-accent="orange"]{ --maroon-tint:rgba(249,115,22,.16); }
+
 * { margin:0; padding:0; box-sizing:border-box; }
 
 /* ── SMOOTH CROSS-PAGE NAVIGATION ──
@@ -887,6 +915,24 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .theme-swatch[data-theme-opt="dim"] .ts-preview span { background:#F7F9F9; }
 .theme-swatch[data-theme-opt="dark"] .ts-preview { background:#000000; }
 .theme-swatch[data-theme-opt="dark"] .ts-preview span { background:#E7E9EA; }
+
+/* ── Appearance / accent color picker (Settings → Appearance) ── */
+.accent-picker { display:flex; gap:14px; margin-top:12px; }
+.accent-swatch {
+  width:32px; height:32px; border-radius:50%; border:2px solid transparent; padding:2px;
+  cursor:pointer; background:var(--accent-swatch-color); position:relative; flex:none;
+  transition:transform .12s ease;
+}
+.accent-swatch:hover { transform:scale(1.08); }
+.accent-swatch.active { border-color:var(--ink); }
+.accent-swatch.active::after {
+  content:""; position:absolute; inset:6px; border-radius:50%; border:2px solid #fff;
+}
+.accent-swatch[data-accent-opt="blue"]   { --accent-swatch-color:#0EA5E9; }
+.accent-swatch[data-accent-opt="red"]    { --accent-swatch-color:#DC2626; }
+.accent-swatch[data-accent-opt="green"]  { --accent-swatch-color:#16A34A; }
+.accent-swatch[data-accent-opt="purple"] { --accent-swatch-color:#7C3AED; }
+.accent-swatch[data-accent-opt="orange"] { --accent-swatch-color:#F97316; }
 
 /* ── TOGGLE SWITCH — used on settings.html for notification prefs ── */
 .toggle { position:relative; display:inline-block; width:40px; height:24px; flex:none; cursor:pointer; }

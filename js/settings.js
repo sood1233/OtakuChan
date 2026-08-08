@@ -27,6 +27,11 @@ function themeSwatchHtml(id, label, active) {
     </button>`;
 }
 
+function accentSwatchHtml(id, label, active) {
+  return `
+    <button type="button" class="accent-swatch${active ? ' active' : ''}" data-accent-opt="${id}" title="${label}" aria-label="${label}" onclick="chooseAccent('${id}')"></button>`;
+}
+
 async function loadSettings() {
   const root = document.getElementById('settings-root');
   const { data: { session } } = await sb.auth.getSession();
@@ -39,6 +44,7 @@ async function loadSettings() {
   const profile = await getProfile(session.user.id);
   const uname = profile?.username || 'user';
   const curTheme = getTheme();
+  const curAccent = getAccent();
 
   const { data: settings } = await sb.from('user_settings').select('*').eq('user_id', session.user.id).single();
   const s = settings || { notify_likes: true, notify_replies: true, notify_follows: true, dm_privacy: 'everyone' };
@@ -57,6 +63,10 @@ async function loadSettings() {
         ${themeSwatchHtml('light', 'Default', curTheme === 'light')}
         ${themeSwatchHtml('dim', 'Dim', curTheme === 'dim')}
         ${themeSwatchHtml('dark', 'Lights out', curTheme === 'dark')}
+      </div>
+      <p class="sub" style="margin-top:16px;">Pick an accent color for buttons and links.</p>
+      <div class="accent-picker" id="accent-picker">
+        ${ACCENT_OPTIONS.map(a => accentSwatchHtml(a.id, a.label, curAccent === a.id)).join('')}
       </div>
     </div>
 
@@ -153,6 +163,13 @@ function chooseTheme(id) {
   applyTheme(id);
   document.querySelectorAll('#theme-picker .theme-swatch').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.themeOpt === id);
+  });
+}
+
+function chooseAccent(id) {
+  applyAccent(id);
+  document.querySelectorAll('#accent-picker .accent-swatch').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.accentOpt === id);
   });
 }
 

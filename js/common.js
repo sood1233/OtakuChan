@@ -45,6 +45,27 @@ function getTheme() {
   try { return localStorage.getItem(THEME_KEY) || 'light'; } catch (e) { return 'light'; }
 }
 
+// ── ACCENT COLOR — same idea as THEME above, but swaps the app's one
+// accent color (buttons/links/active states) instead of the surface
+// colors. Applied via data-accent on <html>; "blue" is the default and
+// needs no attribute (matches the :root values in style.css). ──
+const ACCENT_KEY = 'oc-accent';
+const ACCENT_OPTIONS = [
+  { id: 'blue',   label: 'Blue'   },
+  { id: 'red',    label: 'Red'    },
+  { id: 'green',  label: 'Green'  },
+  { id: 'purple', label: 'Purple' },
+  { id: 'orange', label: 'Orange' }
+];
+function applyAccent(accent) {
+  if (accent && accent !== 'blue') document.documentElement.setAttribute('data-accent', accent);
+  else document.documentElement.removeAttribute('data-accent');
+  try { localStorage.setItem(ACCENT_KEY, accent || 'blue'); } catch (e) {}
+}
+function getAccent() {
+  try { return localStorage.getItem(ACCENT_KEY) || 'blue'; } catch (e) { return 'blue'; }
+}
+
 let unreadNotifCount = 0;
 
 function renderSideNav() {
