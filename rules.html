@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules & FAQ — Otakuchan</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#0EA5E9">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="xshell">
+  <div id="hdr">
+    <div class="sb-top">
+      <a class="logo" href="/">
+        <span class="badge">
+          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
+          </svg>
+        </span>
+        <span class="wordmark">Otaku<em>chan</em></span>
+      </a>
+      <nav>
+        <a href="index.html">
+          <span class="navicon"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg></span>
+          <span class="navlabel">Home</span>
+        </a>
+        <a href="rules.html">
+          <span class="navicon"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg></span>
+          <span class="navlabel">Rules</span>
+        </a>
+        <a href="rules.html#faq">
+          <span class="navicon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7v.4"/><path d="M12 17h.01"/></svg></span>
+          <span class="navlabel">FAQ</span>
+        </a>
+      </nav>
+    </div>
+    <span id="auth-area" class="auth-area"></span>
+  </div>
+
+  <div id="main">
+    <div class="page-wrap">
+      <h1 id="rules">Rules</h1>
+      <ol>
+        <li>No illegal content of any kind. This includes, without exception, child sexual abuse material — posts are logged and reported to the relevant authorities (NCMEC/law enforcement).</li>
+        <li>No doxxing — do not post other people's private information (addresses, phone numbers, full legal names, etc).</li>
+        <li>No spam, flooding, or advertising.</li>
+        <li>No harassment, threats, or targeted abuse of individuals.</li>
+        <li>Don't upload media you don't have the right to share; respect copyright.</li>
+        <li>Impersonating another user, or creating multiple accounts to evade a ban, is not allowed.</li>
+        <li>Having an account is a privilege, not a shield — moderators can remove posts and suspend accounts that violate these rules.</li>
+      </ol>
+
+      <h2>Moderation</h2>
+      <p>Every post can be reported with the "Report" link. Reports go to a moderation queue that isn't publicly readable. Moderators may remove any post or file for any reason, including rule violations.</p>
+
+      <h1 id="faq" style="margin-top:24px;">FAQ</h1>
+
+      <h2>Do I need an account?</h2>
+      <p>Yes. Otakuchan is not anonymous — you need to sign up with an email, username, and password before you can post, reply, or like anything. Browsing the board doesn't require an account.</p>
+
+      <h2>What goes on my profile?</h2>
+      <p>Your username, an optional display name, a profile picture, and a short bio. Your profile page also lists every post you've made.</p>
+
+      <h2>What can I upload?</h2>
+      <p>Images (JPEG, PNG, GIF, WebP) and video (MP4, WebM), up to 5MB per file. Profile pictures are capped at 2MB.</p>
+
+      <h2>Are posts permanent?</h2>
+      <p>Posts stay up unless removed by moderators for violating the rules, or reported and taken down.</p>
+
+      <h2 id="dmca">DMCA / Copyright</h2>
+      <p>If you believe content on this board infringes your copyright, contact the site operator with the URL of the material and a description of your claim, and it will be reviewed for removal.</p>
+
+      <div id="ftr" style="padding:16px 0 0;">
+        [<a href="index.html">&larr; Back to /all/</a>]
+        <br><span style="font-size:10px;color:#AAA;">&copy; 2026 Otakuchan</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>
