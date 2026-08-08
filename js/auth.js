@@ -59,7 +59,11 @@ async function renderAuthArea() {
     <div class="acct" id="acct-wrap">
       <button class="acct-btn" id="acct-btn" onclick="toggleAcctMenu();return false;">
         <img class="avatar pfp-md" src="${esc(avatar)}" alt="">
-        <span class="acct-txt">${esc(uname)}</span>
+        <span class="acct-txt">
+          <span class="acct-name">${esc(currentProfile?.display_name || uname)}</span>
+          <span class="acct-handle">@${esc(uname)}</span>
+        </span>
+        <span class="acct-dots">${NAV_ICON.dots}</span>
       </button>
       <div class="acct-menu" id="acct-menu">
         <a href="profile.html?u=${encodeURIComponent(uname)}">My Profile</a>
@@ -95,9 +99,13 @@ function subscribeNotifBadge() {
 function toggleAcctMenu() {
   document.getElementById('acct-wrap')?.classList.toggle('open');
 }
+// Shared close-on-outside-click for every .acct flyout (the bottom
+// account card AND the sidebar's More menu use the same .acct/.acct-menu
+// pattern, so one listener covers both).
 document.addEventListener('click', (e) => {
-  const wrap = document.getElementById('acct-wrap');
-  if (wrap && !wrap.contains(e.target)) wrap.classList.remove('open');
+  document.querySelectorAll('.acct.open').forEach(wrap => {
+    if (!wrap.contains(e.target)) wrap.classList.remove('open');
+  });
 });
 
 // Board/thread pages call this to show either the real post form or a

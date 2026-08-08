@@ -19,6 +19,14 @@ function toggleRowHtml(id, label, sub, checked) {
     </div>`;
 }
 
+function themeSwatchHtml(id, label, active) {
+  return `
+    <button type="button" class="theme-swatch${active ? ' active' : ''}" data-theme-opt="${id}" onclick="chooseTheme('${id}')">
+      <span class="ts-preview"><span></span></span>
+      <span class="ts-label">${label}</span>
+    </button>`;
+}
+
 async function loadSettings() {
   const root = document.getElementById('settings-root');
   const { data: { session } } = await sb.auth.getSession();
@@ -30,6 +38,7 @@ async function loadSettings() {
 
   const profile = await getProfile(session.user.id);
   const uname = profile?.username || 'user';
+  const curTheme = getTheme();
 
   const { data: settings } = await sb.from('user_settings').select('*').eq('user_id', session.user.id).single();
   const s = settings || { notify_likes: true, notify_replies: true, notify_follows: true, dm_privacy: 'everyone' };
@@ -39,6 +48,16 @@ async function loadSettings() {
       <h2>Profile</h2>
       <p class="sub">Banner, avatar, display name, and bio.</p>
       <a class="profile-edit-btn" href="editprofile.html">Edit Profile</a>
+    </div>
+
+    <div class="settings-section">
+      <h2>Appearance</h2>
+      <p class="sub">Pick how Otakuchan looks on this device.</p>
+      <div class="theme-picker" id="theme-picker">
+        ${themeSwatchHtml('light', 'Default', curTheme === 'light')}
+        ${themeSwatchHtml('dim', 'Dim', curTheme === 'dim')}
+        ${themeSwatchHtml('dark', 'Lights out', curTheme === 'dark')}
+      </div>
     </div>
 
     <div class="settings-section">
@@ -66,7 +85,16 @@ async function loadSettings() {
 
     <div class="settings-section">
       <h2>Account</h2>
-      <div class="settings-row">
+      <div class="errmsg" id="set-uname-err" style="display:none;"></div>
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 4px;">Username</label>
+      <input type="text" id="set-uname" value="${esc(uname)}" maxlength="20">
+      <span class="auth-hint">3–20 characters: letters, numbers, and underscores only.</span>
+      <div style="margin-top:8px;">
+        <input type="submit" class="pf-btn" value="Update Username" onclick="updateUsername();return false;">
+        <span id="set-uname-st" style="font-size:11px;color:var(--muted);margin-left:8px;"></span>
+      </div>
+
+      <div class="settings-row" style="margin-top:16px;">
         <span class="lbl">Email</span>
         <span class="val">${esc(session.user.email || '')}</span>
       </div>
@@ -119,6 +147,39 @@ async function saveDmPrivacy() {
   stEl.textContent = error ? '' : 'Saved.';
   if (error) alert(error.message || 'Could not save that setting.');
   setTimeout(() => { stEl.textContent = ''; }, 1500);
+}
+
+function chooseTheme(id) {
+  applyTheme(id);
+  document.querySelectorAll('#theme-picker .theme-swatch').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.themeOpt === id);
+  });
+}
+
+async function updateUsername() {
+  const input = document.getElementById('set-uname');
+  const errEl = document.getElementById('set-uname-err');
+  const stEl = document.getElementById('set-uname-st');
+  clearErr(errEl);
+  const username = input.value.trim();
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+    showErr(errEl, 'Usernames are 3–20 characters: letters, numbers, and underscores only.');
+    return;
+  }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  if (currentProfile && username === currentProfile.username) return;
+  stEl.textContent = 'Saving…';
+  const { error } = await sb.from('profiles').update({ username }).eq('id', session.user.id);
+  if (error) {
+    stEl.textContent = '';
+    const taken = error.code === '23505' || /duplicate/i.test(error.message || '');
+    showErr(errEl, taken ? 'That username is already taken.' : (error.message || 'Could not update username.'));
+    return;
+  }
+  await renderAuthArea(); // repaints the sidebar/account card with the new username
+  stEl.textContent = '';
+  alert('Username updated.');
 }
 
 async function updateEmail() {

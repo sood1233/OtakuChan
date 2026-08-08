@@ -27,8 +27,23 @@ const NAV_ICON = {
   bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4.5L5.5 21V4.5a1 1 0 0 1 1-1Z"/></svg>',
   user:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>',
   gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c0-.5.1-1 0-1.5l1.9-1.5-2-3.4-2.2.9c-.7-.6-1.5-1-2.3-1.3L14.4 4h-4l-.4 2.7c-.8.3-1.6.7-2.3 1.3l-2.2-.9-2 3.4L5.4 12c-.1.5 0 1 0 1.5l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1 2.3 1.3l.4 2.7h4l.4-2.7c.8-.3 1.6-.7 2.3-1.3l2.2.9 2-3.4-1.9-1.5Z"/></svg>',
-  doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>'
+  doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>',
+  dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>'
 };
+
+// ── THEME — Default (light) / Dim / Lights out (dark), applied via
+// data-theme on <html>. A tiny inline script in every page's <head>
+// reads THEME_KEY before first paint (no flash); this just gives
+// settings.js (and anything else) a shared way to change/read it. ──
+const THEME_KEY = 'oc-theme';
+function applyTheme(theme) {
+  if (theme && theme !== 'light') document.documentElement.setAttribute('data-theme', theme);
+  else document.documentElement.removeAttribute('data-theme');
+  try { localStorage.setItem(THEME_KEY, theme || 'light'); } catch (e) {}
+}
+function getTheme() {
+  try { return localStorage.getItem(THEME_KEY) || 'light'; } catch (e) { return 'light'; }
+}
 
 let unreadNotifCount = 0;
 
@@ -40,18 +55,32 @@ function renderSideNav() {
   const here = location.pathname.split('/').pop() || 'index.html';
   const item = (href, icon, label, extra = '') => {
     const page = href.split('?')[0];
-    return `<a href="${href}"${page === here ? ' class="cur"' : ''}><span class="navicon">${icon}</span><span class="navlabel">${label}</span>${extra}</a>`;
+    return `<a href="${href}"${page === here ? ' class="cur"' : ''}><span class="navicon">${icon}${extra}</span><span class="navlabel">${label}</span></a>`;
   };
+  const morePage = ['settings.html', 'rules.html'].includes(here);
+  const postBtn = currentSession
+    ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">Post</button>`
+    : `<a class="sidebar-post-btn" href="signup.html">Post</a>`;
   el.innerHTML =
     item('index.html', NAV_ICON.home, 'Home') +
-    item('search.html', NAV_ICON.search, 'Search') +
+    item('search.html', NAV_ICON.search, 'Explore') +
     item('notifications.html', NAV_ICON.bell, 'Notifications', badge) +
     item('chat.html', NAV_ICON.chat, 'Chat') +
     item('bookmarks.html', NAV_ICON.bookmark, 'Bookmarks') +
     item(ownHref, NAV_ICON.user, 'Profile') +
-    item('settings.html', NAV_ICON.gear, 'Settings') +
-    item('rules.html', NAV_ICON.doc, 'Rules');
+    `<div class="acct" id="more-wrap">
+       <button class="navmore-btn"${morePage ? ' style="font-weight:800;"' : ''} onclick="toggleMoreMenu();return false;">
+         <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">More</span>
+       </button>
+       <div class="acct-menu navmore-menu" id="more-menu">
+         <a href="settings.html">${NAV_ICON.gear}Settings</a>
+         <a href="rules.html">${NAV_ICON.doc}Rules</a>
+       </div>
+     </div>` +
+    postBtn;
 }
+
+function toggleMoreMenu() { document.getElementById('more-wrap')?.classList.toggle('open'); }
 
 // ── MOBILE APP CHROME — top bar, bottom tab bar, compose FAB, and
 // slide-out drawer, built fresh into #m-chrome (created once, appended
