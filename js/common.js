@@ -9,7 +9,9 @@ const ICON = {
   views:    '<svg viewBox="0 0 24 24"><path d="M4 21V10M12 21V3M20 21v7"/></svg>',
   share:    '<svg viewBox="0 0 24 24"><path d="M12 15.5V4M7.5 8.5L12 4l4.5 4.5M5 20h14"/></svg>',
   menu:     '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
-  bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4.5L5.5 21V4.5a1 1 0 0 1 1-1Z"/></svg>'
+  bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4.5L5.5 21V4.5a1 1 0 0 1 1-1Z"/></svg>',
+  repost:   '<svg viewBox="0 0 24 24"><path d="M6 4.5v9a2 2 0 0 0 2 2h10"/><path d="m14.5 12 3.5 3.5-3.5 3.5"/><path d="M18 19.5v-9a2 2 0 0 0-2-2H6"/><path d="m9.5 12-3.5-3.5L9.5 5"/></svg>',
+  quote:    '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 6c-2.5 1.4-4 3.6-4 6.3 0 2.6 1.7 4.2 3.8 4.2 1.9 0 3.3-1.4 3.3-3.2 0-1.7-1.2-3-2.8-3-.3 0-.6 0-.8.1.2-1.6 1.5-3.2 3.3-4.1L7 6Zm9 0c-2.5 1.4-4 3.6-4 6.3 0 2.6 1.7 4.2 3.8 4.2 1.9 0 3.3-1.4 3.3-3.2 0-1.7-1.2-3-2.8-3-.3 0-.6 0-.8.1.2-1.6 1.5-3.2 3.3-4.1L16 6Z"/></svg>'
 };
 
 // ── SIDEBAR NAV — rendered into <nav id="side-nav"></nav> on every
@@ -129,6 +131,203 @@ async function toggleBookmark(postId, btn) {
   }
 }
 
+// ── REPOSTS ── (mirrors the bookmarks pattern above: private-ish per
+// user "did I repost this" state, fetched fresh whenever a page is
+// about to render a list of posts.)
+let reposted = new Set();
+
+async function ensureRepostsLoaded() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { reposted = new Set(); return; }
+  const { data } = await sb.from('reposts').select('post_id').eq('user_id', session.user.id);
+  reposted = new Set((data || []).map(r => r.post_id));
+}
+
+// Every post rendered as a card is stashed here by id, so the Quote
+// modal (opened from a plain onclick with just the post id) can pull
+// up the author/body/media to embed in the preview without a refetch.
+const postCache = {};
+function cachePost(p) { if (p && p.id) postCache[p.id] = p; }
+
+// Opens/closes the small "Repost / Quote" dropdown anchored under the
+// repost icon — same interaction pattern as the "···" pc-menu-wrap.
+function toggleRepostMenu(id, ev) {
+  if (ev) ev.stopPropagation();
+  const wrap = document.getElementById(`rpmenu-${id}`);
+  if (!wrap) return;
+  const willOpen = !wrap.classList.contains('open');
+  document.querySelectorAll('.rp-menu-wrap.open, .pc-menu-wrap.open').forEach(w => w.classList.remove('open'));
+  if (willOpen) wrap.classList.add('open');
+}
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.rp-menu-wrap.open').forEach(w => {
+    if (!w.contains(e.target)) w.classList.remove('open');
+  });
+});
+
+// Bumps the little repost count label + the reply-count-style icon
+// state (green when you've reposted it) without a full card re-render.
+function setRepostUiState(postId, isReposted, delta) {
+  const wrap = document.getElementById(`rpmenu-${postId}`);
+  if (!wrap) return;
+  const btn = wrap.querySelector('.act.repost');
+  const label = btn?.querySelector('.act-label');
+  btn?.classList.toggle('reposted', isReposted);
+  if (label) {
+    const n = Math.max((parseInt(btn.dataset.count, 10) || 0) + delta, 0);
+    btn.dataset.count = n;
+    label.textContent = fmtCount(n);
+  }
+  const undoBtn = wrap.querySelector('.rp-undo');
+  const doBtn = wrap.querySelector('.rp-do');
+  if (undoBtn) undoBtn.style.display = isReposted ? '' : 'none';
+  if (doBtn) doBtn.style.display = isReposted ? 'none' : '';
+}
+
+async function doRepost(postId, ev) {
+  if (ev) ev.stopPropagation();
+  if (!requireLogin()) return;
+  toggleRepostMenu(postId);
+  if (reposted.has(postId)) return;
+  const { error } = await sb.from('reposts').insert({ post_id: postId, user_id: currentSession.user.id });
+  if (error) {
+    if (error.code === '23505') { reposted.add(postId); setRepostUiState(postId, true, 0); }
+    else alert(error.message || 'Could not repost.');
+    return;
+  }
+  reposted.add(postId);
+  setRepostUiState(postId, true, 1);
+}
+
+async function undoRepost(postId, ev) {
+  if (ev) ev.stopPropagation();
+  if (!requireLogin()) return;
+  toggleRepostMenu(postId);
+  if (!reposted.has(postId)) return;
+  const { error } = await sb.from('reposts').delete()
+    .eq('post_id', postId).eq('user_id', currentSession.user.id);
+  if (error) { alert(error.message || 'Could not undo repost.'); return; }
+  reposted.delete(postId);
+  setRepostUiState(postId, false, -1);
+}
+
+// The repost icon + count, plus its "Repost / Quote" dropdown. Kept
+// separate from postActionsHtml's other buttons since it needs two
+// distinct actions behind one icon, same as Twitter's retweet button.
+function repostMenuHtml(p) {
+  const isReposted = reposted.has(p.id);
+  return `
+    <div class="rp-menu-wrap" id="rpmenu-${p.id}">
+      <button class="act repost${isReposted ? ' reposted' : ''}" data-count="${p.repost_count || 0}" onclick="toggleRepostMenu('${p.id}', event)">
+        ${ICON.repost}<span class="act-label">${fmtCount(p.repost_count)}</span>
+      </button>
+      <div class="rp-menu-dd">
+        <button class="rp-do" style="${isReposted ? 'display:none;' : ''}" onclick="doRepost('${p.id}', event)">${ICON.repost} Repost</button>
+        <button class="rp-undo" style="${isReposted ? '' : 'display:none;'}" onclick="undoRepost('${p.id}', event)">${ICON.repost} Undo Repost</button>
+        <button onclick="openQuoteModal('${p.id}', event)">${ICON.quote} Quote</button>
+      </div>
+    </div>`;
+}
+
+// ── QUOTE POSTS ── (a quote is just a normal post row with quote_of
+// set — see submitQuote() below — so it shows up in feeds/profiles
+// through the exact same postCardHtml() path as any other post.)
+let quotingPostId = null;
+
+function quotedPostHtml(qp) {
+  if (!qp || qp.is_deleted) return `<div class="qp-embed-gone">Original post is no longer available.</div>`;
+  return `
+  <div class="qp-embed" onclick="event.stopPropagation();location.href='thread.html?id=${qp.id}'">
+    <div class="ph">${pcNameHtml(qp.profile)}<span class="dt">${timeAgo(qp.created_at)}</span></div>
+    <div class="pb">${renderBody((qp.body || '').slice(0, 280))}</div>
+    ${renderMedia(qp.media_url, qp.media_type)}
+  </div>`;
+}
+
+// Batch-fetches the posts referenced by other posts' quote_of column
+// and attaches them as p.quoted, for every post in the given array
+// that has quote_of set. Deliberately a plain `.in('id', ids)` query
+// instead of a PostgREST self-referencing embed (`posts!quote_of(...)`)
+// — that embed needs PostgREST's schema cache to have already picked
+// up the quote_of foreign key, which right after running the SQL
+// migration (or if it hasn't been run yet) it may not have, and an
+// embed that can't resolve fails the *entire* query it's attached to
+// — breaking the whole feed, not just the quote-post cards. A plain
+// id lookup can't do that: worst case, posts with a quote_of that
+// doesn't exist yet just render without their embed.
+async function attachQuotedPosts(posts) {
+  const list = Array.isArray(posts) ? posts : [posts];
+  const ids = [...new Set(list.map(p => p?.quote_of).filter(Boolean))];
+  if (!ids.length) return;
+  try {
+    const { data } = await sb.from('posts')
+      .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles(username,display_name,avatar_url)')
+      .in('id', ids);
+    const byId = Object.fromEntries((data || []).map(qp => [qp.id, qp]));
+    list.forEach(p => { if (p?.quote_of) p.quoted = byId[p.quote_of] || null; });
+  } catch (e) {
+    console.warn('Could not load quoted posts (has supabase/quotes_and_reposts.sql been run yet?)', e);
+  }
+}
+
+function openQuoteModal(postId, ev) {
+  if (ev) ev.stopPropagation();
+  if (!requireLogin()) return;
+  const p = postCache[postId];
+  quotingPostId = postId;
+  const modal = document.getElementById('modal-quote');
+  if (!modal) return; // page doesn't include the quote modal markup
+  document.getElementById('qm-body').value = '';
+  document.getElementById('qm-err').style.display = 'none';
+  document.getElementById('qm-preview').innerHTML = p ? quotedPostHtml(p) : '<div class="qp-embed-gone">Loading…</div>';
+  const avEl = document.getElementById('qm-avatar');
+  if (avEl) avEl.innerHTML = `<img src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">`;
+  modal.classList.add('open');
+  document.getElementById('qm-body').focus();
+}
+function closeQuoteModal() {
+  document.getElementById('modal-quote')?.classList.remove('open');
+  quotingPostId = null;
+}
+
+async function submitQuote() {
+  if (!quotingPostId || !requireLogin()) return;
+  const bodyEl = document.getElementById('qm-body');
+  const errEl  = document.getElementById('qm-err');
+  const btn    = document.getElementById('qm-btn');
+  const body = bodyEl.value.trim();
+  if (!body) { showErr(errEl, 'Add a comment before posting.'); return; }
+  if (body.length > 4000) { showErr(errEl, 'Comment too long (max 4000 chars).'); return; }
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.from('posts').insert({
+      author_id: currentSession.user.id,
+      body,
+      quote_of: quotingPostId
+    }).select('*, profile:profiles(username,display_name,avatar_url)').single();
+    if (error) throw error;
+    // We already have the quoted post in postCache (it's whatever card
+    // the Quote button was clicked from) — reuse it directly instead of
+    // an extra fetch. Falls back to attachQuotedPosts() if it's missing.
+    if (postCache[quotingPostId]) data.quoted = postCache[quotingPostId];
+    else await attachQuotedPosts([data]);
+    cachePost(data);
+    closeQuoteModal();
+    if (typeof addPostToFeed === 'function' && document.getElementById('feed-posts')) {
+      addPostToFeed(data, true);
+    } else {
+      // Not on the main feed (profile/search/bookmarks/thread page) —
+      // jump to the new quote post itself so posting it is never a
+      // silent no-op.
+      location.href = `thread.html?id=${data.id}`;
+    }
+  } catch (e) {
+    showErr(errEl, e.message || 'Failed to post quote.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // Copies a thread's permalink to the clipboard — the reference design's
 // share icon, wired to something real instead of a decorative no-op.
 function sharePost(id, btn) {
@@ -179,7 +378,7 @@ function pcNameHtml(profile) {
 // "···" menu with Report — matches the reference layout's icon+count row.
 // `replyAttr` is the href or onclick to use for the reply icon (feed cards
 // link out to the thread; the thread's own OP scrolls to the reply box).
-function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null, bookmarkable = true } = {}) {
+function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null, bookmarkable = true, repostable = true } = {}) {
   const isLiked = liked.has(p.id);
   const isBookmarked = bookmarkable && bookmarked.has(p.id);
   const replyTag = replyHref
@@ -190,6 +389,7 @@ function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount 
   return `
     <div class="acts">
       ${replyTag}${ICON.reply}<span class="act-label">${fmtCount(rc)}</span>${replyClose}
+      ${repostable ? repostMenuHtml(p) : ''}
       <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this)">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
       <span class="act views" title="${p.view_count || 0} views">${ICON.views}<span class="act-label">${fmtCount(p.view_count)}</span></span>
       <button class="act share" onclick="sharePost('${p.id}', this)">${ICON.share}<span class="act-label">Share</span></button>
@@ -243,6 +443,7 @@ async function deletePost(postId, ev) {
 // Twitter — but clicks on an actual link/button/menu inside it are
 // left alone so those keep working normally.
 function postCardHtml(p, flash = false) {
+  cachePost(p);
   return `
   <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" onclick="cardClick(event, '${p.id}')">
     <div class="pc-row">
@@ -252,6 +453,11 @@ function postCardHtml(p, flash = false) {
           ${pcNameHtml(p.profile)}
           <span class="dt">${timeAgo(p.created_at)}</span>
           ${postMenuHtml(p.id, null, p.author_id)}
+        </div>
+        <div class="pb">${renderBody(p.body)}</div>
+        ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
+        ${renderMedia(p.media_url, p.media_type)}
+        ${postActionsHtml(p)}
       </div>
     </div>
   </div>`;

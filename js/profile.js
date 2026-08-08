@@ -108,6 +108,7 @@ function bumpStat(elId, delta) {
 async function loadUserPosts(userId) {
   const el = document.getElementById('profile-posts');
   await ensureBookmarksLoaded();
+  await ensureRepostsLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('author_id', userId).eq('is_deleted', false)
     .order('created_at', { ascending: false }).limit(50);
@@ -120,6 +121,7 @@ async function loadUserPosts(userId) {
     el.innerHTML = `<div class="empty-note">No posts yet.</div>`;
     return;
   }
+  await attachQuotedPosts(data);
   el.innerHTML = data.map(p => postCardHtml(p)).join('');
 }
 

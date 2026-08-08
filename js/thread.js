@@ -15,11 +15,14 @@ async function loadThread() {
   if (!postId) { wrap.innerHTML = `<div class="errmsg">No post specified.</div>`; return; }
 
   await ensureBookmarksLoaded();
+  await ensureRepostsLoaded();
   const { data: p, error } = await sb.from('posts').select(POST_SELECT).eq('id', postId).eq('is_deleted', false).single();
   if (error || !p) {
     wrap.innerHTML = `<div class="errmsg">Post not found or has been removed.</div>`;
     return;
   }
+  cachePost(p);
+  await attachQuotedPosts([p]);
   document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — Otakuchan';
 
   const { data: replies } = await sb.from('replies').select(REPLY_SELECT)
@@ -39,6 +42,7 @@ async function loadThread() {
             ${postMenuHtml(p.id, null, p.author_id)}
           </div>
           <div class="pb">${renderBody(p.body)}</div>
+          ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
           ${renderMedia(p.media_url, p.media_type)}
           ${postActionsHtml(p, { replyOnclick: "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();", replyCount: allReplies.length })}
         </div>
@@ -96,7 +100,7 @@ function replyHtml(r, depth) {
         </div>
         <div class="pb">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type)}
-        ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false })}
+        ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false, repostable: false })}
       </div>
     </div>
   </div>

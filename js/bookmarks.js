@@ -11,6 +11,7 @@ async function loadBookmarks() {
   }
 
   await ensureBookmarksLoaded();
+  await ensureRepostsLoaded();
 
   const { data, error } = await sb.from('bookmarks')
     .select('post:posts(*, profile:profiles(username,display_name,avatar_url))')
@@ -25,6 +26,7 @@ async function loadBookmarks() {
     feedEl.innerHTML = `<div id="feed-empty">No bookmarks yet. Tap the bookmark icon on any post to save it here.</div>`;
     return;
   }
+  await attachQuotedPosts(posts);
   feedEl.innerHTML = posts.map(p => postCardHtml(p)).join('');
 }
 

@@ -37,6 +37,7 @@ async function runSearch() {
 
 async function searchPosts(root) {
   await ensureBookmarksLoaded();
+  await ensureRepostsLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('is_deleted', false)
     .ilike('body', `%${searchQuery}%`)
@@ -45,6 +46,7 @@ async function searchPosts(root) {
 
   if (error) { root.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
   if (!data.length) { root.innerHTML = `<div id="feed-empty">No posts found for &ldquo;${esc(searchQuery)}&rdquo;.</div>`; return; }
+  await attachQuotedPosts(data);
   root.innerHTML = data.map(p => postCardHtml(p)).join('');
 }
 

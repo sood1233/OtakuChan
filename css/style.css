@@ -357,6 +357,43 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .act.bookmark.bookmarked { color:var(--maroon); }
 .act.bookmark.bookmarked svg { fill:var(--maroon); stroke:var(--maroon); }
 
+/* ── repost (retweet) button + Repost/Quote dropdown ── */
+.rp-menu-wrap { position:relative; flex:none; }
+.act.repost svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.act.repost:hover { background:var(--green-tint,rgba(0,186,124,.10)); color:var(--green); }
+.act.repost.reposted { color:var(--green); }
+.rp-menu-dd {
+  display:none; position:absolute; left:0; bottom:34px; z-index:40; min-width:180px;
+  background:var(--cream-card); border:1px solid var(--line); border-radius:var(--r-sm);
+  box-shadow:var(--shadow-pop); overflow:hidden;
+}
+.rp-menu-wrap.open .rp-menu-dd { display:block; }
+.rp-menu-dd button {
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; cursor:pointer;
+  font-family:inherit; font-size:14px; font-weight:700; color:var(--ink); padding:10px 14px;
+}
+.rp-menu-dd button svg { width:17px; height:17px; flex:none; }
+.rp-menu-dd button:hover { background:var(--hover-bg); }
+.rp-menu-dd button.rp-undo { color:var(--green); }
+.rp-menu-dd button.rp-undo:hover { background:rgba(0,186,124,.08); }
+
+/* ── quoted-post embed (shown inside a quote post's card) ── */
+.qp-embed {
+  border:1px solid var(--line); border-radius:var(--r-md); padding:10px 12px; margin-top:8px; cursor:pointer;
+  transition:background-color .12s ease;
+}
+.qp-embed:hover { background:var(--hover-bg); }
+.qp-embed .ph { font-size:14px; margin-bottom:2px; }
+.qp-embed .pb { font-size:14.5px; }
+.qp-embed .pm img, .qp-embed .pm video { max-height:220px; }
+.qp-embed-gone { border:1px solid var(--line); border-radius:var(--r-md); padding:10px 12px; margin-top:8px; color:var(--muted); font-size:13.5px; }
+
+/* ── quote-post modal (compose a comment on top of an embedded post) ── */
+.qm-body { display:flex; gap:12px; align-items:flex-start; padding:12px 16px 0; }
+.qm-body textarea { height:80px; resize:none; border:none; padding:8px 0; font-size:17px; }
+.qm-body textarea:focus { box-shadow:none; }
+.qm-preview-wrap { padding:0 16px 4px 60px; }
+
 /* legacy classes still referenced by unused code paths — harmless if present */
 .ai { color:var(--muted); font-size:11px; display:inline-flex; align-items:center; gap:4px; padding:4px 6px; }
 .ai.flag { cursor:pointer; border-radius:999px; }
@@ -543,9 +580,9 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .follow-btn:disabled { opacity:.6; cursor:default; }
 
 .profile-stats { display:flex; gap:18px; margin-top:10px; font-size:14px; color:var(--muted); }
-.stat-item { cursor:pointer; }
+.stat-item, .stat-item:visited { cursor:pointer; color:var(--ink); font-weight:700; text-decoration:none; }
 .stat-item b { color:var(--ink); font-weight:800; }
-.stat-item:hover { text-decoration:underline; }
+.stat-item:hover { color:var(--ink); text-decoration:none; }
 
 .edit-form { display:none; margin-top:0; border-top:none; padding-top:0; }
 .edit-form.open { display:block; }
@@ -577,6 +614,9 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .notif-icon.like svg { fill:var(--like); stroke:var(--like); }
 .notif-icon.reply { background:var(--maroon-tint); color:var(--maroon); }
 .notif-icon.follow { background:var(--maroon-tint); color:var(--maroon); }
+.notif-icon.repost { background:rgba(0,186,124,.10); color:var(--green); }
+.notif-icon.quote { background:var(--maroon-tint); color:var(--maroon); }
+.notif-icon.quote svg { fill:currentColor; stroke:none; }
 .notif-body { flex:1; min-width:0; }
 .notif-body .notif-txt { font-size:14.5px; color:var(--ink); margin-top:4px; }
 .notif-body .notif-txt b { font-weight:800; }

@@ -12,6 +12,7 @@ async function loadFeed() {
   pendingPosts = [];
   hidePendingPill();
   await ensureBookmarksLoaded();
+  await ensureRepostsLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false);
 
@@ -39,6 +40,7 @@ async function loadFeed() {
     feedEl.innerHTML = `<div id="feed-empty">No posts yet. Be the first to post.</div>`;
     return;
   }
+  await attachQuotedPosts(data);
   feedEl.innerHTML = data.map(p => postCardHtml(p)).join('');
 }
 
@@ -190,6 +192,7 @@ function subscribeRealtime() {
       if (document.getElementById(`post-${p.id}`)) return;
       if (activeTab !== 'foryou') return;
       p.profile = await getProfile(p.author_id);
+      await attachQuotedPosts([p]);
       pendingPosts.push(p);
       showPendingPill();
     })

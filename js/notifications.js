@@ -8,6 +8,8 @@ const NOTIF_SELECT = '*, actor:profiles!notifications_actor_id_fkey(username,dis
 const NOTIF_ICON = {
   like:   ICON.heart,
   reply:  ICON.reply,
+  repost: ICON.repost,
+  quote:  ICON.quote,
   follow: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>'
 };
 
@@ -15,6 +17,8 @@ function notifText(n) {
   const who = `<b>${esc(n.actor?.display_name || n.actor?.username || 'Someone')}</b>`;
   if (n.type === 'like') return `${who} liked your post`;
   if (n.type === 'reply') return `${who} replied to your post`;
+  if (n.type === 'repost') return `${who} reposted your post`;
+  if (n.type === 'quote') return `${who} quoted your post`;
   if (n.type === 'follow') return `${who} followed you`;
   return who;
 }
