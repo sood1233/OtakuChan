@@ -67,12 +67,14 @@ function getAccent() {
 }
 
 let unreadNotifCount = 0;
+let unreadChatCount = 0;
 
 function renderSideNav() {
   const el = document.getElementById('side-nav');
   if (!el) return;
   const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
-  const badge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
+  const notifBadge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
+  const chatBadge = unreadChatCount > 0 ? `<span class="navbadge">${unreadChatCount > 20 ? '20+' : unreadChatCount}</span>` : '';
   const here = location.pathname.split('/').pop() || 'index.html';
   const item = (href, icon, label, extra = '') => {
     const page = href.split('?')[0];
@@ -85,8 +87,8 @@ function renderSideNav() {
   el.innerHTML =
     item('index.html', NAV_ICON.home, 'Home') +
     item('search.html', NAV_ICON.search, 'Explore') +
-    item('notifications.html', NAV_ICON.bell, 'Notifications', badge) +
-    item('chat.html', NAV_ICON.chat, 'Chat') +
+    item('notifications.html', NAV_ICON.bell, 'Notifications', notifBadge) +
+    item('chat.html', NAV_ICON.chat, 'Chat', chatBadge) +
     item('bookmarks.html', NAV_ICON.bookmark, 'Bookmarks') +
     item(ownHref, NAV_ICON.user, 'Profile') +
     `<div class="acct" id="more-wrap">
@@ -122,6 +124,7 @@ function renderMobileChrome() {
   const here = location.pathname.split('/').pop() || 'index.html';
   const cur = href => href.split('?')[0] === here ? ' cur' : '';
   const badge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
+  const chatBadge = unreadChatCount > 0 ? `<span class="navbadge">${unreadChatCount > 20 ? '20+' : unreadChatCount}</span>` : '';
   const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
   const avatar = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
 
@@ -148,7 +151,7 @@ function renderMobileChrome() {
       <a class="${cur('search.html')}" href="search.html">${NAV_ICON.search}</a>
       <a class="${cur('bookmarks.html')}" href="bookmarks.html">${NAV_ICON.bookmark}</a>
       <a class="${cur('notifications.html')}" href="notifications.html">${NAV_ICON.bell}${badge}</a>
-      <a class="${cur('chat.html')}" href="chat.html">${NAV_ICON.chat}</a>
+      <a class="${cur('chat.html')}" href="chat.html">${NAV_ICON.chat}${chatBadge}</a>
     </div>
 
     ${currentSession ? `<button id="m-fab" onclick="mobileCompose();return false;" aria-label="Post">${PLUS_ICON}</button>` : ''}

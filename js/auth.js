@@ -42,6 +42,7 @@ async function renderAuthArea() {
   if (!session) {
     currentProfile = null;
     unreadNotifCount = 0;
+    unreadChatCount = 0;
     renderSideNav(); renderMobileChrome();
     if (el) el.innerHTML = `<div class="auth-cta"><a class="cta-primary" href="signup.html">Sign up</a><a class="cta-ghost" href="login.html">Log in</a></div>`;
     refreshPostGates();
@@ -54,6 +55,8 @@ async function renderAuthArea() {
   renderSideNav(); renderMobileChrome();
   loadUnreadNotifCount();
   subscribeNotifBadge();
+  loadUnreadChatCount();
+  subscribeChatBadge();
 
   if (el) el.innerHTML = `
     <div class="acct" id="acct-wrap">
@@ -91,6 +94,29 @@ function subscribeNotifBadge() {
   notifBadgeChannel = sb.channel(`notif-badge-${currentSession.user.id}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentSession.user.id}` }, () => {
       unreadNotifCount++;
+      renderSideNav(); renderMobileChrome();
+    })
+    .subscribe();
+}
+
+// Unread DM count for the sidebar/tab-bar chat badge — counts unread
+// messages, same shape as loadUnreadNotifCount() above.
+async function loadUnreadChatCount() {
+  if (!currentSession) { unreadChatCount = 0; renderSideNav(); renderMobileChrome(); return; }
+  const { count } = await sb.from('messages').select('id', { count: 'exact', head: true })
+    .eq('recipient_id', currentSession.user.id).eq('read', false);
+  unreadChatCount = count || 0;
+  renderSideNav(); renderMobileChrome();
+}
+
+// Live-bump the chat badge the moment a new message lands, without
+// needing to be on the chat page (mirrors subscribeNotifBadge()).
+let chatBadgeChannel = null;
+function subscribeChatBadge() {
+  if (chatBadgeChannel || !currentSession) return;
+  chatBadgeChannel = sb.channel(`chat-badge-${currentSession.user.id}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${currentSession.user.id}` }, () => {
+      unreadChatCount++;
       renderSideNav(); renderMobileChrome();
     })
     .subscribe();

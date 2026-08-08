@@ -122,7 +122,13 @@ async function loadThread(session, root) {
   scrollChatToBottom();
 
   const unreadIds = (msgs || []).filter(m => m.recipient_id === session.user.id && !m.read).map(m => m.id);
-  if (unreadIds.length) await sb.from('messages').update({ read: true }).in('id', unreadIds);
+  if (unreadIds.length) {
+    await sb.from('messages').update({ read: true }).in('id', unreadIds);
+    if (typeof unreadChatCount === 'number') {
+      unreadChatCount = Math.max(0, unreadChatCount - unreadIds.length);
+      renderSideNav(); renderMobileChrome();
+    }
+  }
 
   subscribeChatRealtime(session.user.id, other.id);
 }
@@ -167,6 +173,13 @@ function subscribeChatRealtime(myId, otherId) {
       document.getElementById('chat-msgs')?.insertAdjacentHTML('beforeend', msgBubbleHtml(m, myId));
       scrollChatToBottom();
       sb.from('messages').update({ read: true }).eq('id', m.id);
+      // subscribeChatBadge() (auth.js) also reacts to this INSERT and
+      // bumps the badge — since we mark it read immediately (thread's
+      // open), undo that bump right back down.
+      if (typeof unreadChatCount === 'number' && unreadChatCount > 0) {
+        unreadChatCount--;
+        renderSideNav(); renderMobileChrome();
+      }
     })
     .subscribe();
 }
