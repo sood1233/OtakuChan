@@ -88,11 +88,13 @@ function childrenOf(replyId) {
 
 function replyHtml(r, depth) {
   const kids = childrenOf(r.id);
+  const parent = r.parent_reply_id ? allReplies.find(x => x.id === r.parent_reply_id) : null;
   return `
-  <div class="rc" id="reply-${r.id}">
+  <div class="rc${kids.length ? ' has-children' : ''}" id="reply-${r.id}">
     <div class="pc-row">
       ${pcAvatarHtml(r.profile)}
       <div class="pc-main">
+        ${parent ? `<div class="rc-reply-tag">Replying to ${pcNameHtml(parent.profile)}</div>` : ''}
         <div class="ph">
           ${pcNameHtml(r.profile)}
           <span class="dt">${timeAgo(r.created_at)}</span>

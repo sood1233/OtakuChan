@@ -66,6 +66,74 @@ function wireSidebarSearch() {
 }
 document.addEventListener('DOMContentLoaded', wireSidebarSearch);
 
+// ── WHO TO FOLLOW — right-column suggestion box (index.html, thread.html,
+// etc.). Self-contained: only runs on pages that actually have a
+// #who-to-follow container, same pattern renderSideNav() uses, so no
+// other page/script needs to know this exists. Waits on authReady so it
+// knows who to exclude (yourself + people already followed). ──
+async function renderWhoToFollow() {
+  const box = document.getElementById('who-to-follow');
+  if (!box) return;
+  box.innerHTML = `<div class="t-lbl">Who to follow</div><div class="no-t">Loading&hellip;</div>`;
+
+  const excludeIds = new Set(currentSession ? [currentSession.user.id] : []);
+  if (currentSession) {
+    const { data: follows } = await sb.from('follows').select('followee_id')
+      .eq('follower_id', currentSession.user.id);
+    (follows || []).forEach(f => excludeIds.add(f.followee_id));
+  }
+
+  // Pull a small pool of recently-active accounts and filter client-side —
+  // simplest thing that works for a suggestions box this size, no RPC needed.
+  const { data, error } = await sb.from('profiles')
+    .select('id,username,display_name,avatar_url')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error || !data) { box.innerHTML = ''; return; }
+  const suggestions = data.filter(p => !excludeIds.has(p.id)).slice(0, 3);
+  if (!suggestions.length) { box.innerHTML = ''; return; }
+
+  box.innerHTML = `<div class="t-lbl">Who to follow</div>` +
+    suggestions.map(whoRowHtml).join('') +
+    `<a class="show-more" href="search.html">Show more</a>`;
+}
+
+function whoRowHtml(profile) {
+  const uname = profile.username || 'unknown';
+  return `
+    <div class="who-row">
+      <a href="profile.html?u=${encodeURIComponent(uname)}">
+        <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="">
+      </a>
+      <a class="who-row-txt" href="profile.html?u=${encodeURIComponent(uname)}">
+        <span class="who-row-name">${esc(profile.display_name || uname)}</span>
+        <span class="who-row-handle">@${esc(uname)}</span>
+      </a>
+      <button class="who-follow-btn" onclick="whoToggleFollow('${profile.id}', this)">Follow</button>
+    </div>`;
+}
+
+async function whoToggleFollow(userId, btn) {
+  if (!requireLogin()) return;
+  btn.disabled = true;
+  try {
+    const { error } = await followUser(userId);
+    if (error) throw error;
+    // Twitter's own sidebar just drops the card once you've followed —
+    // simplest confirmation there is.
+    btn.closest('.who-row')?.remove();
+  } catch (e) {
+    btn.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!document.getElementById('who-to-follow')) return;
+  if (typeof authReady !== 'undefined') await authReady;
+  renderWhoToFollow();
+});
+
 let liked = new Set(JSON.parse(localStorage.getItem('oc_liked') || '[]'));
 
 function setLikeUiState(btn, isLiked, delta) {

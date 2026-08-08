@@ -34,6 +34,20 @@
 
 * { margin:0; padding:0; box-sizing:border-box; }
 
+/* ── SMOOTH CROSS-PAGE NAVIGATION ──
+   This is a classic multi-page app (real <a href> navigations, full
+   document loads) rather than a client-side router, so the browser's
+   built-in Cross-Document View Transitions are the right tool for
+   "smooth navigation" here: same-origin link clicks crossfade instead
+   of hard-cutting to a blank white page while the next document loads.
+   Supported in Chromium-based browsers; everywhere else this rule is
+   simply ignored and navigation behaves exactly as before. */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root) { animation-duration:.16s; animation-timing-function:ease-out; }
+::view-transition-new(root) { animation-duration:.18s; animation-timing-function:ease-out; }
+
 html { scroll-behavior:auto; }
 
 body {
@@ -258,7 +272,27 @@ select {
 /* ── MAIN LAYOUT ── */
 #main { display:flex; gap:0; padding:0; max-width:none; margin:0; align-items:flex-start; flex:1; min-width:0; }
 #feed { flex:1 1 600px; max-width:600px; min-width:0; border-left:1px solid var(--line); border-right:1px solid var(--line); min-height:100vh; }
-#sidebar { flex:0 0 350px; min-width:0; padding:8px 16px; position:sticky; top:0; }
+#sidebar { flex:0 0 350px; min-width:0; padding:8px 16px; position:sticky; top:0; max-height:100vh; overflow-y:auto; scrollbar-width:none; }
+#sidebar::-webkit-scrollbar { display:none; }
+
+/* ── WHO TO FOLLOW (right column, Twitter-style suggestions box) ── */
+.who-box { background:var(--hover-bg); border-radius:var(--r-lg); padding:4px 0 6px; margin-bottom:16px; }
+.who-box .t-lbl { margin-bottom:0; }
+.who-row { display:flex; align-items:center; gap:10px; padding:10px 16px; text-decoration:none; color:var(--ink); transition:background-color .12s ease; }
+.who-row:hover { background:rgba(15,20,25,.03); text-decoration:none; }
+.who-row .avatar { flex:none; }
+.who-row-txt { display:flex; flex-direction:column; min-width:0; flex:1; }
+.who-row-name { font-size:14px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.who-row-handle { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.who-follow-btn {
+  flex:none; font-size:13px; font-weight:800; padding:6px 14px; border-radius:999px;
+  background:var(--ink); color:#fff; border:none; cursor:pointer; transition:background-color .12s ease;
+}
+.who-follow-btn:hover { background:#272c30; }
+.who-follow-btn:disabled { opacity:.5; cursor:default; }
+.who-box .show-more { display:block; padding:12px 16px; font-size:15px; color:var(--link); text-decoration:none; border-radius:0 0 var(--r-lg) var(--r-lg); }
+.who-box .show-more:hover { background:rgba(15,20,25,.03); text-decoration:none; }
+.who-box .no-t { padding:4px 16px 12px; }
 
 /* ── SEARCH BOX (right column, decorative like the reference) ── */
 .xsearch { display:flex; align-items:center; gap:8px; background:var(--hover-bg); border-radius:999px; padding:10px 16px; margin:4px 0 16px; }
@@ -414,16 +448,32 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .rp-btn { font-family:inherit; font-size:11px; font-weight:700; background:var(--maroon-tint); border:none; border-radius:999px; padding:3px 10px; cursor:pointer; color:var(--maroon); }
 .rp-btn:hover { background:var(--maroon); color:#fff; }
 
+/* Real X reply lists stay edge-to-edge with a full-width avatar column
+   at every depth — replies don't march to the right as they nest, a
+   thin vertical line under the avatar is what shows the conversation
+   is a reply-to-a-reply. That's the look here: constant left padding,
+   a connector line, and a small "Replying to @x" tag on nested ones. */
 .rw { margin-top:0; }
-.rc { background:var(--cream-card); border:none; border-bottom:1px solid var(--line); border-radius:0; padding:12px 16px 12px 48px; margin-bottom:0; box-shadow:none; position:relative; transition:background-color .12s ease; }
+.rc { background:var(--cream-card); border:none; border-bottom:1px solid var(--line); border-radius:0; padding:12px 16px; margin-bottom:0; box-shadow:none; position:relative; transition:background-color .12s ease; }
 .rc:hover { background:var(--hover-bg); }
 .rc .pc-row { position:relative; }
-.rc .pc-avatar { width:34px; height:34px; }
-.rc .ph { font-size:14px; }
-.rc .pb { font-size:14.5px; }
+.rc .pc-avatar { width:40px; height:40px; }
+.rc .ph { font-size:15px; }
+.rc .pb { font-size:15px; }
 .rc .pm img  { max-height:280px; }
 .rc .pm video { max-height:280px; }
-.rc .acts { max-width:320px; }
+.rc .acts { max-width:340px; }
+.rc-reply-tag { font-size:13px; color:var(--muted); margin:0 0 2px; }
+.rc-reply-tag a { color:var(--maroon); text-decoration:none; }
+.rc-reply-tag a:hover { text-decoration:underline; }
+
+/* connector line: drawn under a reply's avatar whenever it has at
+   least one child, so it visually threads down into the next reply —
+   same trick X uses instead of ever-deepening indentation. */
+.rc.has-children .pc-row::after {
+  content:''; position:absolute; top:44px; bottom:-12px; left:19px;
+  width:2px; background:var(--line);
+}
 
 .rfm { background:var(--cream-card); border:none; border-top:8px solid var(--line); border-radius:0; box-shadow:none; padding:14px 16px; margin-top:0; overflow:hidden; }
 .rfm b { font-family:inherit; font-size:15px; color:var(--ink); font-weight:800; display:block; background:none; padding:0 0 10px; margin-bottom:9px; border-bottom:1px solid var(--line); }
@@ -448,13 +498,11 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 
 /* ── NESTED REPLIES (reply-to-a-reply) ── */
 .rc-children { margin:0; }
-.rc-children .rc { padding-left:76px; }
-.rc-children .rc-children .rc { padding-left:104px; }
 .rc-parent-tag { font-size:13px; color:var(--muted); margin:0 0 2px; }
 .rc-parent-tag a { color:var(--maroon); font-weight:600; }
 
 /* inline "reply to this comment" composer, toggled per-reply */
-.rc-inline-compose { display:none; padding:10px 16px 14px 48px; border-bottom:1px solid var(--line); background:var(--cream-card); }
+.rc-inline-compose { display:none; padding:10px 16px 14px; border-bottom:1px solid var(--line); background:var(--cream-card); }
 .rc-inline-compose.open { display:block; }
 .rc-inline-compose textarea { height:60px; resize:vertical; font-size:15px; }
 .rc-inline-compose .rfm-row { margin-top:8px; }
