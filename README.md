@@ -60,7 +60,16 @@ This is a plain static site — no build step, no Node server required.
 - `thread.html?id=<uuid>` — single thread with all replies, realtime new-reply updates
 - `signup.html` / `login.html` — create an account / sign in
 - `profile.html?u=<username>` — a user's public profile (avatar, bio, their posts); viewing your own adds an "Edit Profile" panel for avatar/display name/bio
+- `search.html?q=<term>` — search posts (body) or people (username/display name), tabbed
+- `bookmarks.html` — posts you've bookmarked (private to you)
+- `notifications.html` — likes, replies, and new followers; marks itself read on view, live badge count in the sidebar
+- `chat.html` / `chat.html?u=<username>` — direct messages: conversation list, or a one-on-one thread with realtime delivery
+- `settings.html` — change email/password, link to profile editing, log out
 - `rules.html` — rules, FAQ, DMCA contact info
+
+The left sidebar nav (`#side-nav`, filled in by `renderSideNav()` in
+`js/common.js`) is shared across every page instead of being copy-pasted
+HTML, so adding/reordering nav items only needs to happen in one place.
 
 ## How accounts work
 - `js/auth.js` handles sign up, log in, log out, session state, and
@@ -112,8 +121,16 @@ build already sets up for you, and what's still on you:
 
 ## Customizing
 - Colors/fonts/layout: `css/style.css`
-- Feed/thread/like/report logic: `js/board.js`, `js/thread.js`, `js/common.js`
+- Feed/thread/like/report/bookmark logic: `js/board.js`, `js/thread.js`, `js/common.js`
 - Auth/profile logic: `js/auth.js`, `js/profile.js`
+- Search: `js/search.js` (ILIKE against `posts.body` / `profiles.username`,`display_name`;
+  backed by the `pg_trgm` indexes added in `supabase/schema.sql`)
+- Notifications: `js/notifications.js` — rows are only ever created by
+  security-definer triggers on `likes`/`replies`/`follows` inserts (see
+  schema.sql), never inserted directly by the client
+- Chat: `js/chat.js` — flat `messages` table, RLS-scoped to sender/recipient,
+  realtime subscription per open thread
+- Settings: `js/settings.js` — email/password changes via `sb.auth.updateUser()`
 - Max file size / allowed types: change in **both** `js/supabase-config.js`
   (client-side check, instant feedback) **and** `supabase/schema.sql`'s
   storage bucket insert (server-side enforcement — this is the one that

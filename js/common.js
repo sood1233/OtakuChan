@@ -4,12 +4,65 @@
 
 // ── ICONS + tweet-style post card rendering ──
 const ICON = {
-  reply:  '<svg viewBox="0 0 24 24"><path d="M12 3.5C7.03 3.5 3 6.96 3 11.2c0 2.35 1.24 4.46 3.2 5.88-.13.98-.55 2.5-1.6 3.9 1.72-.2 3.29-.98 4.4-1.76.94.3 1.96.46 3 .46 4.97 0 9-3.46 9-7.72s-4.03-8.46-9-8.46z"/></svg>',
-  heart:  '<svg viewBox="0 0 24 24"><path d="M12 20.8s-6.9-4.2-9.5-8.4C.9 9.5 1.5 6 4.3 4.5c2.2-1.2 4.6-.5 6 1.3L12 8l1.7-2.2c1.4-1.8 3.8-2.5 6-1.3 2.8 1.5 3.4 5 1.8 7.9-2.6 4.2-9.5 8.4-9.5 8.4z"/></svg>',
-  views:  '<svg viewBox="0 0 24 24"><path d="M4 21V10M12 21V3M20 21v7"/></svg>',
-  share:  '<svg viewBox="0 0 24 24"><path d="M12 15.5V4M7.5 8.5L12 4l4.5 4.5M5 20h14"/></svg>',
-  menu:   '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>'
+  reply:    '<svg viewBox="0 0 24 24"><path d="M12 3.5C7.03 3.5 3 6.96 3 11.2c0 2.35 1.24 4.46 3.2 5.88-.13.98-.55 2.5-1.6 3.9 1.72-.2 3.29-.98 4.4-1.76.94.3 1.96.46 3 .46 4.97 0 9-3.46 9-7.72s-4.03-8.46-9-8.46z"/></svg>',
+  heart:    '<svg viewBox="0 0 24 24"><path d="M12 20.8s-6.9-4.2-9.5-8.4C.9 9.5 1.5 6 4.3 4.5c2.2-1.2 4.6-.5 6 1.3L12 8l1.7-2.2c1.4-1.8 3.8-2.5 6-1.3 2.8 1.5 3.4 5 1.8 7.9-2.6 4.2-9.5 8.4-9.5 8.4z"/></svg>',
+  views:    '<svg viewBox="0 0 24 24"><path d="M4 21V10M12 21V3M20 21v7"/></svg>',
+  share:    '<svg viewBox="0 0 24 24"><path d="M12 15.5V4M7.5 8.5L12 4l4.5 4.5M5 20h14"/></svg>',
+  menu:     '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4.5L5.5 21V4.5a1 1 0 0 1 1-1Z"/></svg>'
 };
+
+// ── SIDEBAR NAV — rendered into <nav id="side-nav"></nav> on every
+// page, same idea as auth.js's auth-area: one source of truth so the
+// "which link is Profile" / unread-count logic doesn't get copy-pasted
+// across every HTML file. auth.js calls this once it knows who (if
+// anyone) is logged in.
+const NAV_ICON = {
+  home:     '<svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg>',
+  search:   '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>',
+  bell:     '<svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .6-.2 1.2-.6 1.7L4 16.5h16l-1.4-2.6c-.4-.5-.6-1.1-.6-1.7V9a6 6 0 0 0-6-6Z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg>',
+  chat:     '<svg viewBox="0 0 24 24"><path d="M4 4.5h16v12H8.5L4 20.5v-16Z"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4.5L5.5 21V4.5a1 1 0 0 1 1-1Z"/></svg>',
+  user:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>',
+  gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c0-.5.1-1 0-1.5l1.9-1.5-2-3.4-2.2.9c-.7-.6-1.5-1-2.3-1.3L14.4 4h-4l-.4 2.7c-.8.3-1.6.7-2.3 1.3l-2.2-.9-2 3.4L5.4 12c-.1.5 0 1 0 1.5l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1 2.3 1.3l.4 2.7h4l.4-2.7c.8-.3 1.6-.7 2.3-1.3l2.2.9 2-3.4-1.9-1.5Z"/></svg>',
+  doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>'
+};
+
+let unreadNotifCount = 0;
+
+function renderSideNav() {
+  const el = document.getElementById('side-nav');
+  if (!el) return;
+  const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
+  const badge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
+  const here = location.pathname.split('/').pop() || 'index.html';
+  const item = (href, icon, label, extra = '') => {
+    const page = href.split('?')[0];
+    return `<a href="${href}"${page === here ? ' class="cur"' : ''}><span class="navicon">${icon}</span><span class="navlabel">${label}</span>${extra}</a>`;
+  };
+  el.innerHTML =
+    item('index.html', NAV_ICON.home, 'Home') +
+    item('search.html', NAV_ICON.search, 'Search') +
+    item('notifications.html', NAV_ICON.bell, 'Notifications', badge) +
+    item('chat.html', NAV_ICON.chat, 'Chat') +
+    item('bookmarks.html', NAV_ICON.bookmark, 'Bookmarks') +
+    item(ownHref, NAV_ICON.user, 'Profile') +
+    item('settings.html', NAV_ICON.gear, 'Settings') +
+    item('rules.html', NAV_ICON.doc, 'Rules');
+}
+
+// Wires the (formerly decorative) sidebar search box: Enter jumps to
+// the search results page with the typed query.
+function wireSidebarSearch() {
+  const input = document.getElementById('side-search');
+  if (!input) return;
+  input.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const q = input.value.trim();
+    if (q) location.href = `search.html?q=${encodeURIComponent(q)}`;
+  });
+}
+document.addEventListener('DOMContentLoaded', wireSidebarSearch);
 
 let liked = new Set(JSON.parse(localStorage.getItem('oc_liked') || '[]'));
 
@@ -31,6 +84,49 @@ async function toggleLike(postId, btn) {
   btn.dataset.count = newCount;
   const lc = btn.querySelector('.lc');
   lc.textContent = fmtCount(newCount);
+}
+
+// ── BOOKMARKS ── (private per-user; unlike `liked`, this can't just
+// live in localStorage since it needs to follow the user across
+// devices, so it's fetched fresh from the DB whenever a page renders
+// a list of posts.)
+let bookmarked = new Set();
+
+async function ensureBookmarksLoaded() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { bookmarked = new Set(); return; }
+  const { data } = await sb.from('bookmarks').select('post_id').eq('user_id', session.user.id);
+  bookmarked = new Set((data || []).map(b => b.post_id));
+}
+
+async function toggleBookmark(postId, btn) {
+  if (!requireLogin()) return;
+  const isBookmarked = bookmarked.has(postId);
+  btn.disabled = true;
+  try {
+    if (isBookmarked) {
+      const { error } = await sb.from('bookmarks').delete()
+        .eq('post_id', postId).eq('user_id', currentSession.user.id);
+      if (error) throw error;
+      bookmarked.delete(postId);
+    } else {
+      const { error } = await sb.from('bookmarks').insert({ post_id: postId, user_id: currentSession.user.id });
+      if (error) throw error;
+      bookmarked.add(postId);
+    }
+    btn.classList.toggle('bookmarked', !isBookmarked);
+    // On the bookmarks page itself, removing one should drop its card.
+    if (isBookmarked && document.body.dataset.page === 'bookmarks') {
+      document.getElementById(`post-${postId}`)?.remove();
+      if (!document.querySelector('#feed-posts .pc')) {
+        document.getElementById('feed-posts').innerHTML = `<div id="feed-empty">No bookmarks yet. Tap the bookmark icon on any post to save it here.</div>`;
+      }
+    }
+  } catch (e) {
+    alert(e.message || 'Could not update bookmark.');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // Copies a thread's permalink to the clipboard — the reference design's
@@ -83,8 +179,9 @@ function pcNameHtml(profile) {
 // "···" menu with Report — matches the reference layout's icon+count row.
 // `replyAttr` is the href or onclick to use for the reply icon (feed cards
 // link out to the thread; the thread's own OP scrolls to the reply box).
-function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null } = {}) {
+function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null, bookmarkable = true } = {}) {
   const isLiked = liked.has(p.id);
+  const isBookmarked = bookmarkable && bookmarked.has(p.id);
   const replyTag = replyHref
     ? `<a class="act reply" href="${replyHref}">`
     : `<button class="act reply" onclick="${esc(replyOnclick)}">`;
@@ -96,6 +193,7 @@ function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount 
       <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this)">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
       <span class="act views" title="${p.view_count || 0} views">${ICON.views}<span class="act-label">${fmtCount(p.view_count)}</span></span>
       <button class="act share" onclick="sharePost('${p.id}', this)">${ICON.share}<span class="act-label">Share</span></button>
+      ${bookmarkable ? `<button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}</button>` : ''}
     </div>`;
 }
 

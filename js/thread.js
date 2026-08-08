@@ -14,6 +14,7 @@ async function loadThread() {
   const wrap = document.getElementById('thread-root');
   if (!postId) { wrap.innerHTML = `<div class="errmsg">No post specified.</div>`; return; }
 
+  await ensureBookmarksLoaded();
   const { data: p, error } = await sb.from('posts').select(POST_SELECT).eq('id', postId).eq('is_deleted', false).single();
   if (error || !p) {
     wrap.innerHTML = `<div class="errmsg">Post not found or has been removed.</div>`;
@@ -95,7 +96,7 @@ function replyHtml(r, depth) {
         </div>
         <div class="pb">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type)}
-        ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length })}
+        ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false })}
       </div>
     </div>
   </div>

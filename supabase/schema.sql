@@ -405,3 +405,160 @@ create policy "users can replace their own avatar" on storage.objects
 -- No update/delete policy for anon on the 'media' bucket, and no
 -- delete policy at all on 'avatars' — removal stays reserved for the
 -- service_role key (dashboard / a moderator tool), same as table rows.
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SEARCH / BOOKMARKS / NOTIFICATIONS / DMs
+-- Added for: search.html, bookmarks.html, notifications.html, chat.html
+-- Safe to re-run, same as the rest of this file.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ───────────────────────────────────────────────────────────────────
+-- SEARCH — a trigram index makes ILIKE '%term%' fast on real data
+-- volumes instead of a full sequential scan.
+-- ───────────────────────────────────────────────────────────────────
+create extension if not exists pg_trgm;
+create index if not exists posts_body_trgm_idx on public.posts using gin (body gin_trgm_ops);
+create index if not exists profiles_username_trgm_idx on public.profiles using gin (username gin_trgm_ops);
+create index if not exists profiles_display_name_trgm_idx on public.profiles using gin (display_name gin_trgm_ops);
+
+-- ───────────────────────────────────────────────────────────────────
+-- BOOKMARKS — private to the user who saved them (unlike likes,
+-- which are public). One row per (user, post).
+-- ───────────────────────────────────────────────────────────────────
+create table if not exists public.bookmarks (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  post_id    uuid not null references public.posts(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, post_id)
+);
+create index if not exists bookmarks_user_id_idx on public.bookmarks (user_id, created_at desc);
+
+alter table public.bookmarks enable row level security;
+
+drop policy if exists "users can read own bookmarks" on public.bookmarks;
+create policy "users can read own bookmarks" on public.bookmarks
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "users can bookmark" on public.bookmarks;
+create policy "users can bookmark" on public.bookmarks
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "users can remove own bookmark" on public.bookmarks;
+create policy "users can remove own bookmark" on public.bookmarks
+  for delete using (auth.uid() = user_id);
+
+-- ───────────────────────────────────────────────────────────────────
+-- NOTIFICATIONS — one row per like/reply/follow a user receives.
+-- Rows are only ever created by the security-definer trigger
+-- functions below (there is deliberately no insert policy for
+-- anon/authenticated), so a user can never forge a notification.
+-- Recipients can read and mark-as-read their own rows only.
+-- ───────────────────────────────────────────────────────────────────
+create table if not exists public.notifications (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade, -- recipient
+  actor_id   uuid not null references public.profiles(id) on delete cascade, -- who triggered it
+  type       text not null check (type in ('like','reply','follow')),
+  post_id    uuid references public.posts(id) on delete cascade,
+  reply_id   uuid references public.replies(id) on delete cascade,
+  read       boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists notifications_user_id_idx on public.notifications (user_id, created_at desc);
+create index if not exists notifications_unread_idx on public.notifications (user_id) where read = false;
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "users can read own notifications" on public.notifications;
+create policy "users can read own notifications" on public.notifications
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "users can mark own notifications read" on public.notifications;
+create policy "users can mark own notifications read" on public.notifications
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Extend the existing like/reply/follow trigger functions to also
+-- drop a notification for the recipient (never for yourself).
+
+create or replace function public.on_like_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare recipient uuid;
+begin
+  update public.posts set like_count = like_count + 1 where id = new.post_id returning author_id into recipient;
+  if recipient is not null and recipient <> new.user_id then
+    insert into public.notifications (user_id, actor_id, type, post_id)
+    values (recipient, new.user_id, 'like', new.post_id);
+  end if;
+  return new;
+end; $$;
+
+create or replace function public.on_reply_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare recipient uuid;
+begin
+  update public.posts set reply_count = reply_count + 1 where id = new.post_id;
+  if new.parent_reply_id is not null then
+    select author_id into recipient from public.replies where id = new.parent_reply_id;
+  else
+    select author_id into recipient from public.posts where id = new.post_id;
+  end if;
+  if recipient is not null and recipient <> new.author_id then
+    insert into public.notifications (user_id, actor_id, type, post_id, reply_id)
+    values (recipient, new.author_id, 'reply', new.post_id, new.id);
+  end if;
+  return new;
+end; $$;
+
+create or replace function public.on_follow_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  update public.profiles set following_count = following_count + 1 where id = new.follower_id;
+  update public.profiles set followers_count = followers_count + 1 where id = new.followee_id;
+  insert into public.notifications (user_id, actor_id, type)
+  values (new.followee_id, new.follower_id, 'follow');
+  return new;
+end; $$;
+
+-- ───────────────────────────────────────────────────────────────────
+-- DIRECT MESSAGES — a flat message log between two users. A
+-- "conversation" is just every row where you're the sender or the
+-- recipient, grouped client-side by the other participant.
+-- ───────────────────────────────────────────────────────────────────
+create table if not exists public.messages (
+  id           uuid primary key default gen_random_uuid(),
+  sender_id    uuid not null references public.profiles(id) on delete cascade,
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  body         text not null check (char_length(body) between 1 and 2000),
+  read         boolean not null default false,
+  created_at   timestamptz not null default now(),
+  check (sender_id <> recipient_id)
+);
+create index if not exists messages_sender_idx on public.messages (sender_id, created_at desc);
+create index if not exists messages_recipient_idx on public.messages (recipient_id, created_at desc);
+
+alter table public.messages enable row level security;
+
+drop policy if exists "participants can read their messages" on public.messages;
+create policy "participants can read their messages" on public.messages
+  for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+
+drop policy if exists "logged in users can send messages" on public.messages;
+create policy "logged in users can send messages" on public.messages
+  for insert with check (auth.uid() = sender_id);
+
+drop policy if exists "recipient can mark messages read" on public.messages;
+create policy "recipient can mark messages read" on public.messages
+  for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.messages;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.notifications;
+exception when duplicate_object then null;
+end $$;

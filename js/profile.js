@@ -204,6 +204,7 @@ async function saveProfile() {
 
 async function loadUserPosts(userId) {
   const el = document.getElementById('profile-posts');
+  await ensureBookmarksLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('author_id', userId).eq('is_deleted', false)
     .order('created_at', { ascending: false }).limit(50);

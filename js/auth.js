@@ -17,14 +17,16 @@ async function getProfile(userId) {
 // [Log in] [Sign up], or the avatar + username dropdown menu.
 async function renderAuthArea() {
   const el = document.getElementById('auth-area');
-  if (!el) return;
+  renderSideNav(); // paint the nav immediately with whatever we knew last; repainted below once session settles
 
   const { data: { session } } = await sb.auth.getSession();
   currentSession = session;
 
   if (!session) {
     currentProfile = null;
-    el.innerHTML = `<div class="auth-cta"><a class="cta-primary" href="signup.html">Sign up</a><a class="cta-ghost" href="login.html">Log in</a></div>`;
+    unreadNotifCount = 0;
+    renderSideNav();
+    if (el) el.innerHTML = `<div class="auth-cta"><a class="cta-primary" href="signup.html">Sign up</a><a class="cta-ghost" href="login.html">Log in</a></div>`;
     refreshPostGates();
     return;
   }
@@ -32,8 +34,11 @@ async function renderAuthArea() {
   currentProfile = await getProfile(session.user.id);
   const uname = currentProfile?.username || 'user';
   const avatar = avatarUrl(currentProfile?.avatar_url);
+  renderSideNav();
+  loadUnreadNotifCount();
+  subscribeNotifBadge();
 
-  el.innerHTML = `
+  if (el) el.innerHTML = `
     <div class="acct" id="acct-wrap">
       <button class="acct-btn" id="acct-btn" onclick="toggleAcctMenu();return false;">
         <img class="avatar pfp-md" src="${esc(avatar)}" alt="">
@@ -46,6 +51,28 @@ async function renderAuthArea() {
       </div>
     </div>`;
   refreshPostGates();
+}
+
+// Unread notification count for the sidebar bell badge.
+async function loadUnreadNotifCount() {
+  if (!currentSession) { unreadNotifCount = 0; renderSideNav(); return; }
+  const { count } = await sb.from('notifications').select('id', { count: 'exact', head: true })
+    .eq('user_id', currentSession.user.id).eq('read', false);
+  unreadNotifCount = count || 0;
+  renderSideNav();
+}
+
+// Live-bump the bell badge the moment a new notification lands,
+// without needing to be on the notifications page.
+let notifBadgeChannel = null;
+function subscribeNotifBadge() {
+  if (notifBadgeChannel || !currentSession) return;
+  notifBadgeChannel = sb.channel(`notif-badge-${currentSession.user.id}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentSession.user.id}` }, () => {
+      unreadNotifCount++;
+      renderSideNav();
+    })
+    .subscribe();
 }
 
 function toggleAcctMenu() {

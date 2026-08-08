@@ -11,6 +11,7 @@ async function loadFeed() {
   feedEl.innerHTML = `<span class="spinner">Loading posts&hellip;</span>`;
   pendingPosts = [];
   hidePendingPill();
+  await ensureBookmarksLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false);
 

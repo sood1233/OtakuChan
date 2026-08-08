@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Post — Otakuchan</title>
+<title>Search — Otakuchan</title>
 <link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
 <link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
@@ -31,22 +31,22 @@
 
   <div id="main">
     <div id="feed" style="max-width:600px;">
-      <div class="sec-bar">Post <a class="back" href="index.html">&larr; Back to Home</a></div>
-      <div id="thread-root"><span class="spinner">Loading&hellip;</span></div>
+      <div class="search-topbar">
+        <form onsubmit="location.href='search.html?q='+encodeURIComponent(document.getElementById('sp-input').value.trim());return false;">
+          <div class="xsearch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="sp-input" placeholder="Search Otakuchan" autocomplete="off">
+          </div>
+        </form>
+      </div>
+      <div id="search-tabs" class="xtabs" style="border-bottom:1px solid var(--line);"></div>
+      <div id="search-root"><span class="spinner">Type something to search&hellip;</span></div>
     </div>
 
-    <div id="sidebar" class="xright">
-      <div class="xsearch">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="side-search" placeholder="Search Otakuchan">
-      </div>
-      <div class="trends-box" style="padding:14px 16px;">
-        <div style="font-weight:800;font-size:17px;margin-bottom:6px;">About Otakuchan</div>
-        <div style="font-size:13.5px;color:var(--muted);line-height:1.5;">Every post is public and tied to a real account. Read the <a href="rules.html">Rules</a> before posting.</div>
-      </div>
+    <div id="sidebar">
       <div id="ftr" style="padding:0;">
         [<a href="index.html">&larr; Back to Home</a>]
-        <br><span style="font-size:10px;color:#AAA;">&copy; 2026 Otakuchan &mdash; <a href="rules.html">Rules</a> &mdash; <a href="rules.html#dmca">DMCA</a></span>
+        <br><span style="font-size:10px;color:#AAA;">&copy; 2026 Otakuchan</span>
       </div>
     </div>
   </div>
@@ -75,6 +75,6 @@
 <script src="js/supabase-config.js"></script>
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/thread.js"></script>
+<script src="js/search.js"></script>
 </body>
 </html>
