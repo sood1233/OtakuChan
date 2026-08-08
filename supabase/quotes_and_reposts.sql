@@ -101,6 +101,33 @@ drop trigger if exists trg_post_insert_notify_quote on public.posts;
 create trigger trg_post_insert_notify_quote after insert on public.posts
 for each row execute function public.on_post_insert_notify_quote();
 
+-- ───────────────────────────────────────────────────────────────────
+-- QUOTE VIEW CASCADING — a view on a quote post counts as a view of
+-- the post it's quoting too (and that post's quote, if it's itself a
+-- quote, and so on up the chain), same way a quote-retweet's
+-- impressions roll up to the original tweet on Twitter. Only views
+-- cascade this way — likes/replies/reposts stay tied to whichever
+-- exact post row they were made on. Replaces the schema.sql version
+-- of this function (same signature, same grants).
+-- ───────────────────────────────────────────────────────────────────
+create or replace function public.increment_post_view(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  cur_id uuid := p_id;
+  parent_id uuid;
+  hops int := 0;
+begin
+  loop
+    update public.posts set view_count = view_count + 1 where id = cur_id and is_deleted = false;
+    select quote_of into parent_id from public.posts where id = cur_id;
+    exit when parent_id is null or hops >= 20; -- 20 is just a sanity cap against a corrupted/cyclical chain
+    cur_id := parent_id;
+    hops := hops + 1;
+  end loop;
+end; $$;
+
+grant execute on function public.increment_post_view(uuid) to anon, authenticated;
+
 -- widen the notifications type check (originally 'like'/'reply'/'follow' only)
 alter table public.notifications drop constraint if exists notifications_type_check;
 alter table public.notifications add constraint notifications_type_check

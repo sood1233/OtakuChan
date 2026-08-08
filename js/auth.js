@@ -8,6 +8,22 @@
 let currentSession = null;
 let currentProfile = null;
 
+// Resolves once the initial session check has settled — i.e. once
+// `currentSession` is safe to read (either a real session or
+// definitely null, logged out). Every page's own post-loading code
+// (board.js/profile.js/thread.js/bookmarks.js/search.js) awaits this
+// before its first render. Without it, a page's own DOMContentLoaded
+// listener can — and often does — finish its posts query before this
+// file's getSession() call resolves, rendering every post card as if
+// nobody were logged in. That's harmless for most of the UI (likes/
+// bookmarks/reposts just get corrected the moment you interact with
+// them), but "Delete" only for your own posts is baked into the menu
+// HTML at render time and never gets a second pass — so it can look
+// like Delete is permanently missing/broken depending on how that
+// race happens to land.
+let resolveAuthReady;
+const authReady = new Promise(res => { resolveAuthReady = res; });
+
 async function getProfile(userId) {
   const { data } = await sb.from('profiles').select('*').eq('id', userId).single();
   return data || null;
@@ -21,6 +37,7 @@ async function renderAuthArea() {
 
   const { data: { session } } = await sb.auth.getSession();
   currentSession = session;
+  resolveAuthReady();
 
   if (!session) {
     currentProfile = null;

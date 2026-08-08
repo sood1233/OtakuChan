@@ -131,6 +131,30 @@ build already sets up for you, and what's still on you:
   a ban/suspend flag — add a `banned boolean` column to `profiles` and
   check it in RLS if you need that).
 
+## Quotes & reposts
+Run `supabase/quotes_and_reposts.sql` in the SQL Editor after `schema.sql`
+(and `settings.sql`, if you're using it) — it's additive/idempotent like
+the others, so it's safe to run again later too. It adds:
+- **Quote posts** — a quote is just a normal `posts` row with `quote_of`
+  set to the post being quoted, so it rides along in every existing
+  feed/profile/search query for free.
+- **Reposts** — a separate `reposts` table (one row per user/post,
+  toggleable) rather than a new `posts` row, so it doesn't clutter reply
+  counts. Liking, unliking (tap the heart again), and reposting/undoing
+  a repost all work the same way: insert or delete your own row, RLS
+  enforces it can only ever be your own.
+- **View cascading** — a view on a quote post counts as a view of the
+  post it's quoting too (and on up the chain if that post is itself a
+  quote), the same way a quote-retweet's impressions roll up to the
+  original tweet on Twitter. Likes/replies/reposts never cascade this
+  way — only views.
+- **"[Name] reposted" banners** — a repost shows up in the reposting
+  user's own profile timeline (sorted by repost time, not the original
+  post's time) and in the timeline of anyone who follows them, each
+  tagged with a small banner above the card: "You reposted" on your own
+  profile, "[Display name] reposted" everywhere else. See
+  `repostBannerHtml()` in `js/common.js`.
+
 ## Customizing
 - Colors/fonts/layout: `css/style.css`
 - Feed/thread/like/report/bookmark/delete logic: `js/board.js`, `js/thread.js`, `js/common.js`.

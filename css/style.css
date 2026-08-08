@@ -276,6 +276,19 @@ select {
 .pc.flash { background:#E8F5FE; animation:flashfade 2.4s ease-out; }
 @keyframes flashfade { 0% { background:#D7EDFC; } 100% { background:#E8F5FE; } }
 
+/* "[Name] reposted" / "You reposted" line above a card that showed up
+   in a feed/profile via a repost rather than authorship. */
+.repost-banner {
+  display:flex; align-items:center; gap:8px; margin:0 0 6px 28px;
+  font-size:13px; font-weight:700; color:var(--muted);
+}
+.repost-banner svg {
+  width:15px; height:15px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
+.repost-banner a { color:var(--muted); text-decoration:none; }
+.repost-banner a:hover { text-decoration:underline; }
+
 .pc-row { display:flex; gap:12px; align-items:flex-start; }
 .pc-avatar-lnk { flex:none; line-height:0; }
 .pc-avatar { width:40px; height:40px; }
@@ -583,6 +596,7 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .stat-item, .stat-item:visited { cursor:pointer; color:var(--ink); font-weight:700; text-decoration:none; }
 .stat-item b { color:var(--ink); font-weight:800; }
 .stat-item:hover { color:var(--ink); text-decoration:none; }
+.stat-item.stat-static { cursor:default; }
 
 .edit-form { display:none; margin-top:0; border-top:none; padding-top:0; }
 .edit-form.open { display:block; }

@@ -68,24 +68,44 @@ document.addEventListener('DOMContentLoaded', wireSidebarSearch);
 
 let liked = new Set(JSON.parse(localStorage.getItem('oc_liked') || '[]'));
 
-async function toggleLike(postId, btn) {
-  if (!requireLogin()) return;
-  if (liked.has(postId)) return; // one like per account
-  const { error } = await sb.from('likes').insert({ post_id: postId, user_id: currentSession.user.id });
-  if (error) {
-    if (error.code === '23505') { // unique violation — already liked
-      liked.add(postId);
-      localStorage.setItem('oc_liked', JSON.stringify([...liked]));
-    }
-    return;
-  }
-  liked.add(postId);
-  localStorage.setItem('oc_liked', JSON.stringify([...liked]));
-  btn.classList.add('liked');
-  const newCount = (parseInt(btn.dataset.count, 10) || 0) + 1;
+function setLikeUiState(btn, isLiked, delta) {
+  btn.classList.toggle('liked', isLiked);
+  const newCount = Math.max((parseInt(btn.dataset.count, 10) || 0) + delta, 0);
   btn.dataset.count = newCount;
   const lc = btn.querySelector('.lc');
-  lc.textContent = fmtCount(newCount);
+  if (lc) lc.textContent = fmtCount(newCount);
+}
+
+// Toggles like/unlike — mirrors toggleBookmark's insert-or-delete pattern.
+async function toggleLike(postId, btn) {
+  if (!requireLogin()) return;
+  const isLiked = liked.has(postId);
+  btn.disabled = true;
+  try {
+    if (isLiked) {
+      const { error } = await sb.from('likes').delete()
+        .eq('post_id', postId).eq('user_id', currentSession.user.id);
+      if (error) throw error;
+      liked.delete(postId);
+      setLikeUiState(btn, false, -1);
+    } else {
+      const { error } = await sb.from('likes').insert({ post_id: postId, user_id: currentSession.user.id });
+      if (error) {
+        if (error.code === '23505') { // unique violation — already liked elsewhere
+          liked.add(postId);
+          setLikeUiState(btn, true, 0);
+        } else throw error;
+        return;
+      }
+      liked.add(postId);
+      setLikeUiState(btn, true, 1);
+    }
+    localStorage.setItem('oc_liked', JSON.stringify([...liked]));
+  } catch (e) {
+    alert(e.message || 'Could not update like.');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ── BOOKMARKS ── (private per-user; unlike `liked`, this can't just
@@ -417,14 +437,22 @@ function postMenuHtml(postId, replyId = null, authorId = null) {
 // Soft-deletes one of the current user's own posts (sets is_deleted =
 // true; RLS already lets an author update their own post — see
 // "users can edit own posts" in schema.sql — so no new policy is
-// needed for this). Removes the card from whichever page it's on;
-// on thread.html, where the post is the whole page, sends the user
-// back to the board instead.
+// needed for this). Removes the card from whichever page it's on —
+// using data-post-id + querySelectorAll rather than the (non-unique,
+// once reposts can duplicate a post onto the same page) "post-<id>"
+// element id, so every copy of the post disappears, not just the
+// first one found. On thread.html, where the post is the whole page,
+// sends the user back to the board instead.
 async function deletePost(postId, ev) {
   if (ev) { ev.stopPropagation(); togglePostMenu(postId, ev); }
   if (!requireLogin()) return;
   if (!confirm('Delete this post? This can\'t be undone.')) return;
   try {
+    // Deliberately no .select() here: once is_deleted flips to true the
+    // row stops matching the "read non-deleted posts" RLS policy, so a
+    // RETURNING clause would come back empty even on a successful
+    // delete and make this look like it failed. An empty error is the
+    // correct success signal for this particular update.
     const { error } = await sb.from('posts').update({ is_deleted: true })
       .eq('id', postId).eq('author_id', currentSession.user.id);
     if (error) throw error;
@@ -432,20 +460,46 @@ async function deletePost(postId, ev) {
       location.href = 'index.html';
       return;
     }
-    document.getElementById(`post-${postId}`)?.remove();
+    document.querySelectorAll(`[data-post-id="${postId}"]`).forEach(el => el.remove());
+    // If we're looking at a profile page's post count, the only way a
+    // Delete button can even show is on your own post, and the only
+    // profile a Delete button can appear on is your own (other
+    // people's posts never render Delete for you) — so this is always
+    // safe to decrement when it's present.
+    if (typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
   } catch (e) {
     alert(e.message || 'Could not delete that post.');
   }
 }
 
+// The small "↻ [Name] reposted" line shown above a card that's in a
+// feed/profile only because someone reposted it (not authored it) —
+// same idea as Twitter. `reposter` is {id, username, display_name}.
+// "You reposted" when the reposter is the person currently logged in
+// (own profile's repost list, or your repost showing in your own
+// view); otherwise it links to the reposter's profile.
+function repostBannerHtml(reposter) {
+  if (!reposter) return '';
+  const isYou = currentSession && currentSession.user.id === reposter.id;
+  const name = esc(reposter.display_name || reposter.username);
+  const label = isYou ? 'You reposted' : `${name} reposted`;
+  const inner = isYou
+    ? `<span>${label}</span>`
+    : `<a href="profile.html?u=${encodeURIComponent(reposter.username)}" onclick="event.stopPropagation()">${label}</a>`;
+  return `<div class="repost-banner">${ICON.repost}${inner}</div>`;
+}
+
 // Full tweet-style post card — used by the main feed and profile page.
 // The whole card is clickable (opens the post's comments), matching
 // Twitter — but clicks on an actual link/button/menu inside it are
-// left alone so those keep working normally.
+// left alone so those keep working normally. If `p._repostedBy` is
+// set (see board.js/profile.js), a "[Name] reposted" banner is shown
+// above the card, same as Twitter.
 function postCardHtml(p, flash = false) {
   cachePost(p);
   return `
-  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" onclick="cardClick(event, '${p.id}')">
+  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" onclick="cardClick(event, '${p.id}')">
+    ${repostBannerHtml(p._repostedBy)}
     <div class="pc-row">
       ${pcAvatarHtml(p.profile)}
       <div class="pc-main">

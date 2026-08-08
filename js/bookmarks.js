@@ -30,4 +30,7 @@ async function loadBookmarks() {
   feedEl.innerHTML = posts.map(p => postCardHtml(p)).join('');
 }
 
-document.addEventListener('DOMContentLoaded', loadBookmarks);
+document.addEventListener('DOMContentLoaded', async () => {
+  await authReady; // see auth.js — otherwise cards can render before we know who's logged in
+  loadBookmarks();
+});

@@ -16,6 +16,19 @@ async function loadFeed() {
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false);
 
+  // "Following" also pulls in reposts made by people you follow —
+  // same as Twitter's home timeline — each carrying a "[Name]
+  // reposted" banner and slotting in at repost time, not post time.
+  //
+  // Reposts are fetched as plain reposts-row + posts-by-id + profiles-
+  // by-id lookups, never as a `reposts.select('post:posts(...)')`
+  // embed — `reposts` and its foreign keys are recent additions, and
+  // an embed that PostgREST's schema cache hasn't picked up yet fails
+  // its *entire* query, not just the repost part (see the comment
+  // above attachQuotedPosts() in common.js for the same reasoning
+  // applied to quote_of).
+  let combined = null;
+
   if (activeTab === 'following') {
     if (!currentSession) {
       feedEl.innerHTML = `<div id="feed-empty">Log in and follow people to see their posts here.</div>`;
@@ -28,9 +41,51 @@ async function loadFeed() {
       return;
     }
     query = query.in('author_id', ids);
+
+    const [ownRes, repostRowsRes] = await Promise.all([
+      query.order('created_at', { ascending: false }).limit(100),
+      sb.from('reposts').select('post_id, user_id, created_at')
+        .in('user_id', ids)
+        .order('created_at', { ascending: false }).limit(100)
+    ]);
+
+    if (ownRes.error) {
+      feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(ownRes.error.message)}</div>`;
+      return;
+    }
+
+    const ownPosts = (ownRes.data || []).map(p => ({ ...p, _sortTime: p.created_at }));
+
+    let repostedPosts = [];
+    const repostRows = repostRowsRes.data || [];
+    if (repostRowsRes.error) console.warn('reposts lookup failed', repostRowsRes.error);
+    if (repostRows.length) {
+      const postIds = [...new Set(repostRows.map(r => r.post_id))];
+      const reposterIds = [...new Set(repostRows.map(r => r.user_id))];
+      const [{ data: repostedPostRows, error: postsErr }, { data: reposterProfiles, error: profErr }] = await Promise.all([
+        sb.from('posts').select(POST_SELECT).in('id', postIds).eq('is_deleted', false),
+        sb.from('profiles').select('id,username,display_name').in('id', reposterIds)
+      ]);
+      if (postsErr) console.warn('reposted posts lookup failed', postsErr);
+      if (profErr) console.warn('reposter profiles lookup failed', profErr);
+      const postById = new Map((repostedPostRows || []).map(p => [p.id, p]));
+      const profById = new Map((reposterProfiles || []).map(p => [p.id, p]));
+      repostedPosts = repostRows
+        .map(r => {
+          const p = postById.get(r.post_id);
+          const reposter = profById.get(r.user_id);
+          return (p && reposter) ? { ...p, _sortTime: r.created_at, _repostedBy: reposter } : null;
+        })
+        .filter(Boolean);
+    }
+
+    combined = [...ownPosts, ...repostedPosts]
+      .sort((a, b) => new Date(b._sortTime) - new Date(a._sortTime))
+      .slice(0, 100);
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false }).limit(100);
+  const { data, error } = combined ? { data: combined, error: null }
+    : await query.order('created_at', { ascending: false }).limit(100);
 
   if (error) {
     feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(error.message)}</div>`;
@@ -207,7 +262,8 @@ function subscribeRealtime() {
     .subscribe();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await authReady; // see auth.js — otherwise cards can render before we know who's logged in
   loadFeed();
   loadTrending();
   subscribeRealtime();

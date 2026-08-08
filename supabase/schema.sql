@@ -32,6 +32,7 @@ create index if not exists profiles_username_idx on public.profiles (lower(usern
 -- against a profiles table that already existed before this feature.
 alter table public.profiles add column if not exists followers_count integer not null default 0;
 alter table public.profiles add column if not exists following_count integer not null default 0;
+alter table public.profiles add column if not exists posts_count     integer not null default 0;
 
 -- Auto-create a profile row whenever someone signs up. The username
 -- comes from the "username" field passed in supabase.auth.signUp()'s
@@ -143,6 +144,42 @@ create index if not exists reports_resolved_idx    on public.reports (resolved);
 -- ───────────────────────────────────────────────────────────────────
 -- TRIGGERS — keep denormalized counters in sync
 -- ───────────────────────────────────────────────────────────────────
+
+-- profiles.posts_count — every post you author counts (quote posts
+-- included, since a quote is just a normal posts row — see
+-- quotes_and_reposts.sql), and it goes back down when you soft-delete
+-- one. A backfill for accounts that already had posts before this
+-- column existed runs right after the trigger is created below.
+create or replace function public.on_post_insert_bump_count() returns trigger
+language plpgsql security definer as $$
+begin
+  update public.profiles set posts_count = posts_count + 1 where id = new.author_id;
+  return new;
+end; $$;
+
+drop trigger if exists trg_post_insert_bump_count on public.posts;
+create trigger trg_post_insert_bump_count after insert on public.posts
+for each row execute function public.on_post_insert_bump_count();
+
+create or replace function public.on_post_soft_delete_bump_count() returns trigger
+language plpgsql security definer as $$
+begin
+  if new.is_deleted = true and old.is_deleted = false then
+    update public.profiles set posts_count = greatest(posts_count - 1, 0) where id = new.author_id;
+  end if;
+  return new;
+end; $$;
+
+drop trigger if exists trg_post_soft_delete_bump_count on public.posts;
+create trigger trg_post_soft_delete_bump_count after update on public.posts
+for each row execute function public.on_post_soft_delete_bump_count();
+
+-- One-time backfill so accounts with posts predating this column show
+-- the right number immediately instead of 0 until their next post.
+-- Safe to re-run — it just recomputes the true count each time.
+update public.profiles p set posts_count = (
+  select count(*) from public.posts po where po.author_id = p.id and po.is_deleted = false
+);
 
 create or replace function public.on_reply_insert() returns trigger
 language plpgsql security definer as $$

@@ -221,6 +221,7 @@ function subscribeRealtime() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await authReady; // see auth.js — otherwise cards can render before we know who's logged in
   await loadThread();
   if (postId) subscribeRealtime();
 });

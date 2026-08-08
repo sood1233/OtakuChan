@@ -45,6 +45,7 @@ async function loadProfile() {
         <div class="handle">@${esc(profile.username)}</div>
         <div class="bio">${esc(profile.bio || '')}</div>
         <div class="profile-stats">
+          <span class="stat-item stat-static"><b id="stat-posts">${fmtCount(profile.posts_count)}</b> Posts</span>
           <a class="stat-item" href="${flu('followers')}"><b id="stat-followers">${fmtCount(profile.followers_count)}</b> Followers</a>
           <a class="stat-item" href="${flu('following')}"><b id="stat-following">${fmtCount(profile.following_count)}</b> Following</a>
         </div>
@@ -105,24 +106,70 @@ function bumpStat(elId, delta) {
   el.textContent = fmtCount(Math.max(raw + delta, 0));
 }
 
+// Profile timeline = this user's own posts + posts they've reposted,
+// merged and sorted like Twitter does — a repost slots in at the time
+// it was reposted, not the original post's time, and carries a
+// "You reposted" / "[Name] reposted" banner (see repostBannerHtml in
+// common.js).
+//
+// Reposts are fetched as a plain reposts row lookup + a separate
+// posts-by-id lookup, rather than one query with a `post:posts(...)`
+// embed — same reasoning as attachQuotedPosts() below: `reposts` and
+// its FK to `posts` are recent additions, and until PostgREST's schema
+// cache has definitely picked them up, an embed that can't resolve
+// fails its *entire* query rather than just that part of it. Two
+// plain queries can't do that.
 async function loadUserPosts(userId) {
   const el = document.getElementById('profile-posts');
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
-  const { data, error } = await sb.from('posts').select(POST_SELECT)
-    .eq('author_id', userId).eq('is_deleted', false)
-    .order('created_at', { ascending: false }).limit(50);
 
-  if (error) {
-    el.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`;
+  const [ownRes, repostRowsRes] = await Promise.all([
+    sb.from('posts').select(POST_SELECT)
+      .eq('author_id', userId).eq('is_deleted', false)
+      .order('created_at', { ascending: false }).limit(50),
+    sb.from('reposts').select('post_id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }).limit(50)
+  ]);
+
+  if (ownRes.error) {
+    el.innerHTML = `<div class="errmsg">${esc(ownRes.error.message)}</div>`;
     return;
   }
-  if (!data.length) {
+
+  const ownPosts = (ownRes.data || []).map(p => ({ ...p, _sortTime: p.created_at }));
+
+  let repostedPosts = [];
+  const repostRows = repostRowsRes.data || [];
+  if (repostRowsRes.error) console.warn('reposts lookup failed', repostRowsRes.error);
+  if (repostRows.length) {
+    const postIds = [...new Set(repostRows.map(r => r.post_id))];
+    const { data: repostedPostRows, error: postsErr } = await sb.from('posts').select(POST_SELECT)
+      .in('id', postIds).eq('is_deleted', false);
+    if (postsErr) console.warn('reposted posts lookup failed', postsErr);
+    const postById = new Map((repostedPostRows || []).map(p => [p.id, p]));
+    const reposterInfo = { id: viewedProfile.id, username: viewedProfile.username, display_name: viewedProfile.display_name };
+    repostedPosts = repostRows
+      .map(r => {
+        const p = postById.get(r.post_id);
+        return p ? { ...p, _sortTime: r.created_at, _repostedBy: reposterInfo } : null;
+      })
+      .filter(Boolean);
+  }
+
+  const combined = [...ownPosts, ...repostedPosts]
+    .sort((a, b) => new Date(b._sortTime) - new Date(a._sortTime));
+
+  if (!combined.length) {
     el.innerHTML = `<div class="empty-note">No posts yet.</div>`;
     return;
   }
-  await attachQuotedPosts(data);
-  el.innerHTML = data.map(p => postCardHtml(p)).join('');
+  await attachQuotedPosts(combined);
+  el.innerHTML = combined.map(p => postCardHtml(p)).join('');
 }
 
-document.addEventListener('DOMContentLoaded', loadProfile);
+document.addEventListener('DOMContentLoaded', async () => {
+  await authReady; // see auth.js — otherwise cards can render before we know who's logged in
+  loadProfile();
+});
