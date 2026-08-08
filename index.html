@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Otakuchan</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#0EA5E9">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="xshell">
+  <!-- LEFT SIDEBAR -->
+  <div id="hdr">
+    <div class="sb-top">
+      <a class="logo" href="/">
+        <span class="badge">
+          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
+          </svg>
+        </span>
+        <span class="wordmark">Otaku<em>chan</em></span>
+      </a>
+      <nav>
+        <a href="index.html">
+          <span class="navicon"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg></span>
+          <span class="navlabel">Home</span>
+        </a>
+        <a href="rules.html">
+          <span class="navicon"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg></span>
+          <span class="navlabel">Rules</span>
+        </a>
+        <a href="rules.html#faq">
+          <span class="navicon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7v.4"/><path d="M12 17h.01"/></svg></span>
+          <span class="navlabel">FAQ</span>
+        </a>
+      </nav>
+    </div>
+    <span id="auth-area" class="auth-area"></span>
+  </div>
+
+  <!-- CENTER + RIGHT -->
+  <div id="main">
+    <div id="feed">
+      <!-- TABS -->
+      <div id="board-hdr">
+        <div class="xtabs" id="xtabs">
+          <button class="xtab active" id="tab-foryou" onclick="switchTab('foryou');return false;">For you</button>
+          <button class="xtab" id="tab-following" onclick="switchTab('following');return false;">Following</button>
+        </div>
+        <button class="xtabs-plus" title="Board info" onclick="location.href='rules.html';return false;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+
+      <!-- POST FORM -->
+      <div id="pf-wrap">
+        <div id="pf-box" data-requires-auth style="display:none;">
+          <div class="pf-row">
+            <span class="pf-avatar" id="pf-avatar"></span>
+            <div class="pf-col">
+              <div class="errmsg" id="pf-err" style="display:none;"></div>
+              <textarea id="pf-body" maxlength="4000" placeholder="What's happening?"></textarea>
+              <div id="pf-fp" class="fp"></div>
+            </div>
+          </div>
+          <div class="pf-toolbar">
+            <div class="pf-icons">
+              <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('pf-file').click();return false;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
+              </button>
+              <button type="button" class="pf-ic" title="GIF" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
+              </button>
+              <button type="button" class="pf-ic" title="Poll" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v2M12 11v6M17 8v10"/></svg>
+              </button>
+              <button type="button" class="pf-ic" title="Emoji" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
+              </button>
+              <button type="button" class="pf-ic" title="Schedule" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13.5h1M12 13.5h1M16 13.5h1M8 17h1M12 17h1"/></svg>
+              </button>
+              <button type="button" class="pf-ic" title="Location" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
+              </button>
+              <input type="file" id="pf-file" accept="image/*,video/*" style="display:none;">
+            </div>
+            <input type="submit" id="pf-btn" class="pf-btn" value="Post" onclick="submitPost();return false;" disabled>
+          </div>
+          <span id="pf-st" style="font-size:11px;color:var(--muted);"></span>
+        </div>
+        <div class="post-login-gate" data-requires-anon style="display:none;">
+          You need an account to post. <a href="login.html">Log in</a> or <a href="signup.html">sign up</a> — it takes a minute.
+        </div>
+      </div>
+
+      <a href="#" id="show-new-pill" class="show-new-pill" onclick="flushPendingPosts();return false;" style="display:none;"></a>
+
+      <div id="feed-posts"><span class="spinner">Loading posts&hellip;</span></div>
+    </div>
+
+    <div id="sidebar">
+      <div class="xsearch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        <input placeholder="Search Otakuchan" disabled>
+      </div>
+
+      <div class="trends-box">
+        <div class="t-lbl">Most Trending</div>
+        <div id="t-trending"></div>
+      </div>
+
+      <div id="ftr">
+        [<a href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">Top</a>]
+        &nbsp;&mdash;&nbsp;
+        All trademarks and copyrights are owned by their respective parties. Images and comments are the responsibility of the poster.
+        <br><span style="font-size:10px;color:#AAA;">&copy; 2026 Otakuchan &mdash; <a href="rules.html">Rules</a> &mdash; <a href="rules.html#dmca">DMCA</a></span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-bg" id="modal-report">
+  <div class="modal">
+    <a class="modal-close" href="#" onclick="closeReport();return false;">&#10005;</a>
+    <h2>Report Post</h2>
+    <label>Reason</label>
+    <select id="report-reason">
+      <option value="illegal">Illegal content</option>
+      <option value="spam">Spam</option>
+      <option value="doxxing">Doxxing / personal info</option>
+      <option value="harassment">Harassment</option>
+      <option value="other">Other</option>
+    </select>
+    <label>Details (optional)</label>
+    <textarea id="report-details" rows="3" maxlength="500"></textarea>
+    <button class="modal-btn" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/board.js"></script>
+</body>
+</html>

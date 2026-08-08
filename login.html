@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In — Otakuchan</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#0EA5E9">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="xshell">
+  <div id="hdr">
+    <div class="sb-top">
+      <a class="logo" href="/">
+        <span class="badge">
+          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
+          </svg>
+        </span>
+        <span class="wordmark">Otaku<em>chan</em></span>
+      </a>
+      <nav>
+        <a href="index.html">
+          <span class="navicon"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg></span>
+          <span class="navlabel">Home</span>
+        </a>
+        <a href="rules.html">
+          <span class="navicon"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg></span>
+          <span class="navlabel">Rules</span>
+        </a>
+        <a href="rules.html#faq">
+          <span class="navicon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7v.4"/><path d="M12 17h.01"/></svg></span>
+          <span class="navlabel">FAQ</span>
+        </a>
+      </nav>
+    </div>
+    <span id="auth-area" class="auth-area"></span>
+  </div>
+  <div class="auth-wrap">
+  <div class="auth-card">
+    <b>Log In</b>
+    <div class="auth-body">
+      <div class="errmsg" id="li-err" style="display:none;"></div>
+      <form id="li-form" onsubmit="doLogIn(event)">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="li-email" required autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="li-password" required autocomplete="current-password">
+        </div>
+        <input type="submit" id="li-btn" class="auth-submit" value="Log In">
+      </form>
+      <div class="auth-switch">No account yet? <a href="signup.html">Sign up</a></div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>
