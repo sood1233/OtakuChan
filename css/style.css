@@ -223,7 +223,7 @@ textarea:focus-visible, select:focus-visible, .bl:focus-visible, .br:focus-visib
 /* ── TABS — sticky "For you / Following" header of the center column ── */
 #board-hdr {
   position:sticky; top:0; z-index:5;
-  background:rgba(255,255,255,.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  background:var(--translucent-bg); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   border-bottom:1px solid var(--line);
   display:flex; align-items:stretch;
 }
@@ -315,7 +315,7 @@ select {
   background:none; color:var(--ink); font-weight:800; font-size:19px;
   padding:12px 16px; margin-bottom:0; display:flex; align-items:baseline; gap:8px;
   border:none; border-bottom:1px solid var(--line); border-radius:0; font-family:inherit;
-  position:sticky; top:0; background-color:rgba(255,255,255,.85); backdrop-filter:blur(8px); z-index:5;
+  position:sticky; top:0; background-color:var(--translucent-bg); backdrop-filter:blur(8px); z-index:5;
 }
 .sec-bar .sub { font-weight:400; font-size:13px; color:var(--muted); }
 .sec-bar a.back { color:var(--maroon); font-size:14px; font-weight:700; margin-left:auto; text-decoration:none; }

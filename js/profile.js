@@ -53,7 +53,12 @@ async function loadProfile() {
       </div>
     </div>
 
-    <div class="sec-bar">Posts by @${esc(profile.username)}</div>
+    <div id="profile-tabs" class="sec-bar" style="padding:0;">
+      <div class="xtabs">
+        <button class="xtab active" id="ptab-posts" onclick="switchProfileTab('posts');return false;">Posts</button>
+        <button class="xtab" id="ptab-replies" onclick="switchProfileTab('replies');return false;">Replies</button>
+      </div>
+    </div>
     <div id="profile-posts"><span class="spinner">Loading posts&hellip;</span></div>
   `;
 
@@ -62,6 +67,104 @@ async function loadProfile() {
   }
 
   loadUserPosts(profile.id);
+}
+
+// ── POSTS / REPLIES TABS ──
+// "Posts" = the existing own-posts + reposts timeline (unchanged).
+// "Replies" = every reply this person has left on other posts/replies,
+// each shown with a small "Replying to @x" tag and linking straight
+// into the thread at that reply, same as Twitter's second profile tab.
+let profileTab = 'posts';
+let postsRendered = false;
+let repliesRendered = false;
+
+function switchProfileTab(tab) {
+  if (tab === profileTab) return;
+  profileTab = tab;
+  document.getElementById('ptab-posts').classList.toggle('active', tab === 'posts');
+  document.getElementById('ptab-replies').classList.toggle('active', tab === 'replies');
+  if (tab === 'posts') {
+    if (!postsRendered) loadUserPosts(viewedProfile.id);
+  } else {
+    if (!repliesRendered) loadUserReplies(viewedProfile.id);
+  }
+}
+
+const REPLY_SELECT = '*, profile:profiles(username,display_name,avatar_url)';
+
+async function loadUserReplies(userId) {
+  const el = document.getElementById('profile-posts');
+  el.innerHTML = `<span class="spinner">Loading replies&hellip;</span>`;
+
+  const { data: replies, error } = await sb.from('replies').select(REPLY_SELECT)
+    .eq('author_id', userId).eq('is_deleted', false)
+    .order('created_at', { ascending: false }).limit(50);
+
+  if (error) {
+    el.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`;
+    return;
+  }
+  if (!replies.length) {
+    el.innerHTML = `<div class="empty-note">No replies yet.</div>`;
+    repliesRendered = true;
+    return;
+  }
+
+  // Same reasoning as loadUserPosts()/attachQuotedPosts(): plain
+  // by-id lookups instead of a nested `post:posts(...)` embed, so a
+  // schema-cache-lagged FK can't fail the whole query.
+  const postIds = [...new Set(replies.map(r => r.post_id))];
+  const parentIds = [...new Set(replies.filter(r => r.parent_reply_id).map(r => r.parent_reply_id))];
+  const [postsRes, parentsRes] = await Promise.all([
+    sb.from('posts').select('id,author_id,profile:profiles(username,display_name,avatar_url)').in('id', postIds),
+    parentIds.length
+      ? sb.from('replies').select('id,profile:profiles(username,display_name,avatar_url)').in('id', parentIds)
+      : Promise.resolve({ data: [] })
+  ]);
+  const postById = new Map((postsRes.data || []).map(p => [p.id, p]));
+  const parentById = new Map((parentsRes.data || []).map(r => [r.id, r]));
+
+  el.innerHTML = replies.map(r => {
+    const post = postById.get(r.post_id);
+    const parent = r.parent_reply_id ? parentById.get(r.parent_reply_id) : null;
+    const replyingToProfile = parent ? parent.profile : post?.profile;
+    return replyCardHtml(r, replyingToProfile);
+  }).join('');
+  repliesRendered = true;
+}
+
+// Same "click the card, not an interactive bit inside it" behavior
+// as cardClick() in common.js, just landing on the reply's spot in
+// the thread instead of the top of it.
+function replyCardClick(ev, postId, replyId) {
+  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
+  location.href = `thread.html?id=${postId}#reply-${replyId}`;
+}
+
+// A reply rendered on the Replies tab — a normal post-card layout
+// plus the "Replying to @x" tag, linking into the thread at that
+// specific reply. Bookmark/repost are left off, same as a reply card
+// on the thread page itself (see replyHtml() in thread.js).
+function replyCardHtml(r, replyingToProfile) {
+  cachePost(r);
+  const uname = replyingToProfile?.username;
+  return `
+  <div class="pc" data-post-id="${r.id}" onclick="replyCardClick(event, '${r.post_id}', '${r.id}')">
+    <div class="pc-row">
+      ${pcAvatarHtml(r.profile)}
+      <div class="pc-main">
+        ${uname ? `<div class="rc-reply-tag">Replying to <a href="profile.html?u=${encodeURIComponent(uname)}" onclick="event.stopPropagation()">@${esc(uname)}</a></div>` : ''}
+        <div class="ph">
+          ${pcNameHtml(r.profile)}
+          <span class="dt">${timeAgo(r.created_at)}</span>
+          ${postMenuHtml(r.post_id, r.id)}
+        </div>
+        <div class="pb">${renderBody(r.body)}</div>
+        ${renderMedia(r.media_url, r.media_type)}
+        ${postActionsHtml(r, { replyHref: `thread.html?id=${r.post_id}#reply-${r.id}`, bookmarkable: false, repostable: false })}
+      </div>
+    </div>
+  </div>`;
 }
 
 // ── FOLLOW BUTTON ──
@@ -163,10 +266,12 @@ async function loadUserPosts(userId) {
 
   if (!combined.length) {
     el.innerHTML = `<div class="empty-note">No posts yet.</div>`;
+    postsRendered = true;
     return;
   }
   await attachQuotedPosts(combined);
   el.innerHTML = combined.map(p => postCardHtml(p)).join('');
+  postsRendered = true;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
