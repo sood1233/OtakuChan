@@ -565,6 +565,90 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MOBILE APP CHROME — top bar + bottom tab bar + slide-out drawer,
+   built by renderMobileChrome() in common.js and injected on every
+   page. Desktop's left icon rail / #hdr is swapped out for this
+   below the breakpoint, matching the native X app's mobile-web
+   layout rather than just shrinking the desktop one down.
+   ═══════════════════════════════════════════════════════════════ */
+#m-topbar, #m-tabbar, #m-fab, .m-drawer-bg { display:none; }
+
+@media (max-width:700px) {
+  #hdr { display:none; }
+  #main { padding-top:53px; padding-bottom:calc(50px + env(safe-area-inset-bottom)); }
+  #sidebar, .xright { display:none; }
+
+  #m-topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; height:53px;
+    padding:0 14px; background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line); z-index:900;
+  }
+  #m-topbar .m-avatar-btn { background:none; border:none; padding:0; line-height:0; cursor:pointer; }
+  #m-topbar .m-avatar-btn img { width:32px; height:32px; }
+  #m-topbar .m-logo { flex:none; line-height:0; }
+  #m-topbar .m-logo .onigiri { width:26px; height:26px; }
+  #m-topbar .m-pill {
+    font-family:inherit; font-size:14px; font-weight:800; color:#fff; background:var(--ink);
+    border:none; border-radius:999px; padding:7px 15px; text-decoration:none; cursor:pointer; white-space:nowrap;
+  }
+  #m-topbar .m-pill:hover { background:#272c30; text-decoration:none; }
+
+  #m-tabbar {
+    display:flex; position:fixed; bottom:0; left:0; right:0; z-index:900;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
+    border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);
+  }
+  #m-tabbar a {
+    flex:1; display:flex; align-items:center; justify-content:center; position:relative;
+    height:50px; color:var(--ink); text-decoration:none;
+  }
+  #m-tabbar a svg { width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  #m-tabbar a.cur svg { fill:currentColor; }
+  #m-tabbar a .navbadge { position:absolute; top:4px; right:calc(50% - 17px); margin-left:0; }
+
+  #m-fab {
+    display:flex; align-items:center; justify-content:center;
+    position:fixed; right:16px; bottom:calc(66px + env(safe-area-inset-bottom)); z-index:850;
+    width:54px; height:54px; border-radius:50%; background:var(--maroon); color:#fff;
+    border:none; box-shadow:0 4px 14px rgba(15,20,25,.25); cursor:pointer;
+  }
+  #m-fab:hover { background:var(--maroon-dk); }
+  #m-fab svg { width:24px; height:24px; fill:none; stroke:#fff; stroke-width:2.4; stroke-linecap:round; }
+
+  .m-drawer-bg {
+    display:block; position:fixed; inset:0; background:rgba(91,112,131,0); z-index:950;
+    pointer-events:none; transition:background-color .2s ease;
+  }
+  .m-drawer-bg.open { background:rgba(91,112,131,.4); pointer-events:auto; }
+  .m-drawer {
+    position:absolute; top:0; left:0; bottom:0; width:78vw; max-width:300px;
+    background:var(--bg); padding:16px; overflow-y:auto;
+    transform:translateX(-100%); transition:transform .22s ease;
+  }
+  .m-drawer-bg.open .m-drawer { transform:translateX(0); }
+  .m-drawer .m-drawer-avatar { width:52px; height:52px; display:block; margin-bottom:10px; }
+  .m-drawer .m-drawer-name { display:block; font-size:17px; font-weight:800; color:var(--ink); }
+  .m-drawer .m-drawer-handle { display:block; font-size:14px; color:var(--muted); margin-bottom:10px; }
+  .m-drawer .m-drawer-stats { display:flex; gap:16px; font-size:13.5px; color:var(--muted); margin-bottom:14px; }
+  .m-drawer .m-drawer-stats a { color:var(--ink); text-decoration:none; }
+  .m-drawer .m-drawer-stats a b { font-weight:800; }
+  .m-drawer .m-drawer-stats a:hover { text-decoration:underline; }
+  .m-drawer hr { border:none; border-top:1px solid var(--line); margin:10px 0; }
+  .m-drawer-menu a, .m-drawer-menu button {
+    display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+    font-family:inherit; font-size:16px; font-weight:700; color:var(--ink);
+    background:none; border:none; padding:11px 4px; cursor:pointer; text-decoration:none; border-radius:var(--r-sm);
+  }
+  .m-drawer-menu a:hover, .m-drawer-menu button:hover { background:var(--hover-bg); text-decoration:none; }
+  .m-drawer-menu svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  .m-drawer-cta { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+  .m-drawer-cta a { text-align:center; padding:10px; border-radius:999px; font-weight:800; font-size:14.5px; text-decoration:none; }
+  .m-drawer-cta a.cta-primary { background:var(--ink); color:#fff; }
+  .m-drawer-cta a.cta-ghost { border:1px solid #CFD9DE; color:var(--ink); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    ACCOUNTS — avatars, dropdown, login/signup, profile page.
    ═══════════════════════════════════════════════════════════════ */
 

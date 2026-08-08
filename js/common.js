@@ -53,6 +53,113 @@ function renderSideNav() {
     item('rules.html', NAV_ICON.doc, 'Rules');
 }
 
+// ── MOBILE APP CHROME — top bar, bottom tab bar, compose FAB, and
+// slide-out drawer, built fresh into #m-chrome (created once, appended
+// to <body>) on every page. CSS keeps all of this display:none above
+// the mobile breakpoint, so it costs nothing on desktop. Called from
+// auth.js alongside renderSideNav() any time session/profile/unread
+// state changes, so the avatar, counts, and badge never go stale. ──
+const PLUS_ICON = '<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>';
+
+function mchrome() {
+  let el = document.getElementById('m-chrome');
+  if (!el) { el = document.createElement('div'); el.id = 'm-chrome'; document.body.appendChild(el); }
+  return el;
+}
+
+function renderMobileChrome() {
+  const el = mchrome();
+  const here = location.pathname.split('/').pop() || 'index.html';
+  const cur = href => href.split('?')[0] === here ? ' cur' : '';
+  const badge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
+  const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
+  const avatar = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
+
+  const topPill = currentSession
+    ? `<button class="m-pill" onclick="mobileCompose();return false;">Post</button>`
+    : `<a class="m-pill" href="login.html">Log in</a>`;
+
+  el.innerHTML = `
+    <div id="m-topbar">
+      <button class="m-avatar-btn" onclick="openMobileDrawer();return false;" aria-label="Open menu">
+        <img class="avatar" src="${esc(avatar)}" alt="">
+      </button>
+      <a class="m-logo" href="index.html">
+        <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#0EA5E9"/>
+          <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#fff"/>
+        </svg>
+      </a>
+      ${topPill}
+    </div>
+
+    <div id="m-tabbar">
+      <a class="${cur('index.html')}" href="index.html">${NAV_ICON.home}</a>
+      <a class="${cur('search.html')}" href="search.html">${NAV_ICON.search}</a>
+      <a class="${cur('bookmarks.html')}" href="bookmarks.html">${NAV_ICON.bookmark}</a>
+      <a class="${cur('notifications.html')}" href="notifications.html">${NAV_ICON.bell}${badge}</a>
+      <a class="${cur('chat.html')}" href="chat.html">${NAV_ICON.chat}</a>
+    </div>
+
+    ${currentSession ? `<button id="m-fab" onclick="mobileCompose();return false;" aria-label="Post">${PLUS_ICON}</button>` : ''}
+
+    <div class="m-drawer-bg" id="m-drawer-bg" onclick="if(event.target===this)closeMobileDrawer();">
+      <div class="m-drawer">
+        ${currentSession ? `
+          <a href="${ownHref}"><img class="avatar m-drawer-avatar" src="${esc(avatar)}" alt=""></a>
+          <a href="${ownHref}" style="text-decoration:none;">
+            <span class="m-drawer-name">${esc(currentProfile?.display_name || currentProfile?.username || 'You')}</span>
+            <span class="m-drawer-handle">@${esc(currentProfile?.username || '')}</span>
+          </a>
+          <div class="m-drawer-stats">
+            <a href="followlist.html?u=${encodeURIComponent(currentProfile?.username || '')}&tab=following"><b>${fmtCount(currentProfile?.following_count)}</b> Following</a>
+            <a href="followlist.html?u=${encodeURIComponent(currentProfile?.username || '')}&tab=followers"><b>${fmtCount(currentProfile?.followers_count)}</b> Followers</a>
+          </div>
+          <hr>
+          <div class="m-drawer-menu">
+            <a href="${ownHref}">${NAV_ICON.user}Profile</a>
+            <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
+            <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
+            <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
+            <a href="rules.html">${NAV_ICON.doc}Rules</a>
+          </div>
+          <hr>
+          <button onclick="closeMobileDrawer();logOut();">Log out</button>
+        ` : `
+          <img class="avatar m-drawer-avatar" src="${DEFAULT_AVATAR}" alt="">
+          <span class="m-drawer-name">Welcome to Otakuchan</span>
+          <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
+          <div class="m-drawer-menu" style="margin-top:8px;">
+            <a href="rules.html">${NAV_ICON.doc}Rules</a>
+          </div>
+          <div class="m-drawer-cta">
+            <a class="cta-primary" href="signup.html">Sign up</a>
+            <a class="cta-ghost" href="login.html">Log in</a>
+          </div>
+        `}
+      </div>
+    </div>`;
+}
+
+function openMobileDrawer() { document.getElementById('m-drawer-bg')?.classList.add('open'); }
+function closeMobileDrawer() { document.getElementById('m-drawer-bg')?.classList.remove('open'); }
+
+// The FAB / top-bar "Post" pill: on the board page it jumps straight to
+// the composer; everywhere else it sends you to the board to post, same
+// as tapping the compose button in the real X app opens a new screen.
+function mobileCompose() {
+  const composer = document.getElementById('pf-body');
+  if (composer) {
+    document.getElementById('pf-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    composer.focus();
+  } else {
+    location.href = 'index.html';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', renderMobileChrome);
+
+
 // Wires the (formerly decorative) sidebar search box: Enter jumps to
 // the search results page with the typed query.
 function wireSidebarSearch() {

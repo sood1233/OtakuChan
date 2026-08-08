@@ -33,7 +33,7 @@ async function getProfile(userId) {
 // [Log in] [Sign up], or the avatar + username dropdown menu.
 async function renderAuthArea() {
   const el = document.getElementById('auth-area');
-  renderSideNav(); // paint the nav immediately with whatever we knew last; repainted below once session settles
+  renderSideNav(); renderMobileChrome(); // paint immediately with whatever we knew last; repainted below once session settles
 
   const { data: { session } } = await sb.auth.getSession();
   currentSession = session;
@@ -42,7 +42,7 @@ async function renderAuthArea() {
   if (!session) {
     currentProfile = null;
     unreadNotifCount = 0;
-    renderSideNav();
+    renderSideNav(); renderMobileChrome();
     if (el) el.innerHTML = `<div class="auth-cta"><a class="cta-primary" href="signup.html">Sign up</a><a class="cta-ghost" href="login.html">Log in</a></div>`;
     refreshPostGates();
     return;
@@ -51,7 +51,7 @@ async function renderAuthArea() {
   currentProfile = await getProfile(session.user.id);
   const uname = currentProfile?.username || 'user';
   const avatar = avatarUrl(currentProfile?.avatar_url);
-  renderSideNav();
+  renderSideNav(); renderMobileChrome();
   loadUnreadNotifCount();
   subscribeNotifBadge();
 
@@ -72,11 +72,11 @@ async function renderAuthArea() {
 
 // Unread notification count for the sidebar bell badge.
 async function loadUnreadNotifCount() {
-  if (!currentSession) { unreadNotifCount = 0; renderSideNav(); return; }
+  if (!currentSession) { unreadNotifCount = 0; renderSideNav(); renderMobileChrome(); return; }
   const { count } = await sb.from('notifications').select('id', { count: 'exact', head: true })
     .eq('user_id', currentSession.user.id).eq('read', false);
   unreadNotifCount = count || 0;
-  renderSideNav();
+  renderSideNav(); renderMobileChrome();
 }
 
 // Live-bump the bell badge the moment a new notification lands,
@@ -87,7 +87,7 @@ function subscribeNotifBadge() {
   notifBadgeChannel = sb.channel(`notif-badge-${currentSession.user.id}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentSession.user.id}` }, () => {
       unreadNotifCount++;
-      renderSideNav();
+      renderSideNav(); renderMobileChrome();
     })
     .subscribe();
 }
