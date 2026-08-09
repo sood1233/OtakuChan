@@ -6,11 +6,12 @@
 const NOTIF_SELECT = '*, actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url), post:posts(id,body,is_deleted)';
 
 const NOTIF_ICON = {
-  like:   ICON.heart,
-  reply:  ICON.reply,
-  repost: ICON.repost,
-  quote:  ICON.quote,
-  follow: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>'
+  like:    ICON.heart,
+  reply:   ICON.reply,
+  repost:  ICON.repost,
+  quote:   ICON.quote,
+  mention: '<svg viewBox="0 0 24 24"><path d="M15.5 12a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"/><path d="M15.5 12v1.2c0 1.3 1 2.3 2.3 2.3s2.2-1 2.2-3.5a8 8 0 1 0-3.5 6.6"/></svg>',
+  follow:  '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>'
 };
 
 function notifText(n) {
@@ -19,6 +20,7 @@ function notifText(n) {
   if (n.type === 'reply') return `${who} replied to your post`;
   if (n.type === 'repost') return `${who} reposted your post`;
   if (n.type === 'quote') return `${who} quoted your post`;
+  if (n.type === 'mention') return `${who} mentioned you`;
   if (n.type === 'follow') return `${who} followed you`;
   return who;
 }
@@ -60,7 +62,7 @@ async function loadNotifications() {
 
   if (error) { root.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
   if (!data.length) {
-    root.innerHTML = `<div id="feed-empty">Nothing here yet. Likes, replies, and new followers will show up here.</div>`;
+    root.innerHTML = `<div id="feed-empty">Nothing here yet. Likes, replies, mentions, and new followers will show up here.</div>`;
     return;
   }
 

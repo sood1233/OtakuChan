@@ -32,21 +32,27 @@ async function loadThread() {
   allReplies = replies || [];
 
   wrap.innerHTML = `
-    <div class="pc" id="op-post">
-      <div class="pc-row">
+    <div class="op-detail" id="op-post">
+      <div class="op-detail-head">
         ${pcAvatarHtml(p.profile)}
-        <div class="pc-main">
-          <div class="ph">
-            ${pcNameHtml(p.profile)}
-            <span class="dt">${timeAgo(p.created_at)}</span>
-            ${postMenuHtml(p.id, null, p.author_id)}
-          </div>
-          <div class="pb">${renderBody(p.body)}</div>
-          ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
-          ${renderMedia(p.media_url, p.media_type)}
-          ${postActionsHtml(p, { replyOnclick: "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();", replyCount: allReplies.length })}
+        <div class="op-detail-names">
+          <a class="nm" href="profile.html?u=${encodeURIComponent(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>
+          <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
         </div>
+        ${postMenuHtml(p.id, null, p.author_id)}
       </div>
+      <div class="op-detail-body">${renderBody(p.body)}</div>
+      ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
+      ${renderMedia(p.media_url, p.media_type)}
+      <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
+      <div class="op-detail-divider"></div>
+      ${opDetailActionsHtml(p, "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();")}
+      <div class="op-detail-divider"></div>
+      <div class="op-relevant">
+        <button type="button" class="op-relevant-btn" onclick="return false;"><span>Relevant</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <a href="#" id="op-quotes-toggle" hidden onclick="toggleQuotesList(event)">View quotes &rsaquo;</a>
+      </div>
+      <div class="op-quotes-list" id="op-quotes-list" hidden></div>
     </div>
     <div class="rw" id="replies-list">
       ${renderReplyTree()}
@@ -68,10 +74,50 @@ async function loadThread() {
 
   wireFilePreview('rf-file', 'rf-fp', 'rf-err');
   refreshPostGates();
+  loadQuoteCount(p.id);
 
   // Bump view counts — once per session per post/reply (see common.js).
   bumpPostView(p.id);
   if (allReplies.length) bumpReplyViews(allReplies.map(r => r.id));
+}
+
+// Shows the "View quotes ›" link only when at least one exists — same
+// as Twitter hides it entirely on a post nobody's quoted. Wrapped in
+// try/catch since quote_of only exists once quotes_and_reposts.sql
+// has been run (see attachQuotedPosts() above for the same reasoning).
+async function loadQuoteCount(id) {
+  try {
+    const { count } = await sb.from('posts').select('id', { count: 'exact', head: true })
+      .eq('quote_of', id).eq('is_deleted', false);
+    const link = document.getElementById('op-quotes-toggle');
+    if (link && count) link.hidden = false;
+  } catch (e) { /* quotes_and_reposts.sql not run yet — leave it hidden */ }
+}
+
+// Lazily fetches and toggles the list of posts quoting this one,
+// inline under the "View quotes ›" row — reuses postCardHtml() so a
+// quote in the list behaves exactly like any other post card.
+async function toggleQuotesList(ev) {
+  ev.preventDefault();
+  const box = document.getElementById('op-quotes-list');
+  if (!box) return;
+  const willOpen = box.hidden;
+  if (willOpen && !box.dataset.loaded) {
+    box.hidden = false;
+    box.innerHTML = `<span class="spinner">Loading&hellip;</span>`;
+    try {
+      const { data } = await sb.from('posts').select(POST_SELECT)
+        .eq('quote_of', postId).eq('is_deleted', false)
+        .order('created_at', { ascending: false });
+      await attachQuotedPosts(data || []);
+      box.innerHTML = (data && data.length) ? data.map(qp => postCardHtml(qp)).join('') : '<div class="no-t">No quotes yet.</div>';
+    } catch (e) {
+      box.innerHTML = `<div class="errmsg">Could not load quotes.</div>`;
+    }
+    box.dataset.loaded = '1';
+    return;
+  }
+  box.hidden = !willOpen;
 }
 
 // Builds the nested tree (top-level replies to the post, each with

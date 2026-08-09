@@ -155,6 +155,41 @@ the others, so it's safe to run again later too. It adds:
   profile, "[Display name] reposted" everywhere else. See
   `repostBannerHtml()` in `js/common.js`.
 
+## Mentions, hashtags & links
+Post and reply bodies are rendered Twitter-style — no schema change
+needed for the text itself, since `renderBody()`/`linkifyText()` in
+`js/common.js` turn plain text into rich text on the fly, after
+escaping (so a post can never inject HTML this way):
+- **`@username`** becomes a link to that user's profile.
+- **`#hashtag`** becomes a link to `search.html?q=%23hashtag`, which
+  runs through the existing posts search (an `ILIKE` on `body`), so
+  it needs no separate hashtags table.
+- **`https://…` / `http://…`** becomes a clickable link that opens in
+  a new tab.
+
+Run `supabase/mentions.sql` in the SQL Editor after `schema.sql` and
+`settings.sql` (additive/idempotent like the others) to wire up the
+notification side: tagging someone with `@their_username` in a post
+or reply drops a "mentioned you" row in their Notifications page,
+same mechanism as likes/replies/follows — a security-definer trigger
+on insert, gated by a `notify_mentions` toggle in `settings.html`
+(on by default), never something the client inserts directly.
+
+## Post detail page
+`thread.html` (tapping into a post) uses its own larger layout —
+`.op-detail` in `css/style.css`, built by `loadThread()` in
+`js/thread.js` — separate from the compact card `postCardHtml()`
+uses everywhere else (feed, profile, search, trending): bigger body
+text, a "9:00 PM · Aug 8, 2026 · 64.5k Views" meta line instead of an
+inline timestamp, a full-width reply/repost/like/bookmark/share row,
+and a "View quotes ›" link (hidden unless the post has at least one)
+that expands an inline list of the posts quoting it. Run
+`supabase/bookmark_count.sql` after `schema.sql` to get the bookmark
+count that row shows — bookmarks themselves stay exactly as private
+as before (see "NOTIFICATIONS" section of `schema.sql`); this only
+adds a plain aggregate counter, the same way `like_count`/
+`reply_count`/`repost_count` already work.
+
 ## Customizing
 - Colors/fonts/layout: `css/style.css`
 - Feed/thread/like/report/bookmark/delete logic: `js/board.js`, `js/thread.js`, `js/common.js`.
@@ -166,9 +201,15 @@ the others, so it's safe to run again later too. It adds:
 - Search: `js/search.js` (ILIKE against `posts.body` / `profiles.username`,`display_name`;
   backed by the `pg_trgm` indexes added in `supabase/schema.sql`)
 - Notifications: `js/notifications.js` — rows are only ever created by
-  security-definer triggers on `likes`/`replies`/`follows` inserts (see
-  schema.sql / settings.sql), never inserted directly by the client, and
-  only when the recipient's `user_settings` toggle for that type is on
+  security-definer triggers on `likes`/`replies`/`follows`/`posts` (for
+  mentions) inserts (see schema.sql / settings.sql / mentions.sql), never
+  inserted directly by the client, and only when the recipient's
+  `user_settings` toggle for that type is on
+- Mentions/hashtags/links: `linkifyText()` in `js/common.js` (rendering)
+  and `supabase/mentions.sql` (the "mentioned you" notification)
+- Post detail page: `.op-detail` in `css/style.css`, `loadThread()` in
+  `js/thread.js`, and `supabase/bookmark_count.sql` (the bookmark count
+  it shows)
 - Chat: `js/chat.js` — flat `messages` table, RLS-scoped to sender/recipient,
   realtime subscription per open thread; who's allowed to start a thread
   with you is controlled by `user_settings.dm_privacy`

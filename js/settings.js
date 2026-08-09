@@ -47,7 +47,7 @@ async function loadSettings() {
   const curAccent = getAccent();
 
   const { data: settings } = await sb.from('user_settings').select('*').eq('user_id', session.user.id).single();
-  const s = settings || { notify_likes: true, notify_replies: true, notify_follows: true, dm_privacy: 'everyone' };
+  const s = settings || { notify_likes: true, notify_replies: true, notify_follows: true, notify_mentions: true, dm_privacy: 'everyone' };
 
   root.innerHTML = `
     <div class="settings-section">
@@ -75,6 +75,7 @@ async function loadSettings() {
       <p class="sub">Choose what shows up on your Notifications page.</p>
       ${toggleRowHtml('notify_likes', 'Likes', 'When someone likes your post', s.notify_likes)}
       ${toggleRowHtml('notify_replies', 'Replies', 'When someone replies to your post', s.notify_replies)}
+      ${toggleRowHtml('notify_mentions', 'Mentions', 'When someone tags you with @', s.notify_mentions)}
       ${toggleRowHtml('notify_follows', 'New followers', 'When someone follows you', s.notify_follows)}
     </div>
 

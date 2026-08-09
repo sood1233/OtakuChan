@@ -34,7 +34,10 @@
 
   <div id="main">
     <div id="feed" style="max-width:600px;">
-      <div class="sec-bar">Post <a class="back" href="index.html">&larr; Back to Home</a></div>
+      <div class="sec-bar" id="thread-hdr">
+        <a class="ep-back" href="index.html" id="thread-back" aria-label="Back" onclick="if(history.length>1){history.back();return false;}">&larr;</a>
+        <div><b>Post</b></div>
+      </div>
       <div id="thread-root"><span class="spinner">Loading&hellip;</span></div>
     </div>
 
