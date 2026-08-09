@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 let communitiesTab = 'all'; // 'all' | 'mine'
 let joinedIds = new Set();  // populated once, used to render the right Join/Joined pill on the "All" list too
+let communitySearch = '';   // current text in #comm-search, applied to both tabs
 
 async function loadJoinedIds() {
   if (!currentSession) { joinedIds = new Set(); return; }
@@ -30,16 +31,27 @@ async function renderList() {
     return;
   }
 
+  const q = communitySearch.trim();
+
   let list;
   if (communitiesTab === 'mine') {
+    // "Joined" is always a short, already-loaded-ish list — filtering
+    // client-side after the fetch avoids a second round-trip shape
+    // (embedded select can't ilike the nested community row directly).
     const { data, error } = await sb.from('community_members')
       .select('community:communities(*)')
       .eq('user_id', currentSession.user.id)
       .order('joined_at', { ascending: false });
     if (error) { listEl.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
     list = (data || []).map(r => r.community).filter(Boolean);
+    if (q) {
+      const needle = q.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(needle) || (c.description || '').toLowerCase().includes(needle));
+    }
   } else {
-    const { data, error } = await sb.from('communities').select('*')
+    let query = sb.from('communities').select('*');
+    if (q) query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
+    const { data, error } = await query
       .order('member_count', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(100);
@@ -48,9 +60,11 @@ async function renderList() {
   }
 
   if (!list.length) {
-    listEl.innerHTML = communitiesTab === 'mine'
-      ? `<div id="feed-empty">You haven't joined any communities yet.</div>`
-      : `<div id="feed-empty">No communities yet. Be the first to create one.</div>`;
+    listEl.innerHTML = q
+      ? `<div id="feed-empty">No communities found for &ldquo;${esc(q)}&rdquo;.</div>`
+      : communitiesTab === 'mine'
+        ? `<div id="feed-empty">You haven't joined any communities yet.</div>`
+        : `<div id="feed-empty">No communities yet. Be the first to create one.</div>`;
     return;
   }
 
@@ -88,8 +102,24 @@ function onCommunityMembershipChanged(communityId, joined) {
   if (communitiesTab === 'mine') renderList(); // the row needs to appear/disappear entirely
 }
 
+// Debounced so every keystroke doesn't fire its own query — 250ms
+// feels instant without hammering Supabase while someone's still typing.
+let _searchDebounce = null;
+function wireCommunitySearch() {
+  const input = document.getElementById('comm-search');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    clearTimeout(_searchDebounce);
+    _searchDebounce = setTimeout(() => {
+      communitySearch = input.value;
+      renderList();
+    }, 250);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await authReady; // see auth.js — otherwise the join state can render before we know who's logged in
+  wireCommunitySearch();
   await loadJoinedIds();
   renderList();
 });
