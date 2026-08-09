@@ -33,22 +33,60 @@
     <span id="auth-area" class="auth-area"></span>
   </div>
   <div class="auth-wrap">
-  <div class="auth-card">
-    <b>Log In</b>
-    <div class="auth-body">
-      <div class="errmsg" id="li-err" style="display:none;"></div>
-      <form id="li-form" onsubmit="doLogIn(event)">
-        <div class="auth-field">
-          <label>Email</label>
-          <input type="email" id="li-email" required autocomplete="email">
-        </div>
-        <div class="auth-field">
-          <label>Password</label>
-          <input type="password" id="li-password" required autocomplete="current-password">
-        </div>
-        <input type="submit" id="li-btn" class="auth-submit" value="Log In">
-      </form>
-      <div class="auth-switch">No account yet? <a href="signup.html">Sign up</a></div>
+  <div class="auth-shell">
+    <div class="auth-brand">
+      <svg class="auth-brand-deco" viewBox="0 0 400 580" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="40" cy="40" r="120"/><circle cx="380" cy="120" r="60"/>
+        <circle cx="350" cy="480" r="150"/><circle cx="30" cy="520" r="50"/>
+      </svg>
+      <div class="auth-brand-top">
+        <span class="badge">
+          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
+          </svg>
+        </span>
+        <span>Otaku<em>chan</em></span>
+      </div>
+      <div class="auth-brand-mid">
+        <h2>Welcome back to the board.</h2>
+        <p>Log in to catch up on new threads, replies, and everything you're following.</p>
+      </div>
+      <div class="auth-brand-pills">
+        <span>💬 Live threads</span>
+        <span>🔔 Real-time notifications</span>
+        <span>🔖 Bookmarks</span>
+      </div>
+    </div>
+    <div class="auth-card">
+      <b>Log In</b>
+      <p class="auth-sub">Good to see you again.</p>
+      <div class="auth-body">
+        <div class="errmsg" id="li-err" style="display:none;"></div>
+        <form id="li-form" onsubmit="doLogIn(event)">
+          <div class="auth-field">
+            <label for="li-email">Email</label>
+            <div class="auth-input-wrap">
+              <span class="auth-fi"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></span>
+              <input type="email" id="li-email" required autocomplete="email" placeholder="you@example.com">
+            </div>
+          </div>
+          <div class="auth-field">
+            <label for="li-password">Password</label>
+            <div class="auth-input-wrap">
+              <span class="auth-fi"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+              <input type="password" id="li-password" required autocomplete="current-password" placeholder="••••••••">
+              <button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePwVis('li-password', this)">
+                <svg class="eye-on" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="eye-off" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+              </button>
+            </div>
+          </div>
+          <input type="submit" id="li-btn" class="auth-submit" value="Log In">
+        </form>
+        <div class="auth-switch">No account yet? <a href="signup.html">Sign up</a></div>
+        <div class="auth-legal">By continuing you agree to Otakuchan's <a href="rules.html">rules</a>.</div>
+      </div>
     </div>
   </div>
   </div>

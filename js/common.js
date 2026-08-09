@@ -1275,7 +1275,7 @@ function postCardHtml(p, flash = false) {
 // click actually landed on a link, button, the "···" menu, or an
 // input, all of which handle themselves.
 function cardClick(ev, postId, username = null) {
-  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
+  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap, .pm')) return;
   location.href = postUrlById(postId, username);
 }
 

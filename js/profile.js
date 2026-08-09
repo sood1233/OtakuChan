@@ -143,7 +143,7 @@ async function loadUserReplies(userId) {
 // as cardClick() in common.js, just landing on the reply's spot in
 // the thread instead of the top of it.
 function replyCardClick(ev, postId, replyId, opUsername) {
-  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
+  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap, .pm')) return;
   location.href = postUrlById(postId, opUsername) + `#reply-${replyId}`;
 }
 

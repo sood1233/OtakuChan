@@ -33,31 +33,72 @@
     <span id="auth-area" class="auth-area"></span>
   </div>
   <div class="auth-wrap">
-  <div class="auth-card">
-    <b>Sign Up</b>
-    <div class="auth-body">
-      <div class="auth-ok" id="su-ok" style="display:none;">
-        Almost there! Check your email to confirm your account, then log in.
+  <div class="auth-shell">
+    <div class="auth-brand">
+      <svg class="auth-brand-deco" viewBox="0 0 400 580" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="370" cy="30" r="110"/><circle cx="20" cy="150" r="55"/>
+        <circle cx="60" cy="500" r="140"/><circle cx="370" cy="540" r="45"/>
+      </svg>
+      <div class="auth-brand-top">
+        <span class="badge">
+          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
+            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
+          </svg>
+        </span>
+        <span>Otaku<em>chan</em></span>
       </div>
-      <div class="errmsg" id="su-err" style="display:none;"></div>
-      <form id="su-form" onsubmit="doSignUp(event)">
-        <div class="auth-field">
-          <label>Username</label>
-          <input type="text" id="su-username" required maxlength="20" autocomplete="username">
-          <span class="auth-hint">3–20 characters: letters, numbers, underscore.</span>
+      <div class="auth-brand-mid">
+        <h2>Join the board.</h2>
+        <p>Make an account to post threads, reply, like, and build up a profile of your own.</p>
+      </div>
+      <div class="auth-brand-pills">
+        <span>📝 Post &amp; reply</span>
+        <span>❤️ Likes &amp; bookmarks</span>
+        <span>👥 Follow people</span>
+      </div>
+    </div>
+    <div class="auth-card">
+      <b>Sign Up</b>
+      <p class="auth-sub">Create your account — it only takes a minute.</p>
+      <div class="auth-body">
+        <div class="auth-ok" id="su-ok" style="display:none;">
+          Almost there! Check your email to confirm your account, then log in.
         </div>
-        <div class="auth-field">
-          <label>Email</label>
-          <input type="email" id="su-email" required autocomplete="email">
-        </div>
-        <div class="auth-field">
-          <label>Password</label>
-          <input type="password" id="su-password" required minlength="8" autocomplete="new-password">
-          <span class="auth-hint">At least 8 characters.</span>
-        </div>
-        <input type="submit" id="su-btn" class="auth-submit" value="Sign Up">
-      </form>
-      <div class="auth-switch">Already have an account? <a href="login.html">Log in</a></div>
+        <div class="errmsg" id="su-err" style="display:none;"></div>
+        <form id="su-form" onsubmit="doSignUp(event)">
+          <div class="auth-field">
+            <label for="su-username">Username</label>
+            <div class="auth-input-wrap">
+              <span class="auth-fi"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>
+              <input type="text" id="su-username" required maxlength="20" autocomplete="username" placeholder="yourname">
+            </div>
+            <span class="auth-hint">3–20 characters: letters, numbers, underscore.</span>
+          </div>
+          <div class="auth-field">
+            <label for="su-email">Email</label>
+            <div class="auth-input-wrap">
+              <span class="auth-fi"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></span>
+              <input type="email" id="su-email" required autocomplete="email" placeholder="you@example.com">
+            </div>
+          </div>
+          <div class="auth-field">
+            <label for="su-password">Password</label>
+            <div class="auth-input-wrap">
+              <span class="auth-fi"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+              <input type="password" id="su-password" required minlength="8" autocomplete="new-password" placeholder="••••••••">
+              <button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePwVis('su-password', this)">
+                <svg class="eye-on" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="eye-off" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+              </button>
+            </div>
+            <span class="auth-hint">At least 8 characters.</span>
+          </div>
+          <input type="submit" id="su-btn" class="auth-submit" value="Sign Up">
+        </form>
+        <div class="auth-switch">Already have an account? <a href="login.html">Log in</a></div>
+        <div class="auth-legal">By signing up you agree to Otakuchan's <a href="rules.html">rules</a>.</div>
+      </div>
     </div>
   </div>
   </div>

@@ -157,6 +157,18 @@ function requireLogin() {
   return true;
 }
 
+// ── PASSWORD VISIBILITY TOGGLE — used by login.html / signup.html's
+// eye-icon button next to the password field. Purely a display
+// affordance (input type text/password), no auth logic involved. ──
+function togglePwVis(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.classList.toggle('showing', !showing);
+  btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+}
+
 // ── SIGN UP ──
 async function doSignUp(e) {
   e?.preventDefault();

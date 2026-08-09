@@ -33,7 +33,7 @@ function focusReply(replyId) {
 // Shared "did this click land on something interactive" guard, same
 // list cardClick() uses for post cards in the feed.
 function rcClick(ev, replyId) {
-  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
+  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap, .pm')) return;
   focusReply(replyId);
 }
 
