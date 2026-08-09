@@ -1485,6 +1485,15 @@ function collectPoll(prefix) {
 }
 
 // ── SCHEDULE PICKER ──
+// Twitter/X caps scheduled posts at 1 year out; we cap this one further
+// out at 4 years, per product decision. Computed via setFullYear (not
+// a fixed millisecond offset) so it lands on the same calendar date 4
+// years from now regardless of leap years.
+function maxScheduleDate() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 4);
+  return d;
+}
 function toggleScheduleBuilder(prefix) {
   if (!requireLogin()) return;
   const box = document.getElementById(`${prefix}-sched-box`);
@@ -1492,7 +1501,10 @@ function toggleScheduleBuilder(prefix) {
   if (box.hidden) {
     box.hidden = false;
     const input = document.getElementById(`${prefix}-sched-input`);
-    if (input && !input.value) input.value = toLocalDatetimeValue(new Date(Date.now() + 30 * 60000));
+    if (input) {
+      input.max = toLocalDatetimeValue(maxScheduleDate());
+      if (!input.value) input.value = toLocalDatetimeValue(new Date(Date.now() + 30 * 60000));
+    }
     input?.focus();
   } else {
     removeSchedule(prefix);
@@ -1513,7 +1525,7 @@ function collectSchedule(prefix) {
   if (!box || box.hidden) return null;
   const input = document.getElementById(`${prefix}-sched-input`);
   const d = input?.value ? new Date(input.value) : null;
-  if (!d || isNaN(d.getTime()) || d.getTime() <= Date.now()) return null;
+  if (!d || isNaN(d.getTime()) || d.getTime() <= Date.now() || d.getTime() > maxScheduleDate().getTime()) return null;
   return d.toISOString();
 }
 function validatePollAndSchedule(prefix, errEl) {
@@ -1527,6 +1539,7 @@ function validatePollAndSchedule(prefix, errEl) {
     const input = document.getElementById(`${prefix}-sched-input`);
     const d = input?.value ? new Date(input.value) : null;
     if (!d || isNaN(d.getTime()) || d.getTime() <= Date.now()) { showErr(errEl, 'Pick a future date/time to schedule this post.'); return false; }
+    if (d.getTime() > maxScheduleDate().getTime()) { showErr(errEl, 'You can schedule a post at most 4 years ahead.'); return false; }
   }
   return true;
 }
