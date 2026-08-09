@@ -128,10 +128,13 @@ end; $$;
 
 grant execute on function public.increment_post_view(uuid) to anon, authenticated;
 
--- widen the notifications type check (originally 'like'/'reply'/'follow' only)
+-- widen the notifications type check (originally 'like'/'reply'/'follow' only).
+-- 'mention' is included too (not added by this file) so that re-running
+-- this script after mentions.sql has already run doesn't fail with
+-- "check constraint is violated by some row" against existing mention rows.
 alter table public.notifications drop constraint if exists notifications_type_check;
 alter table public.notifications add constraint notifications_type_check
-  check (type in ('like','reply','follow','repost','quote'));
+  check (type in ('like','reply','follow','repost','quote','mention'));
 
 do $$
 begin
