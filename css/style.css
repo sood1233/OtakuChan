@@ -634,8 +634,16 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 /* ── COMPOSER EXTRAS: emoji popover ── */
 .cx-emoji-pop {
   position:absolute; z-index:1200; background:var(--cream-card); border:1px solid var(--line); border-radius:var(--r-md);
-  box-shadow:var(--shadow-pop); padding:8px; width:220px; display:grid; grid-template-columns:repeat(6,1fr); gap:2px;
+  box-shadow:var(--shadow-pop); padding:8px; width:240px;
 }
+.cx-emoji-pop[hidden] { display:none; }
+.cx-emoji-search {
+  width:100%; box-sizing:border-box; margin:0 0 8px; padding:7px 10px; font-size:13.5px;
+  border:1px solid var(--border-input); border-radius:999px; background:var(--input-bg);
+}
+.cx-emoji-search:focus { box-shadow:none; border-color:var(--maroon); }
+.cx-emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:2px; max-height:200px; overflow-y:auto; }
+.cx-emoji-empty { grid-column:1/-1; text-align:center; font-size:12.5px; color:var(--muted); padding:14px 0; }
 .cx-emoji-item { background:none; border:none; cursor:pointer; font-size:19px; padding:5px; border-radius:6px; line-height:1; }
 .cx-emoji-item:hover { background:var(--hover-bg); }
 

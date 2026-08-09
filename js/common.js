@@ -1428,8 +1428,79 @@ function clearComposerMedia(prefix) {
 }
 
 // ── EMOJI ──
-const EMOJI_SET = ['😀','😂','🥹','😍','🥰','😎','🤔','😭','😡','🙏','👍','👎','🔥','💀','✨','🎉','❤️','💔','😴','🤯','😅','🙌','👀','🤷','😤','🥳','😇','🫡','👏','💯','🎮','🍜','☕','🌸','⚡'];
+// Each entry is [emoji, search keywords]. Keywords are what the
+// search box in the picker matches against (case-insensitive
+// substring), so e.g. typing "laugh" finds 😂 and "fire" finds 🔥
+// even though neither word appears in the emoji glyph itself.
+const EMOJI_SET = [
+  ['😀','grinning happy smile'], ['😁','beaming grin happy'], ['😂','joy laughing crying funny lol'],
+  ['🤣','rofl laughing floor funny'], ['🙂','slight smile'], ['🙃','upside down silly'],
+  ['😉','wink'], ['😊','blush smile happy'], ['😍','heart eyes love adore'],
+  ['🥰','love hearts adore smiling'], ['😘','kiss love'], ['😋','yum tasty tongue'],
+  ['😎','cool sunglasses'], ['🤩','star struck excited amazed'], ['🥳','party celebrate birthday'],
+  ['😏','smirk sly'], ['😌','relieved content calm'], ['😴','sleep tired zzz'],
+  ['🤤','drool hungry'], ['😪','sleepy tired'], ['🤔','think hmm thinking'],
+  ['🫡','salute respect'], ['🤨','skeptical suspicious eyebrow'], ['😐','neutral meh'],
+  ['😑','expressionless blank'], ['🙄','eyeroll annoyed whatever'], ['😬','grimace awkward cringe'],
+  ['🤐','zip lips quiet secret'], ['😯','surprised shock'], ['😦','frown shock'],
+  ['😧','anguish shock'], ['😮','wow surprised open mouth'], ['😲','astonished shock wow'],
+  ['🥱','yawn bored tired'], ['😢','sad cry tear'], ['😭','sobbing crying sad bawling'],
+  ['😤','frustrated huff angry steam'], ['😠','angry mad'], ['😡','rage angry mad furious'],
+  ['🤬','swearing cursing angry furious'], ['🤯','mind blown shocked wow'], ['😳','flushed embarrassed shocked'],
+  ['🥵','hot sweating heat'], ['🥶','cold freezing'], ['😱','scream fear shocked omg'],
+  ['😨','fearful scared'], ['😰','anxious nervous sweat'], ['😥','sad relieved disappointed'],
+  ['😓','sweat nervous tired'], ['🤗','hug welcoming'], ['🤭','giggle oops whoops'],
+  ['🫢','gasp shock surprised'], ['🤫','shh quiet secret'], ['🤥','lying pinocchio liar'],
+  ['😷','sick mask ill'], ['🤒','sick fever thermometer'], ['🤕','hurt injured bandage'],
+  ['🤢','sick nauseous gross'], ['🤮','vomit sick gross throw up'], ['🥴','woozy dizzy drunk'],
+  ['😵','dizzy dead knocked out'], ['😵‍💫','dizzy confused spinning'], ['🤠','cowboy hat'],
+  ['🥸','disguise incognito glasses'], ['😈','devil mischievous evil'], ['👿','angry devil evil'],
+  ['💀','skull dead lol'], ['☠️','skull crossbones danger dead'], ['👻','ghost spooky'],
+  ['👽','alien ufo'], ['🤖','robot bot'], ['🎃','pumpkin halloween'],
+  ['💩','poop crap'], ['🤡','clown joke'], ['👍','thumbs up yes good agree'],
+  ['👎','thumbs down no bad disagree'], ['👌','ok okay perfect'], ['🤌','chefs kiss italian pinch'],
+  ['✌️','peace victory'], ['🤞','fingers crossed hope luck'], ['🫰','finger heart'],
+  ['🤟','love you rock'], ['🤘','rock horns metal'], ['👊','fist bump punch'],
+  ['✊','fist power'], ['👏','clap applause'], ['🙌','praise hands up celebrate'],
+  ['🫶','heart hands love'], ['🙏','pray please thanks'], ['🤝','handshake deal agree'],
+  ['💪','muscle strong flex gym'], ['👀','eyes looking watching sus'], ['👋','wave hi hello bye'],
+  ['🤙','call me shaka hang loose'], ['✋','stop hand high five'], ['🖐️','hand five'],
+  ['🤦','facepalm annoyed'], ['🤷','shrug idk dunno whatever'], ['💃','dance party'],
+  ['🕺','dance party'], ['❤️','love heart red'], ['🧡','heart orange'],
+  ['💛','heart yellow'], ['💚','heart green'], ['💙','heart blue'],
+  ['💜','heart purple'], ['🖤','heart black'], ['🤍','heart white'],
+  ['🤎','heart brown'], ['💔','broken heart heartbreak sad'], ['❤️‍🔥','heart fire passion love'],
+  ['💕','hearts love cute'], ['💞','hearts revolving love'], ['💓','heartbeat love'],
+  ['💗','growing heart love'], ['💖','sparkling heart love'], ['💘','cupid heart arrow love'],
+  ['💝','heart gift love'], ['💯','hundred perfect score'], ['🔥','fire lit hot amazing'],
+  ['✨','sparkle shiny magic'], ['⭐','star'], ['🌟','glowing star special'],
+  ['💫','dizzy star sparkle'], ['⚡','lightning bolt energy fast'], ['☀️','sun sunny weather'],
+  ['🌙','moon night'], ['🌈','rainbow pride'], ['☁️','cloud weather'],
+  ['🎉','party celebrate confetti'], ['🎊','confetti party celebrate'], ['🎈','balloon party'],
+  ['🎁','gift present'], ['🏆','trophy win winner champion'], ['🥇','gold medal first winner'],
+  ['🎮','gaming controller games'], ['🕹️','joystick arcade games'], ['🎧','headphones music'],
+  ['🎵','music note'], ['🎶','music notes'], ['📱','phone mobile'],
+  ['💻','laptop computer'], ['📷','camera photo'], ['🔔','bell notification alert'],
+  ['💡','idea lightbulb'], ['🧠','brain smart mind'], ['👑','crown king queen royalty'],
+  ['💎','gem diamond blue precious'], ['🎯','target bullseye goal'], ['🍕','pizza food'],
+  ['🍔','burger food'], ['🍜','ramen noodles food'], ['🍣','sushi food'],
+  ['🍩','donut sweet food'], ['🍰','cake dessert birthday'], ['☕','coffee drink caffeine'],
+  ['🍺','beer drink'], ['🍷','wine drink'], ['🐶','dog puppy'],
+  ['🐱','cat kitty'], ['🐼','panda cute'], ['🦋','butterfly'],
+  ['🌸','cherry blossom flower spring'], ['🌹','rose flower love'], ['🍀','clover luck lucky'],
+];
 let emojiPickerTarget = null;
+function renderEmojiGrid(filter) {
+  const grid = document.getElementById('emoji-grid');
+  if (!grid) return;
+  const q = (filter || '').trim().toLowerCase();
+  const matches = q
+    ? EMOJI_SET.filter(([e, k]) => k.includes(q) || e === filter)
+    : EMOJI_SET;
+  grid.innerHTML = matches.length
+    ? matches.map(([e]) => `<button type="button" class="cx-emoji-item" data-e="${e}">${e}</button>`).join('')
+    : `<div class="cx-emoji-empty">No emoji found</div>`;
+}
 function toggleEmojiPicker(prefix, anchorBtn) {
   if (!requireLogin()) return;
   let pop = document.getElementById('emoji-pop');
@@ -1439,8 +1510,12 @@ function toggleEmojiPicker(prefix, anchorBtn) {
     pop.id = 'emoji-pop';
     pop.className = 'cx-emoji-pop';
     pop.hidden = true;
-    pop.innerHTML = EMOJI_SET.map(e => `<button type="button" class="cx-emoji-item" data-e="${e}">${e}</button>`).join('');
+    pop.innerHTML = `
+      <input type="text" class="cx-emoji-search" id="emoji-search" placeholder="Search emoji" autocomplete="off">
+      <div class="cx-emoji-grid" id="emoji-grid"></div>`;
     document.body.appendChild(pop);
+    renderEmojiGrid('');
+    pop.querySelector('#emoji-search').addEventListener('input', e => renderEmojiGrid(e.target.value));
     pop.addEventListener('click', e => {
       const btn = e.target.closest('.cx-emoji-item');
       if (!btn || !emojiPickerTarget) return;
@@ -1450,12 +1525,19 @@ function toggleEmojiPicker(prefix, anchorBtn) {
       if (pop.hidden || e.target.closest('.cx-emoji-pop') || e.target.closest('[title="Emoji"]')) return;
       pop.hidden = true;
     });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !pop.hidden) pop.hidden = true;
+    });
   }
   emojiPickerTarget = prefix;
+  const search = pop.querySelector('#emoji-search');
+  search.value = '';
+  renderEmojiGrid('');
   const r = anchorBtn.getBoundingClientRect();
   pop.style.top = `${r.bottom + window.scrollY + 6}px`;
   pop.style.left = `${Math.max(8, r.left + window.scrollX - 100)}px`;
   pop.hidden = false;
+  setTimeout(() => search.focus(), 30);
 }
 function insertAtCursor(el, text) {
   if (!el) return;
