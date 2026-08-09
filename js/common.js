@@ -1251,7 +1251,7 @@ function skeletonThreadHtml() {
 function postCardHtml(p, flash = false) {
   cachePost(p);
   return `
-  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})" onpointerover="prefetchHref('${postUrl(p)}')" ontouchstart="prefetchHref('${postUrl(p)}')">
+  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" data-view="post:${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})" onpointerover="prefetchHref('${postUrl(p)}')" ontouchstart="prefetchHref('${postUrl(p)}')">
     ${repostBannerHtml(p._repostedBy)}
     <div class="pc-row">
       ${pcAvatarHtml(p.profile)}
@@ -1414,6 +1414,70 @@ function bumpReplyViews(replyIds) {
   sb.rpc('increment_reply_views', { p_ids: fresh }).then(({ error }) => {
     if (error) console.warn('view count rpc failed', error);
   });
+}
+
+// ── SCROLL-BASED VIEW TRACKING ──
+// A post/reply counts as "viewed" the moment its card scrolls into
+// view in the feed/thread — no click required. Any element carrying
+// data-view="post:<id>" or data-view="reply:<id>" (see postCardHtml()
+// and thread.js's replyHtml()) is watched by a single shared
+// IntersectionObserver; once at least half the card has been on
+// screen for a short moment, it's counted and then left alone (so
+// scrolling back and forth over the same card doesn't recount it).
+// The actual dedup — so the same user never adds more than one view
+// to a given post, whether they scrolled past it, opened its thread,
+// or both — still happens in bumpPostView()/bumpReplyViews() above
+// via seenThisSession(), so this is purely about *when* that fires,
+// not *whether* it can fire twice.
+const VIEW_DWELL_MS = 400; // must stay ~half-visible this long to count as an actual view, not just a fast scroll-by
+const _viewTimers = new WeakMap();
+
+const _viewObserver = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const el = entry.target;
+    if (entry.isIntersecting) {
+      if (_viewTimers.has(el)) return;
+      const t = setTimeout(() => {
+        _viewTimers.delete(el);
+        _viewObserver.unobserve(el);
+        const raw = el.dataset.view;
+        if (!raw) return;
+        const sep = raw.indexOf(':');
+        const kind = raw.slice(0, sep), id = raw.slice(sep + 1);
+        if (kind === 'post') bumpPostView(id);
+        else if (kind === 'reply') bumpReplyViews([id]);
+      }, VIEW_DWELL_MS);
+      _viewTimers.set(el, t);
+    } else {
+      const t = _viewTimers.get(el);
+      if (t) { clearTimeout(t); _viewTimers.delete(el); }
+    }
+  });
+}, { threshold: 0.5 }) : null;
+
+// Starts watching every trackable card under `root` (defaults to the
+// whole document). Safe to call repeatedly — cards already being
+// watched, or already counted this session, are just skipped.
+function trackViewsIn(root = document) {
+  if (!_viewObserver) return;
+  const nodes = root.matches?.('[data-view]') ? [root] : [];
+  nodes.push(...root.querySelectorAll('[data-view]'));
+  nodes.forEach(el => _viewObserver.observe(el));
+}
+
+// Auto-watches any card added anywhere on the page — feed pagination,
+// realtime inserts, thread replies, quote-post previews, etc. — so
+// individual pages/renders never have to remember to call
+// trackViewsIn() themselves.
+if ('MutationObserver' in window) {
+  new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        trackViewsIn(node);
+      });
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
 }
 
 // ── FOLLOW / UNFOLLOW ──

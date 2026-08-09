@@ -106,9 +106,14 @@ async function loadThread() {
     });
   }
 
-  // Bump view counts — once per session per post/reply (see common.js).
+  // The OP itself counts as viewed the moment its thread is opened
+  // (see common.js — this still respects the once-per-session dedup,
+  // so it won't double-count if it was already counted by scrolling
+  // past it in a feed). Replies are counted individually as each one
+  // actually scrolls into view — see the data-view attribute on the
+  // .rc card above and the shared observer in common.js — rather than
+  // all being bumped at once just because the thread loaded.
   bumpPostView(p.id);
-  if (allReplies.length) bumpReplyViews(allReplies.map(r => r.id));
 }
 
 // Fills in the reply composer's avatar once we know who's logged in
@@ -175,7 +180,7 @@ function replyHtml(r, depth) {
   const kids = childrenOf(r.id);
   const parent = r.parent_reply_id ? allReplies.find(x => x.id === r.parent_reply_id) : null;
   return `
-  <div class="rc${kids.length ? ' has-children' : ''}" id="reply-${r.id}">
+  <div class="rc${kids.length ? ' has-children' : ''}" id="reply-${r.id}" data-view="reply:${r.id}">
     <div class="pc-row">
       ${pcAvatarHtml(r.profile)}
       <div class="pc-main">
