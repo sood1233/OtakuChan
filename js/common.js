@@ -227,6 +227,22 @@ function gcModalEl() {
         <div class="pf-col">
           <textarea id="gc-body" maxlength="4000" placeholder="What's happening?"></textarea>
           <div id="gc-fp" class="fp"></div>
+          <div class="cx-poll" id="gc-poll-box" hidden>
+            <div class="cx-poll-opts" id="gc-poll-opts">
+              <input type="text" class="cx-poll-opt" placeholder="Choice 1" maxlength="25">
+              <input type="text" class="cx-poll-opt" placeholder="Choice 2" maxlength="25">
+            </div>
+            <div class="cx-poll-row">
+              <button type="button" class="cx-poll-add" onclick="addPollOption('gc');return false;">+ Add option</button>
+              <select id="gc-poll-dur"><option value="1">1 day</option><option value="3" selected>3 days</option><option value="7">7 days</option></select>
+              <button type="button" class="cx-poll-remove" title="Remove poll" onclick="removePoll('gc');return false;">&#10005;</button>
+            </div>
+          </div>
+          <div class="cx-sched" id="gc-sched-box" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+            <input type="datetime-local" id="gc-sched-input">
+            <button type="button" class="cx-sched-remove" title="Remove" onclick="removeSchedule('gc');return false;">&#10005;</button>
+          </div>
         </div>
       </div>
       <div class="gc-reply-info">
@@ -238,16 +254,16 @@ function gcModalEl() {
           <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('gc-file').click();return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="GIF" disabled>
+          <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Poll" disabled>
+          <button type="button" class="pf-ic" title="Poll" onclick="togglePollBuilder('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v2M12 11v6M17 8v10"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Emoji" disabled>
+          <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('gc', this);return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Schedule" disabled>
+          <button type="button" class="pf-ic" title="Schedule" onclick="toggleScheduleBuilder('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13.5h1M12 13.5h1M16 13.5h1M8 17h1M12 17h1"/></svg>
           </button>
           <button type="button" class="pf-ic" title="Location" disabled>
@@ -311,28 +327,42 @@ async function submitGlobalCompose() {
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Post can't be empty."); return; }
   if (body.length > 4000) { showErr(errEl, 'Post too long (max 4000 chars).'); return; }
+  if (!validatePollAndSchedule('gc', errEl)) return;
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';
   try {
     let media_url = null, media_type = null;
+    const gifUrl = composeExtras.gc?.gifUrl;
     const file = fileEl.files[0];
-    if (file) {
+    if (gifUrl) {
+      media_url = gifUrl; media_type = 'gif';
+    } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
       ({ media_url, media_type } = await uploadMedia(file));
     }
+    const poll = collectPoll('gc');
+    const scheduled_at = collectSchedule('gc');
     const { data, error } = await sb.from('posts').insert({
       author_id: currentSession.user.id,
-      body, media_url, media_type
+      body, media_url, media_type,
+      poll_options: poll?.poll_options || null,
+      poll_ends_at: poll?.poll_ends_at || null,
+      scheduled_at
     }).select('*, profile:profiles(username,display_name,avatar_url)').single();
     if (error) throw error;
 
     bodyEl.value = ''; bodyEl.style.height = '';
     fileEl.value = ''; document.getElementById('gc-fp').innerHTML = '';
+    resetComposeExtras('gc');
     stEl.textContent = '';
     closeGlobalCompose();
 
+    if (scheduled_at) {
+      alert(`Post scheduled for ${new Date(scheduled_at).toLocaleString()}.`);
+      return;
+    }
     // Already on the home feed showing "For you"? Drop it straight
     // in, same as posting from the inline composer would. Otherwise
     // (profile/search/chat/thread/anywhere else) jump to the new
@@ -912,6 +942,7 @@ function postCardHtml(p, flash = false) {
         <div class="pb">${renderBody(p.body)}</div>
         ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
         ${renderMedia(p.media_url, p.media_type)}
+        ${pollHtml(p)}
         ${postActionsHtml(p)}
       </div>
     </div>
@@ -1133,10 +1164,322 @@ function renderMedia(url, type, extraClass = '') {
   return `<div class="pm"><img src="${esc(url)}" class="${extraClass}" onclick="this.classList.toggle('exp')" loading="lazy"></div>`;
 }
 
+// ─────────────────────────────────────────────────────────────
+// POLLS — poll_options/poll_ends_at live on the posts row itself;
+// individual votes live in public.poll_votes (one row per voter,
+// unique per post). Rendering is async (a second query for the vote
+// tally) so pollHtml() drops a placeholder in synchronously and
+// fills it in a moment later — same trick used for lazy quote lists.
+// ─────────────────────────────────────────────────────────────
+function pollHtml(p) {
+  if (!p.poll_options || !p.poll_options.length) return '';
+  setTimeout(() => renderPollInto(p.id), 0);
+  return `<div class="poll-box" id="poll-${p.id}" onclick="event.stopPropagation()"><span class="spinner">Loading&hellip;</span></div>`;
+}
+
+async function renderPollInto(postId) {
+  const box = document.getElementById(`poll-${postId}`);
+  const post = postCache[postId];
+  if (!box || !post || !post.poll_options) return;
+  let votes = [];
+  try {
+    const { data, error } = await sb.from('poll_votes').select('option_index,user_id').eq('post_id', postId);
+    if (error) throw error;
+    votes = data || [];
+  } catch (e) {
+    box.innerHTML = `<div class="no-t">Poll (run supabase/gifs_polls_scheduling.sql to enable voting).</div>`;
+    return;
+  }
+  const ended = post.poll_ends_at && new Date(post.poll_ends_at) <= new Date();
+  const counts = post.poll_options.map((_, i) => votes.filter(v => v.option_index === i).length);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const myVote = currentSession ? votes.find(v => v.user_id === currentSession.user.id) : null;
+  const locked = ended || !!myVote;
+  box.innerHTML = post.poll_options.map((opt, i) => {
+    const pct = total ? Math.round(counts[i] / total * 100) : 0;
+    if (locked) {
+      return `<div class="poll-opt-result${myVote && myVote.option_index === i ? ' mine' : ''}">` +
+             `<div class="poll-opt-fill" style="width:${pct}%"></div>` +
+             `<span class="poll-opt-label">${esc(opt)}</span><span class="poll-opt-pct">${pct}%</span></div>`;
+    }
+    return `<button type="button" class="poll-opt-btn" onclick="voteOnPoll('${postId}', ${i})">${esc(opt)}</button>`;
+  }).join('') + `<div class="poll-meta">${fmtCount(total)} votes &middot; ${ended ? 'Final results' : pollTimeLeft(post.poll_ends_at)}</div>`;
+}
+
+function pollTimeLeft(endsAt) {
+  if (!endsAt) return '';
+  const ms = new Date(endsAt) - new Date();
+  if (ms <= 0) return 'Final results';
+  const h = Math.ceil(ms / 3600000);
+  return h < 24 ? `${h}h left` : `${Math.ceil(h / 24)}d left`;
+}
+
+async function voteOnPoll(postId, optionIndex) {
+  if (!requireLogin()) return;
+  try {
+    const { error } = await sb.from('poll_votes').insert({ post_id: postId, user_id: currentSession.user.id, option_index: optionIndex });
+    if (error) throw error;
+  } catch (e) {
+    alert(e.message || 'Could not vote.');
+    return;
+  }
+  renderPollInto(postId);
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPOSER EXTRAS — GIFs (Giphy), emoji, polls, and scheduling,
+// shared across every composer (main feed, the global compose
+// modal, and the thread reply box) via a `prefix` naming
+// convention: each composer's textarea is `${prefix}-body`, its
+// file preview slot `${prefix}-fp`, its poll builder
+// `${prefix}-poll-box`, its schedule picker `${prefix}-sched-box`.
+// ─────────────────────────────────────────────────────────────
+const GIPHY_API_KEY = 'a4SzSp8qCSlLKqPT5wtatv0YCop7VWBL';
+let composeExtras = {}; // { [prefix]: { gifUrl } }
+let gifPickerTarget = null;
+
+function gifModalEl() {
+  let el = document.getElementById('gif-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'gif-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeGifPicker(); });
+  el.innerHTML = `
+    <div class="modal gif-modal">
+      <a class="modal-close" href="#" onclick="closeGifPicker();return false;">&#10005;</a>
+      <h2>GIFs</h2>
+      <div class="gif-search-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="gif-search-input" placeholder="Search GIPHY">
+      </div>
+      <div class="gif-grid" id="gif-grid"><span class="spinner">Loading&hellip;</span></div>
+      <div class="gif-attrib">Powered by GIPHY</div>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#gif-grid').addEventListener('click', e => {
+    const btn = e.target.closest('.gif-item');
+    if (btn) pickGif(btn.dataset.url);
+  });
+  const input = el.querySelector('#gif-search-input');
+  let deb;
+  input.addEventListener('input', () => {
+    clearTimeout(deb);
+    deb = setTimeout(() => searchGifs(input.value.trim()), 350);
+  });
+  return el;
+}
+
+function openGifPicker(prefix) {
+  if (!requireLogin()) return;
+  gifPickerTarget = prefix;
+  const el = gifModalEl();
+  el.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const input = el.querySelector('#gif-search-input');
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+  loadTrendingGifs();
+}
+function closeGifPicker() {
+  document.getElementById('gif-modal-bg')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+async function loadTrendingGifs() {
+  await fetchGifs(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=24&rating=pg-13`);
+}
+async function searchGifs(q) {
+  if (!q) { loadTrendingGifs(); return; }
+  await fetchGifs(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&limit=24&rating=pg-13&q=${encodeURIComponent(q)}`);
+}
+async function fetchGifs(url) {
+  const grid = document.getElementById('gif-grid');
+  if (!grid) return;
+  grid.innerHTML = `<span class="spinner">Loading&hellip;</span>`;
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    const items = json.data || [];
+    if (!items.length) { grid.innerHTML = `<div class="no-t">No GIFs found.</div>`; return; }
+    grid.innerHTML = items.map(g => {
+      const thumb = g.images?.fixed_width?.url || g.images?.original?.url || '';
+      const full = g.images?.original?.url || thumb;
+      return `<button type="button" class="gif-item" data-url="${esc(full)}"><img src="${esc(thumb)}" alt="${esc(g.title || 'GIF')}" loading="lazy"></button>`;
+    }).join('');
+  } catch (e) {
+    grid.innerHTML = `<div class="errmsg">Couldn't load GIFs. Check your connection.</div>`;
+  }
+}
+function pickGif(url) {
+  if (url && gifPickerTarget) setComposerGif(gifPickerTarget, url);
+  closeGifPicker();
+}
+function setComposerGif(prefix, url) {
+  if (!composeExtras[prefix]) composeExtras[prefix] = {};
+  composeExtras[prefix].gifUrl = url;
+  removePoll(prefix); // a post can carry media OR a poll, never both — same as X
+  const fileEl = document.getElementById(`${prefix}-file`);
+  if (fileEl) fileEl.value = '';
+  const fp = document.getElementById(`${prefix}-fp`);
+  if (fp) {
+    fp.innerHTML = `<img src="${esc(url)}" alt="GIF"><br><span class="rm-f" id="${prefix}-gif-rm">remove GIF</span>`;
+    document.getElementById(`${prefix}-gif-rm`).onclick = () => clearComposerGif(prefix);
+  }
+  if (prefix === 'pf' && typeof updatePostBtnState === 'function') updatePostBtnState();
+  if (prefix === 'gc' && typeof updateGcBtnState === 'function') updateGcBtnState();
+}
+function clearComposerGif(prefix) {
+  if (composeExtras[prefix]) composeExtras[prefix].gifUrl = null;
+  const fp = document.getElementById(`${prefix}-fp`);
+  if (fp) fp.innerHTML = '';
+}
+function clearComposerMedia(prefix) {
+  clearComposerGif(prefix);
+  const fileEl = document.getElementById(`${prefix}-file`);
+  if (fileEl) fileEl.value = '';
+  const fp = document.getElementById(`${prefix}-fp`);
+  if (fp) fp.innerHTML = '';
+}
+
+// ── EMOJI ──
+const EMOJI_SET = ['😀','😂','🥹','😍','🥰','😎','🤔','😭','😡','🙏','👍','👎','🔥','💀','✨','🎉','❤️','💔','😴','🤯','😅','🙌','👀','🤷','😤','🥳','😇','🫡','👏','💯','🎮','🍜','☕','🌸','⚡'];
+let emojiPickerTarget = null;
+function toggleEmojiPicker(prefix, anchorBtn) {
+  if (!requireLogin()) return;
+  let pop = document.getElementById('emoji-pop');
+  if (pop && emojiPickerTarget === prefix && !pop.hidden) { pop.hidden = true; return; }
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'emoji-pop';
+    pop.className = 'cx-emoji-pop';
+    pop.hidden = true;
+    pop.innerHTML = EMOJI_SET.map(e => `<button type="button" class="cx-emoji-item" data-e="${e}">${e}</button>`).join('');
+    document.body.appendChild(pop);
+    pop.addEventListener('click', e => {
+      const btn = e.target.closest('.cx-emoji-item');
+      if (!btn || !emojiPickerTarget) return;
+      insertAtCursor(document.getElementById(`${emojiPickerTarget}-body`), btn.dataset.e);
+    });
+    document.addEventListener('click', e => {
+      if (pop.hidden || e.target.closest('.cx-emoji-pop') || e.target.closest('[title="Emoji"]')) return;
+      pop.hidden = true;
+    });
+  }
+  emojiPickerTarget = prefix;
+  const r = anchorBtn.getBoundingClientRect();
+  pop.style.top = `${r.bottom + window.scrollY + 6}px`;
+  pop.style.left = `${Math.max(8, r.left + window.scrollX - 100)}px`;
+  pop.hidden = false;
+}
+function insertAtCursor(el, text) {
+  if (!el) return;
+  const start = el.selectionStart ?? el.value.length;
+  const end = el.selectionEnd ?? el.value.length;
+  el.value = el.value.slice(0, start) + text + el.value.slice(end);
+  const pos = start + text.length;
+  el.focus();
+  el.setSelectionRange(pos, pos);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// ── POLL BUILDER ──
+function togglePollBuilder(prefix) {
+  if (!requireLogin()) return;
+  const box = document.getElementById(`${prefix}-poll-box`);
+  if (!box) return;
+  if (box.hidden) {
+    clearComposerMedia(prefix); // poll & media/GIF are mutually exclusive — same as X
+    box.hidden = false;
+    box.querySelector('.cx-poll-opt')?.focus();
+  } else {
+    removePoll(prefix);
+  }
+}
+function addPollOption(prefix) {
+  const wrap = document.getElementById(`${prefix}-poll-opts`);
+  if (!wrap || wrap.querySelectorAll('.cx-poll-opt').length >= 4) return;
+  const n = wrap.querySelectorAll('.cx-poll-opt').length;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'cx-poll-opt'; inp.maxLength = 25;
+  inp.placeholder = `Choice ${n + 1}`;
+  wrap.appendChild(inp);
+  inp.focus();
+}
+function removePoll(prefix) {
+  if (composeExtras[prefix]) composeExtras[prefix].poll = null;
+  const box = document.getElementById(`${prefix}-poll-box`);
+  if (!box) return;
+  box.hidden = true;
+  box.querySelectorAll('.cx-poll-opt').forEach((o, i) => { if (i > 1) o.remove(); else o.value = ''; });
+  const dur = document.getElementById(`${prefix}-poll-dur`);
+  if (dur) dur.value = '3';
+}
+function collectPoll(prefix) {
+  const box = document.getElementById(`${prefix}-poll-box`);
+  if (!box || box.hidden) return null;
+  const opts = Array.from(box.querySelectorAll('.cx-poll-opt')).map(i => i.value.trim()).filter(Boolean);
+  if (opts.length < 2) return null;
+  const days = Number(document.getElementById(`${prefix}-poll-dur`)?.value || 1);
+  return { poll_options: opts, poll_ends_at: new Date(Date.now() + days * 86400000).toISOString() };
+}
+
+// ── SCHEDULE PICKER ──
+function toggleScheduleBuilder(prefix) {
+  if (!requireLogin()) return;
+  const box = document.getElementById(`${prefix}-sched-box`);
+  if (!box) return;
+  if (box.hidden) {
+    box.hidden = false;
+    const input = document.getElementById(`${prefix}-sched-input`);
+    if (input && !input.value) input.value = toLocalDatetimeValue(new Date(Date.now() + 30 * 60000));
+    input?.focus();
+  } else {
+    removeSchedule(prefix);
+  }
+}
+function removeSchedule(prefix) {
+  const box = document.getElementById(`${prefix}-sched-box`);
+  if (box) box.hidden = true;
+  const input = document.getElementById(`${prefix}-sched-input`);
+  if (input) input.value = '';
+}
+function toLocalDatetimeValue(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function collectSchedule(prefix) {
+  const box = document.getElementById(`${prefix}-sched-box`);
+  if (!box || box.hidden) return null;
+  const input = document.getElementById(`${prefix}-sched-input`);
+  const d = input?.value ? new Date(input.value) : null;
+  if (!d || isNaN(d.getTime()) || d.getTime() <= Date.now()) return null;
+  return d.toISOString();
+}
+function validatePollAndSchedule(prefix, errEl) {
+  const pollBox = document.getElementById(`${prefix}-poll-box`);
+  if (pollBox && !pollBox.hidden) {
+    const opts = Array.from(pollBox.querySelectorAll('.cx-poll-opt')).map(i => i.value.trim()).filter(Boolean);
+    if (opts.length < 2) { showErr(errEl, 'Add at least 2 poll options.'); return false; }
+  }
+  const schedBox = document.getElementById(`${prefix}-sched-box`);
+  if (schedBox && !schedBox.hidden) {
+    const input = document.getElementById(`${prefix}-sched-input`);
+    const d = input?.value ? new Date(input.value) : null;
+    if (!d || isNaN(d.getTime()) || d.getTime() <= Date.now()) { showErr(errEl, 'Pick a future date/time to schedule this post.'); return false; }
+  }
+  return true;
+}
+function resetComposeExtras(prefix) {
+  composeExtras[prefix] = { gifUrl: null };
+  removePoll(prefix);
+  removeSchedule(prefix);
+}
+
 // ── FILE PREVIEW WIDGET ──
 function wireFilePreview(inputId, previewId, errElId) {
   const input = document.getElementById(inputId);
   const preview = document.getElementById(previewId);
+  const prefix = inputId.replace(/-file$/, '');
   input.addEventListener('change', () => {
     preview.innerHTML = '';
     const file = input.files[0];
@@ -1144,6 +1487,8 @@ function wireFilePreview(inputId, previewId, errElId) {
     const errEl = errElId ? document.getElementById(errElId) : null;
     if (!validateFile(file, errEl)) { input.value = ''; return; }
     clearErr(errEl);
+    if (composeExtras[prefix]) composeExtras[prefix].gifUrl = null; // file + GIF are mutually exclusive
+    removePoll(prefix); // media & poll are mutually exclusive
     const url = URL.createObjectURL(file);
     const type = mediaTypeFor(file);
     const el = type === 'video'

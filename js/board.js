@@ -160,32 +160,49 @@ async function submitPost() {
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Comment can't be empty."); return; }
   if (body.length > 4000) { showErr(errEl, 'Comment too long (max 4000 chars).'); return; }
+  if (!validatePollAndSchedule('pf', errEl)) return;
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';
   try {
     let media_url = null, media_type = null;
+    const gifUrl = composeExtras.pf?.gifUrl;
     const file = fileEl.files[0];
-    if (file) {
+    if (gifUrl) {
+      media_url = gifUrl; media_type = 'gif';
+    } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
       ({ media_url, media_type } = await uploadMedia(file));
     }
+    const poll = collectPoll('pf');
+    const scheduled_at = collectSchedule('pf');
     const { data, error } = await sb.from('posts').insert({
       author_id: currentSession.user.id,
       body,
       media_url,
-      media_type
+      media_type,
+      poll_options: poll?.poll_options || null,
+      poll_ends_at: poll?.poll_ends_at || null,
+      scheduled_at
     }).select(POST_SELECT).single();
     if (error) throw error;
     bodyEl.value = '';
     bodyEl.style.height = '';
     fileEl.value = ''; document.getElementById('pf-fp').innerHTML = '';
+    resetComposeExtras('pf');
     stEl.textContent = '';
     // Render it immediately — addPostToFeed() is dedup-safe, so if the
     // realtime INSERT event for this same row arrives a moment later
-    // it will just no-op instead of adding a second copy.
-    if (activeTab === 'foryou') addPostToFeed(data, true);
+    // it will just no-op instead of adding a second copy. A scheduled
+    // post isn't published yet (RLS hides it from everyone but its
+    // author until scheduled_at passes), so it doesn't belong in the
+    // live feed — just confirm it was queued.
+    if (scheduled_at) {
+      alert(`Post scheduled for ${new Date(scheduled_at).toLocaleString()}.`);
+    } else if (activeTab === 'foryou') {
+      addPostToFeed(data, true);
+    }
   } catch (e) {
     showErr(errEl, e.message || 'Failed to post.');
     stEl.textContent = '';

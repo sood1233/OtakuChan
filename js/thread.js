@@ -44,6 +44,7 @@ async function loadThread() {
       <div class="op-detail-body">${renderBody(p.body)}</div>
       ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
       ${renderMedia(p.media_url, p.media_type)}
+      ${pollHtml(p)}
       <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
       <div class="op-detail-divider"></div>
       ${opDetailActionsHtml(p, "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();")}
@@ -54,31 +55,59 @@ async function loadThread() {
       </div>
       <div class="op-quotes-list" id="op-quotes-list" hidden></div>
     </div>
-    <div class="rw" id="replies-list">
-      ${renderReplyTree()}
-    </div>
     <div class="rfm" data-requires-auth style="display:none;">
-      <b>Post a Reply</b>
-      <div class="errmsg" id="rf-err" style="display:none;"></div>
-      <textarea id="rf-body" placeholder="Write a reply… lines starting with &gt; become greentext."></textarea>
-      <input type="file" id="rf-file" accept="image/*,video/*">
-      <div id="rf-fp" class="fp"></div>
-      <div class="rfm-row">
-        <input type="submit" id="rf-btn" value="Post Reply" onclick="submitReply();return false;">
-        <span id="rf-st" style="font-size:11px;color:var(--muted);"></span>
+      <span class="pf-avatar" id="rf-avatar"></span>
+      <div class="rfm-col">
+        <div class="errmsg" id="rf-err" style="display:none;"></div>
+        <textarea id="rf-body" placeholder="Post your reply" rows="1"></textarea>
+        <div id="rf-fp" class="fp"></div>
+        <div class="rfm-row">
+          <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('rf-file').click();return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
+          </button>
+          <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('rf');return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
+          </button>
+          <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('rf', this);return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
+          </button>
+          <input type="file" id="rf-file" accept="image/*,video/*" style="display:none;">
+          <span id="rf-st" style="font-size:11px;color:var(--muted);"></span>
+          <input type="submit" id="rf-btn" class="pf-btn" value="Reply" onclick="submitReply();return false;">
+        </div>
       </div>
     </div>
     <div class="post-login-gate" data-requires-anon style="display:none;">
       You need an account to reply. <a href="login.html">Log in</a> or <a href="signup.html">sign up</a>.
+    </div>
+    <div class="rw" id="replies-list">
+      ${renderReplyTree()}
     </div>`;
 
   wireFilePreview('rf-file', 'rf-fp', 'rf-err');
   refreshPostGates();
   loadQuoteCount(p.id);
 
+  const rfBody = document.getElementById('rf-body');
+  if (rfBody) {
+    rfBody.addEventListener('input', () => {
+      rfBody.style.height = 'auto';
+      rfBody.style.height = Math.max(40, rfBody.scrollHeight) + 'px';
+    });
+  }
+
   // Bump view counts — once per session per post/reply (see common.js).
   bumpPostView(p.id);
   if (allReplies.length) bumpReplyViews(allReplies.map(r => r.id));
+}
+
+// Fills in the reply composer's avatar once we know who's logged in
+// (called by auth.js's refreshPostGates whenever session state settles).
+function renderComposerAvatar() {
+  const el = document.getElementById('rf-avatar');
+  if (!el) return;
+  const url = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
+  el.innerHTML = `<img src="${esc(url)}" alt="">`;
 }
 
 // Shows the "View quotes ›" link only when at least one exists — same
@@ -205,8 +234,11 @@ async function submitReply(parentReplyId = null) {
   stEl.textContent = 'Posting…';
   try {
     let media_url = null, media_type = null;
+    const gifUrl = !parentReplyId ? composeExtras.rf?.gifUrl : null;
     const file = fileEl?.files[0];
-    if (file) {
+    if (gifUrl) {
+      media_url = gifUrl; media_type = 'gif';
+    } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
       ({ media_url, media_type } = await uploadMedia(file));
@@ -222,6 +254,7 @@ async function submitReply(parentReplyId = null) {
     if (error) throw error;
     bodyEl.value = ''; if (fileEl) fileEl.value = '';
     if (fpEl) fpEl.innerHTML = '';
+    if (!parentReplyId) resetComposeExtras('rf');
     stEl.textContent = '';
     insertReplyIntoTree(data);
     if (parentReplyId) {
