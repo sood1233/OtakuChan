@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Otakuchan</title>
+<title>Community — Otakuchan</title>
 <base href="/">
 <link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
 <link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512" id="fav512">
@@ -14,10 +14,9 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-page="community">
 
 <div class="xshell">
-  <!-- LEFT SIDEBAR -->
   <div id="hdr">
     <div class="sb-top">
       <a class="logo" href="/">
@@ -32,81 +31,58 @@
     <span id="auth-area" class="auth-area"></span>
   </div>
 
-  <!-- CENTER + RIGHT -->
   <div id="main">
     <div id="feed">
-      <!-- TABS -->
-      <div id="board-hdr">
-        <div class="xtabs" id="xtabs">
-          <button class="xtab active" id="tab-foryou" onclick="switchTab('foryou');return false;">For you</button>
-          <button class="xtab" id="tab-following" onclick="switchTab('following');return false;">Following</button>
-        </div>
-        <button class="xtabs-plus" title="Create a community" onclick="openCreateCommunityModal();return false;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
+      <div class="sec-bar">
+        <span>Community</span>
+        <a class="back" href="communities.html">&larr; All communities</a>
       </div>
 
-      <!-- POST FORM -->
-      <div id="pf-wrap">
+      <div id="community-hero"><span class="spinner">Loading&hellip;</span></div>
+
+      <div id="board-hdr" style="display:none;">
+        <div class="xtabs" id="community-tabs">
+          <button class="xtab active" id="tab-latest" onclick="switchCommunityTab('latest');return false;">Latest</button>
+          <button class="xtab" id="tab-trending" onclick="switchCommunityTab('trending');return false;">Trending</button>
+        </div>
+      </div>
+
+      <div id="pf-wrap" style="display:none;">
         <div id="pf-box" data-requires-auth style="display:none;">
           <div class="pf-row">
-            <span class="pf-avatar" id="pf-avatar"></span>
+            <span class="pf-avatar" id="cf-avatar"></span>
             <div class="pf-col">
-              <div class="errmsg" id="pf-err" style="display:none;"></div>
-              <textarea id="pf-body" maxlength="4000" placeholder="What's happening?"></textarea>
-              <div id="pf-fp" class="fp"></div>
-              <div class="cx-poll" id="pf-poll-box" hidden>
-                <div class="cx-poll-opts" id="pf-poll-opts">
-                  <input type="text" class="cx-poll-opt" placeholder="Choice 1" maxlength="25">
-                  <input type="text" class="cx-poll-opt" placeholder="Choice 2" maxlength="25">
-                </div>
-                <div class="cx-poll-row">
-                  <button type="button" class="cx-poll-add" onclick="addPollOption('pf');return false;">+ Add option</button>
-                  <select id="pf-poll-dur"><option value="1">1 day</option><option value="3" selected>3 days</option><option value="7">7 days</option></select>
-                  <button type="button" class="cx-poll-remove" title="Remove poll" onclick="removePoll('pf');return false;">&#10005;</button>
-                </div>
-              </div>
-              <div class="cx-sched" id="pf-sched-box" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
-                <input type="datetime-local" id="pf-sched-input">
-                <button type="button" class="cx-sched-remove" title="Remove" onclick="removeSchedule('pf');return false;">&#10005;</button>
-              </div>
+              <div class="errmsg" id="cf-err" style="display:none;"></div>
+              <textarea id="cf-body" maxlength="4000" placeholder="Post in this community"></textarea>
+              <div id="cf-fp" class="fp"></div>
             </div>
           </div>
           <div class="pf-toolbar">
             <div class="pf-icons">
-              <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('pf-file').click();return false;">
+              <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('cf-file').click();return false;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
               </button>
-              <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('pf');return false;">
+              <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('cf');return false;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
               </button>
-              <button type="button" class="pf-ic" title="Poll" onclick="togglePollBuilder('pf');return false;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v2M12 11v6M17 8v10"/></svg>
-              </button>
-              <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('pf', this);return false;">
+              <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('cf', this);return false;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
               </button>
-              <button type="button" class="pf-ic" title="Schedule" onclick="toggleScheduleBuilder('pf');return false;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13.5h1M12 13.5h1M16 13.5h1M8 17h1M12 17h1"/></svg>
-              </button>
-              <button type="button" class="pf-ic" title="Location" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
-              </button>
-              <input type="file" id="pf-file" accept="image/*,video/*" style="display:none;">
+              <input type="file" id="cf-file" accept="image/*,video/*" style="display:none;">
             </div>
-            <input type="submit" id="pf-btn" class="pf-btn" value="Post" onclick="submitPost();return false;" disabled>
+            <input type="submit" id="cf-btn" class="pf-btn" value="Post" onclick="submitCommunityPost();return false;" disabled>
           </div>
-          <span id="pf-st" style="font-size:11px;color:var(--muted);"></span>
+          <span id="cf-st" style="font-size:11px;color:var(--muted);"></span>
+        </div>
+        <div class="post-login-gate" id="cf-join-gate" style="display:none;">
+          Join this community to post in it.
         </div>
         <div class="post-login-gate" data-requires-anon style="display:none;">
           You need an account to post. <a href="login.html">Log in</a> or <a href="signup.html">sign up</a> — it takes a minute.
         </div>
       </div>
 
-      <a href="#" id="show-new-pill" class="show-new-pill" onclick="flushPendingPosts();return false;" style="display:none;"></a>
-
-      <div id="feed-posts"><span class="spinner">Loading posts&hellip;</span></div>
+      <div id="feed-posts"></div>
     </div>
 
     <div id="sidebar">
@@ -114,24 +90,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
         <input id="side-search" placeholder="Search Otakuchan">
       </div>
-
-      <div class="trends-box">
-        <div class="t-lbl">Most Trending</div>
-        <div id="t-trending"></div>
-      </div>
-
       <div class="who-box" id="my-communities"></div>
-
       <div class="who-box" id="who-to-follow"></div>
-
-      <div id="ftr">
-        [<a href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">Top</a>]
-        &nbsp;&mdash;&nbsp;
-        All trademarks and copyrights are owned by their respective parties. Images and comments are the responsibility of the poster.
-        <br><span style="font-size:10px;color:var(--muted);">&copy; 2026 Otakuchan &mdash; <a href="rules.html">Rules</a> &mdash; <a href="rules.html#dmca">DMCA</a></span>
+      <div id="ftr" style="padding:0;">
+        [<a href="communities.html">&larr; All communities</a>]
+        <br><span style="font-size:10px;color:var(--muted);">&copy; 2026 Otakuchan</span>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -154,7 +119,6 @@
   </div>
 </div>
 
-
 <!-- QUOTE POST MODAL -->
 <div class="modal-bg" id="modal-quote">
   <div class="modal" style="width:420px;">
@@ -174,6 +138,6 @@
 <script src="js/supabase-config.js"></script>
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/board.js"></script>
+<script src="js/community.js"></script>
 </body>
 </html>

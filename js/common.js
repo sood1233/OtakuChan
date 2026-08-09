@@ -81,6 +81,7 @@ function postUrlById(id, username = null) {
 }
 function followListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
 function messagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
+function communityUrl(slug) { return `/communities/${u_(slug)}`; }
 
 // Kept as prettyXxx() aliases too — profile.js/thread.js/followlist.js/
 // chat.js/common.js's sharePost() already call these names directly
@@ -122,6 +123,7 @@ function legacyMessagesUrl(username = null) { return username ? `chat.html?u=${u
     'login.html': '/login',
     'signup.html': '/signup',
     'search.html': '/search',
+    'communities.html': '/communities',
   };
   const file = location.pathname.split('/').pop();
   const pretty = STATIC_PRETTY[file];
@@ -157,7 +159,17 @@ function currentStatusId() {
 // "profile.html" itself as the first path segment, treated it as
 // the username to look up, and always failed with "No user found",
 // even for your own profile link.
-const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i']);
+const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i','communities']);
+
+// Reads the community slug out of the current URL on community.html,
+// whether it arrived as a pretty path (/communities/some-slug) or the
+// legacy query form (community.html?slug=some-slug — local dev
+// without Vercel's rewrite engine). Same idea as currentStatusId().
+function currentCommunitySlug() {
+  const m = location.pathname.match(/\/communities\/([^/]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('slug');
+}
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 function currentProfileUsername() {
   const seg = location.pathname.split('/').filter(Boolean)[0];
@@ -192,7 +204,8 @@ const NAV_ICON = {
   user:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>',
   gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c0-.5.1-1 0-1.5l1.9-1.5-2-3.4-2.2.9c-.7-.6-1.5-1-2.3-1.3L14.4 4h-4l-.4 2.7c-.8.3-1.6.7-2.3 1.3l-2.2-.9-2 3.4L5.4 12c-.1.5 0 1 0 1.5l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1 2.3 1.3l.4 2.7h4l.4-2.7c.8-.3 1.6-.7 2.3-1.3l2.2.9 2-3.4-1.9-1.5Z"/></svg>',
   doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>',
-  dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>'
+  dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
+  people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.2"/><path d="M3 20c.9-3.6 3.2-5.4 6-5.4s5.1 1.8 6 5.4"/><path d="M15.5 5.2a3.1 3.1 0 0 1 0 6"/><path d="M16 14.8c2.4.4 4 2 4.7 5.2"/></svg>'
 };
 
 // ── THEME — Default (light) / Dim / Lights out (dark), applied via
@@ -258,6 +271,7 @@ function currentNavKey() {
   if (path === '/notifications' || path.endsWith('/notifications.html')) return 'notifications';
   if (path === '/messages' || path.startsWith('/messages/') || path.endsWith('/chat.html')) return 'messages';
   if (path === '/bookmarks' || path.endsWith('/bookmarks.html')) return 'bookmarks';
+  if (path === '/communities' || path.startsWith('/communities/') || path.endsWith('/communities.html') || path.endsWith('/community.html')) return 'communities';
   if (path === '/settings' || path.endsWith('/settings.html')) return 'settings';
   if (path === '/rules' || path.endsWith('/rules.html')) return 'rules';
   if (currentSession && currentProfile && path.toLowerCase() === profileUrl(currentProfile.username).toLowerCase()) return 'profile';
@@ -284,6 +298,7 @@ function renderSideNav() {
     item('/notifications', NAV_ICON.bell, 'Notifications', 'notifications', notifBadge) +
     item('/messages', NAV_ICON.chat, 'Chat', 'messages', chatBadge) +
     item('/bookmarks', NAV_ICON.bookmark, 'Bookmarks', 'bookmarks') +
+    item('/communities', NAV_ICON.people, 'Communities', 'communities') +
     item(ownHref, NAV_ICON.user, 'Profile', 'profile') +
     `<div class="acct" id="more-wrap">
        <button class="navmore-btn"${morePage ? ' style="font-weight:800;"' : ''} onclick="toggleMoreMenu();return false;">
@@ -368,6 +383,7 @@ function renderMobileChrome() {
           <div class="m-drawer-menu">
             <a href="${ownHref}">${NAV_ICON.user}Profile</a>
             <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
+            <a href="communities.html">${NAV_ICON.people}Communities</a>
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
             <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
             <a href="rules.html">${NAV_ICON.doc}Rules</a>
@@ -379,6 +395,7 @@ function renderMobileChrome() {
           <span class="m-drawer-name">Welcome to Otakuchan</span>
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
+            <a href="communities.html">${NAV_ICON.people}Communities</a>
             <a href="rules.html">${NAV_ICON.doc}Rules</a>
           </div>
           <div class="m-drawer-cta">
@@ -1209,6 +1226,199 @@ async function confirmDeletePost() {
     if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// COMMUNITIES — the "+" button next to the For you/Following tabs
+// opens this to create a Twitter-Community-style group. Lazy-built
+// into <body> the same way as dcModalEl()/gcModalEl() above, so it
+// works from any page (index.html's tab bar, communities.html's own
+// "Create" button, etc.) with no per-page markup needed.
+// ─────────────────────────────────────────────────────────────
+function ccModalEl() {
+  let el = document.getElementById('cc-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'cc-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeCreateCommunityModal(); });
+  el.innerHTML = `
+    <div class="modal cc-modal">
+      <a class="modal-close" href="#" onclick="closeCreateCommunityModal();return false;">&#10005;</a>
+      <h2>Create a community</h2>
+      <div class="errmsg" id="cc-err" style="display:none;margin:0 16px 8px;"></div>
+      <label>Name</label>
+      <input type="text" id="cc-name" maxlength="50" placeholder="e.g. Shounen Fans">
+      <label>Description (optional)</label>
+      <textarea id="cc-desc" rows="3" maxlength="300" placeholder="What's this community about?"></textarea>
+      <button type="button" class="modal-btn" id="cc-btn" onclick="submitCreateCommunity()">Create community</button>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeCreateCommunityModal();
+  });
+  return el;
+}
+
+function openCreateCommunityModal() {
+  if (!requireLogin()) return;
+  const el = ccModalEl();
+  document.getElementById('cc-name').value = '';
+  document.getElementById('cc-desc').value = '';
+  clearErr(document.getElementById('cc-err'));
+  el.classList.add('open');
+  lockScroll();
+  setTimeout(() => document.getElementById('cc-name')?.focus(), 0);
+}
+
+function closeCreateCommunityModal() {
+  const el = document.getElementById('cc-modal-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
+}
+
+// Turns "Shounen Fans!!" into "shounen-fans" — lowercase, non
+// alphanumerics collapsed to single hyphens, trimmed of leading/
+// trailing ones. Communities.slug's check constraint enforces the
+// same shape server-side (see supabase/communities.sql), so this is
+// just what gets a normal name there without the user ever seeing
+// or typing a slug themselves.
+function slugify(name) {
+  return name.toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+}
+
+async function submitCreateCommunity() {
+  if (!requireLogin()) return;
+  const nameEl = document.getElementById('cc-name');
+  const descEl = document.getElementById('cc-desc');
+  const errEl = document.getElementById('cc-err');
+  const btn = document.getElementById('cc-btn');
+  clearErr(errEl);
+
+  const name = nameEl.value.trim();
+  const description = descEl.value.trim();
+  if (name.length < 3) { showErr(errEl, 'Give it a name — at least 3 characters.'); return; }
+  if (name.length > 50) { showErr(errEl, 'Name is too long (max 50 characters).'); return; }
+  const baseSlug = slugify(name);
+  if (baseSlug.length < 3) { showErr(errEl, 'That name needs at least a few letters or numbers.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+  try {
+    // A second community with the same/similar name just gets a
+    // numeric suffix on its slug (shounen-fans-2, shounen-fans-3, …)
+    // rather than blocking on the name being taken — same as how
+    // usernames vs display names work elsewhere in the app; the name
+    // shown to people doesn't have to be unique, only the URL slug.
+    let slug = baseSlug, attempt = 0, data, error;
+    while (attempt < 6) {
+      ({ data, error } = await sb.from('communities').insert({
+        name, slug, description: description || null, created_by: currentSession.user.id
+      }).select('id,slug').single());
+      if (!error) break;
+      if (error.code === '23505') { attempt++; slug = `${baseSlug}-${attempt + 1}`; continue; }
+      throw error;
+    }
+    if (error) throw error;
+    closeCreateCommunityModal();
+    location.href = communityUrl(data.slug);
+  } catch (e) {
+    showErr(errEl, e.message || 'Failed to create community.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create community';
+  }
+}
+
+// Shared join/leave — used by community.html's own header button, the
+// sidebar "My communities" box below, and communities.html's browse
+// list. Returns {error} so callers can react without duplicating the
+// try/catch every time.
+async function joinCommunity(communityId) {
+  if (!requireLogin()) return { error: new Error('not logged in') };
+  const { error } = await sb.from('community_members')
+    .insert({ community_id: communityId, user_id: currentSession.user.id });
+  return { error };
+}
+async function leaveCommunity(communityId) {
+  if (!requireLogin()) return { error: new Error('not logged in') };
+  const { error } = await sb.from('community_members')
+    .delete().eq('community_id', communityId).eq('user_id', currentSession.user.id);
+  return { error };
+}
+
+// Compact list-row markup for a community — used by the sidebar box
+// below and by communities.html's browse list. `joined` controls
+// whether the pill reads Join or Joined/Leave-on-hover.
+function communityRowHtml(c, joined) {
+  const initial = esc((c.name || '?').trim().charAt(0).toUpperCase() || '?');
+  const btn = joined
+    ? `<button class="who-follow-btn comm-joined-btn" onclick="event.preventDefault();communityToggleJoin('${c.id}', this, true)">Joined</button>`
+    : `<button class="who-follow-btn" onclick="event.preventDefault();communityToggleJoin('${c.id}', this, false)">Join</button>`;
+  return `
+    <a class="who-row comm-row" href="${communityUrl(c.slug)}">
+      <span class="comm-avatar">${initial}</span>
+      <span class="who-row-txt">
+        <span class="who-row-name">${esc(c.name)}</span>
+        <span class="who-row-handle">${fmtCount(c.member_count)} member${c.member_count === 1 ? '' : 's'}</span>
+      </span>
+      ${btn}
+    </a>`;
+}
+
+async function communityToggleJoin(communityId, btn, currentlyJoined) {
+  if (!requireLogin()) return;
+  btn.disabled = true;
+  try {
+    const { error } = currentlyJoined ? await leaveCommunity(communityId) : await joinCommunity(communityId);
+    if (error) throw error;
+    const nowJoined = !currentlyJoined;
+    btn.textContent = nowJoined ? 'Joined' : 'Join';
+    btn.classList.toggle('comm-joined-btn', nowJoined);
+    btn.setAttribute('onclick', `event.preventDefault();communityToggleJoin('${communityId}', this, ${nowJoined})`);
+    btn.disabled = false;
+    if (typeof onCommunityMembershipChanged === 'function') onCommunityMembershipChanged(communityId, nowJoined);
+  } catch (e) {
+    btn.disabled = false;
+  }
+}
+
+// ── SIDEBAR "MY COMMUNITIES" BOX — index.html's right column, same
+// self-contained pattern as renderWhoToFollow(): only runs on pages
+// that actually have a #my-communities container. ──
+async function renderMyCommunities() {
+  const box = document.getElementById('my-communities');
+  if (!box) return;
+  const header = `<div class="t-lbl">Communities</div>`;
+  const createRow = `<a href="#" class="comm-create-row" onclick="openCreateCommunityModal();return false;">
+      <span class="comm-avatar comm-avatar-plus">${PLUS_ICON}</span>
+      <span class="who-row-txt"><span class="who-row-name">Create a community</span></span>
+    </a>`;
+
+  if (!currentSession) {
+    box.innerHTML = header + createRow +
+      `<a class="show-more" href="communities.html">Browse communities</a>`;
+    return;
+  }
+
+  const { data, error } = await sb.from('community_members')
+    .select('community:communities(id,name,slug,member_count)')
+    .eq('user_id', currentSession.user.id)
+    .order('joined_at', { ascending: false })
+    .limit(4);
+
+  const mine = (error ? [] : data || []).map(r => r.community).filter(Boolean);
+  box.innerHTML = header + createRow +
+    mine.map(c => communityRowHtml(c, true)).join('') +
+    `<a class="show-more" href="communities.html">${mine.length ? 'See all' : 'Browse communities'}</a>`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!document.getElementById('my-communities')) return;
+  if (typeof authReady !== 'undefined') await authReady;
+  renderMyCommunities();
+});
 
 // The small "↻ [Name] reposted" line shown above a card that's in a
 // feed/profile only because someone reposted it (not authored it) —

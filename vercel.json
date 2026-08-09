@@ -10,6 +10,8 @@
     { "source": "/rules",              "destination": "/rules.html" },
     { "source": "/login",              "destination": "/login.html" },
     { "source": "/signup",             "destination": "/signup.html" },
+    { "source": "/communities",        "destination": "/communities.html" },
+    { "source": "/communities/:slug",  "destination": "/community.html" },
 
     { "source": "/messages",           "destination": "/chat.html" },
     { "source": "/messages/:username", "destination": "/chat.html" },
