@@ -72,6 +72,9 @@ This is a plain static site — no build step, no Node server required.
 - `/<username>` (`profile.html`) — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
 - `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
 - `/<username>/followers`, `/<username>/following` (`followlist.html`) — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
+- `/lists` (`lists.html`) — "Your Lists" / "Lists you're on" tabs, "+ Create" button
+- `/i/lists/<uuid>` (`list.html`) — a single List: header (Edit/Delete for the owner), a Posts tab (merged timeline of every member) and a Members tab (Remove button for the owner)
+- `/<username>/lists` (`profilelists.html`) — Lists a given profile is a (visible) member of; reached from that profile's "···" menu → "View Lists"
 - `/search?q=<term>` (`search.html`) — search posts (body) or people (username/display name), tabbed
 - `/bookmarks` (`bookmarks.html`) — posts you've bookmarked (private to you)
 - `/notifications` (`notifications.html`) — likes, replies, and new followers; marks itself read on view, live badge count in the sidebar
@@ -191,6 +194,27 @@ or reply drops a "mentioned you" row in their Notifications page,
 same mechanism as likes/replies/follows — a security-definer trigger
 on insert, gated by a `notify_mentions` toggle in `settings.html`
 (on by default), never something the client inserts directly.
+
+## Lists
+Run `supabase/lists.sql` in the SQL Editor after `schema.sql` (additive/
+idempotent like the others) to enable Twitter-style Lists — curated,
+owner-only-editable groups of people:
+- **`lists`** — one row per List (name, optional description, Private
+  toggle, a denormalized `member_count`). Only the owner can rename,
+  delete, or change Privacy.
+- **`list_members`** — a join table; being added to someone's List
+  never needs the member's consent, same as real Twitter Lists — only
+  the owner can add or remove who's on it.
+- **Privacy** — a public List (and its membership) is visible to
+  anyone; a private List is visible only to its owner, enforced by
+  RLS, not just hidden in the UI.
+- **Create/add UI** — the "+ Create" button on `/lists`, and the
+  "Add/remove from Lists" popup on every profile's "···" menu (which
+  can also create a brand-new List on the fly and add that profile to
+  it in one step) — see the Lists module in `js/common.js`.
+- A List's own page (`/i/lists/<id>`) has a **Posts** tab (a merged
+  timeline of everyone on the List, newest first) and a **Members**
+  tab (with a Remove button for the owner).
 
 ## Post detail page
 `thread.html` (tapping into a post) uses its own larger layout —

@@ -100,13 +100,15 @@ const ICON_LOC = `<span class="pmr-icon">${ICON_LOC_RAW}</span>`;
 const ICON_LINK = '<span class="pmr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 14.5 14.5 9.5"/><path d="M11 7.5 12.6 5.9a3.5 3.5 0 1 1 5 5L16 12.5"/><path d="M13 16.5 11.4 18.1a3.5 3.5 0 1 1-5-5L8 11.5"/></svg></span>';
 const ICON_CAL = '<span class="pmr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>';
 
-// The profile "···" dropdown — Lists is a UI stub (Otakuchan has no
-// Lists feature yet, so those two just say so rather than pretending
-// to save anything); Share/Copy/Mute/Block/Report are fully wired.
+// The profile "···" dropdown — "Add/remove from Lists" opens the
+// shared alm-modal (see common.js) pre-loaded with this profile;
+// "View Lists" goes to the page showing which Lists this profile is
+// a (visible) member of. Share/Copy/Mute/Block/Report are also
+// fully wired.
 function profileMenuItemsHtml(profile) {
   return `
-    <button onclick="profileMenuStub(event, 'Lists')">Add/remove from Lists</button>
-    <button onclick="profileMenuStub(event, 'Lists')">View Lists</button>
+    <button onclick="openAddToListModal(event, '${profile.id}', '${u_(profile.username)}')">Add/remove from Lists</button>
+    <a href="${profileListsUrl(profile.username)}" onclick="closeProfileMenu(event)">View Lists</a>
     <button onclick="profileMenuShare(event, '${u_(profile.username)}')">Share @${esc(profile.username)} via&hellip;</button>
     <button onclick="profileMenuCopyLink(event, '${u_(profile.username)}')">Copy link to profile</button>
     <button id="pm-mute-btn" onclick="profileMenuMute(event, '${profile.id}')">Mute</button>

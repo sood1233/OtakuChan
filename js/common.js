@@ -82,6 +82,8 @@ function postUrlById(id, username = null) {
 function followListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
 function messagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
 function communityUrl(slug) { return `/communities/${u_(slug)}`; }
+function listUrl(id) { return `/i/lists/${u_(id)}`; }
+function profileListsUrl(username) { return `/${u_(username)}/lists`; }
 
 // Kept as prettyXxx() aliases too — profile.js/thread.js/followlist.js/
 // chat.js/common.js's sharePost() already call these names directly
@@ -124,6 +126,7 @@ function legacyMessagesUrl(username = null) { return username ? `chat.html?u=${u
     'signup.html': '/signup',
     'search.html': '/search',
     'communities.html': '/communities',
+    'lists.html': '/lists',
   };
   const file = location.pathname.split('/').pop();
   const pretty = STATIC_PRETTY[file];
@@ -159,7 +162,7 @@ function currentStatusId() {
 // "profile.html" itself as the first path segment, treated it as
 // the username to look up, and always failed with "No user found",
 // even for your own profile link.
-const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i','communities']);
+const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i','communities','lists']);
 
 // Reads the community slug out of the current URL on community.html,
 // whether it arrived as a pretty path (/communities/some-slug) or the
@@ -169,6 +172,16 @@ function currentCommunitySlug() {
   const m = location.pathname.match(/\/communities\/([^/]+)/);
   if (m) return decodeURIComponent(m[1]);
   return new URLSearchParams(location.search).get('slug');
+}
+
+// Reads the list id out of the current URL on list.html, whether it
+// arrived as a pretty path (/i/lists/<uuid>) or the legacy query form
+// (list.html?id=<uuid> — local dev without Vercel's rewrite engine).
+// Same idea as currentStatusId()/currentCommunitySlug().
+function currentListId() {
+  const m = location.pathname.match(/\/lists\/([^/]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('id');
 }
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 function currentProfileUsername() {
@@ -205,7 +218,8 @@ const NAV_ICON = {
   gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c0-.5.1-1 0-1.5l1.9-1.5-2-3.4-2.2.9c-.7-.6-1.5-1-2.3-1.3L14.4 4h-4l-.4 2.7c-.8.3-1.6.7-2.3 1.3l-2.2-.9-2 3.4L5.4 12c-.1.5 0 1 0 1.5l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1 2.3 1.3l.4 2.7h4l.4-2.7c.8-.3 1.6-.7 2.3-1.3l2.2.9 2-3.4-1.9-1.5Z"/></svg>',
   doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>',
   dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
-  people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.2"/><path d="M3 20c.9-3.6 3.2-5.4 6-5.4s5.1 1.8 6 5.4"/><path d="M15.5 5.2a3.1 3.1 0 0 1 0 6"/><path d="M16 14.8c2.4.4 4 2 4.7 5.2"/></svg>'
+  people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.2"/><path d="M3 20c.9-3.6 3.2-5.4 6-5.4s5.1 1.8 6 5.4"/><path d="M15.5 5.2a3.1 3.1 0 0 1 0 6"/><path d="M16 14.8c2.4.4 4 2 4.7 5.2"/></svg>',
+  list:     '<svg viewBox="0 0 24 24"><path d="M4 6.5h2.2M4 12h2.2M4 17.5h2.2"/><path d="M9.5 6.5h10.5M9.5 12h10.5M9.5 17.5h10.5"/></svg>'
 };
 
 // ── THEME — Default (light) / Dim / Lights out (dark), applied via
@@ -272,6 +286,7 @@ function currentNavKey() {
   if (path === '/messages' || path.startsWith('/messages/') || path.endsWith('/chat.html')) return 'messages';
   if (path === '/bookmarks' || path.endsWith('/bookmarks.html')) return 'bookmarks';
   if (path === '/communities' || path.startsWith('/communities/') || path.endsWith('/communities.html') || path.endsWith('/community.html')) return 'communities';
+  if (path === '/lists' || path.startsWith('/i/lists/') || path.endsWith('/lists.html') || path.endsWith('/list.html')) return 'lists';
   if (path === '/settings' || path.endsWith('/settings.html')) return 'settings';
   if (path === '/rules' || path.endsWith('/rules.html')) return 'rules';
   if (currentSession && currentProfile && path.toLowerCase() === profileUrl(currentProfile.username).toLowerCase()) return 'profile';
@@ -298,6 +313,7 @@ function renderSideNav() {
     item('/notifications', NAV_ICON.bell, 'Notifications', 'notifications', notifBadge) +
     item('/messages', NAV_ICON.chat, 'Chat', 'messages', chatBadge) +
     item('/bookmarks', NAV_ICON.bookmark, 'Bookmarks', 'bookmarks') +
+    item('/lists', NAV_ICON.list, 'Lists', 'lists') +
     item('/communities', NAV_ICON.people, 'Communities', 'communities') +
     item(ownHref, NAV_ICON.user, 'Profile', 'profile') +
     `<div class="acct" id="more-wrap">
@@ -383,6 +399,7 @@ function renderMobileChrome() {
           <div class="m-drawer-menu">
             <a href="${ownHref}">${NAV_ICON.user}Profile</a>
             <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
+            <a href="lists.html">${NAV_ICON.list}Lists</a>
             <a href="communities.html">${NAV_ICON.people}Communities</a>
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
             <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
@@ -395,6 +412,7 @@ function renderMobileChrome() {
           <span class="m-drawer-name">Welcome to Otakuchan</span>
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
+            <a href="lists.html">${NAV_ICON.list}Lists</a>
             <a href="communities.html">${NAV_ICON.people}Communities</a>
             <a href="rules.html">${NAV_ICON.doc}Rules</a>
           </div>
@@ -1644,6 +1662,309 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!document.getElementById('my-communities')) return;
   if (typeof authReady !== 'undefined') await authReady;
   renderMyCommunities();
+});
+
+// ─────────────────────────────────────────────────────────────
+// LISTS — Twitter-Lists-style curated groups of people. Two modals,
+// same lazy-built-into-<body> pattern as ccModalEl()/dcModalEl()
+// above, so both work from any page with no per-page markup:
+//   • Create/edit-list modal (cl-modal-bg) — name, description,
+//     Private toggle. Doubles as the edit form when opened with an
+//     existing list's id.
+//   • Add/remove-from-list modal (alm-modal-bg) — opened from a
+//     profile's "···" menu (see profileMenuItemsHtml() in profile.js);
+//     lists the current user's own lists as checkable rows, toggling
+//     that profile's membership immediately on each click, same as
+//     Twitter's own "Add/remove from Lists" popup. Includes a
+//     "+ Create a new list" row that opens the create modal and,
+//     on success, adds the profile being viewed to the new list too.
+// ─────────────────────────────────────────────────────────────
+
+// Shared "avatar or initial-letter fallback" for a list — same idea
+// as communityAvatarInner(), just a rounded-square glyph instead of a
+// circle so a list card never gets mistaken for a person or community
+// at a glance, matching Twitter's own square list icons.
+function listAvatarInner(l) {
+  return `<span class="list-avatar-glyph">${NAV_ICON.list}</span>`;
+}
+
+// Compact list-row markup — used by lists.html's Your Lists/Lists
+// you're on tabs and by the sidebar "My Lists" box.
+function listRowHtml(l, ownerProfile = null) {
+  const privacyTag = l.is_private
+    ? `<span class="list-privacy-tag">${ICON_LOCK}Private</span>`
+    : '';
+  const byLine = ownerProfile ? `<span class="who-row-handle">by @${esc(ownerProfile.username)}</span>` : '';
+  return `
+    <a class="who-row list-row" href="${listUrl(l.id)}">
+      <span class="list-avatar">${listAvatarInner(l)}</span>
+      <span class="who-row-txt">
+        <span class="who-row-name">${esc(l.name)} ${privacyTag}</span>
+        ${l.description ? `<span class="comm-desc">${esc(l.description)}</span>` : ''}
+        <span class="who-row-handle">${fmtCount(l.member_count)} member${l.member_count === 1 ? '' : 's'}</span>
+        ${byLine}
+      </span>
+    </a>`;
+}
+
+const ICON_LOCK = '<svg class="list-lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5.5" y="10.5" width="13" height="9" rx="1.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
+
+function clModalEl() {
+  let el = document.getElementById('cl-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'cl-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeCreateListModal(); });
+  el.innerHTML = `
+    <div class="modal cl-modal">
+      <a class="modal-close" href="#" onclick="closeCreateListModal();return false;">&#10005;</a>
+      <h2 id="cl-title">Create a new List</h2>
+      <div class="errmsg" id="cl-err" style="display:none;margin:0 16px 8px;"></div>
+      <label>Name</label>
+      <input type="text" id="cl-name" maxlength="50" placeholder="e.g. Favorite Artists">
+      <label>Description (optional)</label>
+      <textarea id="cl-desc" rows="3" maxlength="200" placeholder="What's this list about?"></textarea>
+      <div class="settings-row" style="margin:0 16px 14px;">
+        <div>
+          <div class="lbl">Make private</div>
+          <div class="pf-note" style="margin-top:2px;">Only you can see a private List and who's on it.</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cl-private">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <button type="button" class="modal-btn" id="cl-btn" onclick="submitList()">Create List</button>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeCreateListModal();
+  });
+  return el;
+}
+
+// `editList` is null for a fresh create, or an existing lists row to
+// edit in place — same modal either way, just pre-filled and posting
+// to a different function on submit.
+let clEditingId = null;
+// If set (a profile's {id, username}), a successful create also adds
+// that profile to the brand-new list and refreshes the Add-to-List
+// modal — the "+ Create a new list" row inside it sets this.
+let clAddAfterCreate = null;
+
+function openCreateListModal(editList = null) {
+  if (!requireLogin()) return;
+  const el = clModalEl();
+  clEditingId = editList ? editList.id : null;
+  document.getElementById('cl-title').textContent = editList ? 'Edit List' : 'Create a new List';
+  document.getElementById('cl-name').value = editList ? editList.name : '';
+  document.getElementById('cl-desc').value = editList ? (editList.description || '') : '';
+  document.getElementById('cl-private').checked = editList ? !!editList.is_private : false;
+  document.getElementById('cl-btn').textContent = editList ? 'Save' : 'Create List';
+  clearErr(document.getElementById('cl-err'));
+  el.classList.add('open');
+  lockScroll();
+  setTimeout(() => document.getElementById('cl-name')?.focus(), 0);
+}
+
+function closeCreateListModal() {
+  const el = document.getElementById('cl-modal-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
+  clEditingId = null;
+  clAddAfterCreate = null;
+}
+
+async function submitList() {
+  if (!requireLogin()) return;
+  const nameEl = document.getElementById('cl-name');
+  const descEl = document.getElementById('cl-desc');
+  const privEl = document.getElementById('cl-private');
+  const errEl = document.getElementById('cl-err');
+  const btn = document.getElementById('cl-btn');
+  clearErr(errEl);
+
+  const name = nameEl.value.trim();
+  const description = descEl.value.trim();
+  const is_private = privEl.checked;
+  if (!name) { showErr(errEl, 'Give your List a name.'); return; }
+  if (name.length > 50) { showErr(errEl, 'Name is too long (max 50 characters).'); return; }
+
+  btn.disabled = true;
+  btn.textContent = clEditingId ? 'Saving…' : 'Creating…';
+  try {
+    if (clEditingId) {
+      const { error } = await sb.from('lists')
+        .update({ name, description: description || null, is_private })
+        .eq('id', clEditingId);
+      if (error) throw error;
+      toast('List updated.');
+      closeCreateListModal();
+      if (typeof onListUpdated === 'function') onListUpdated(clEditingId, { name, description: description || null, is_private });
+    } else {
+      const { data, error } = await sb.from('lists').insert({
+        name, description: description || null, is_private, owner_id: currentSession.user.id
+      }).select('*').single();
+      if (error) throw error;
+      if (clAddAfterCreate) {
+        await sb.from('list_members').insert({ list_id: data.id, member_id: clAddAfterCreate.id }).select().maybeSingle();
+        const pending = clAddAfterCreate;
+        closeCreateListModal();
+        openAddToListModal(null, pending.id, pending.username);
+      } else {
+        closeCreateListModal();
+        location.href = listUrl(data.id);
+      }
+    }
+  } catch (e) {
+    showErr(errEl, e.message || 'Failed to save that List.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = clEditingId ? 'Save' : 'Create List';
+  }
+}
+
+async function deleteListConfirm(listId, name) {
+  const ok = await ocConfirm({
+    title: `Delete "${name}"?`,
+    desc: `This can't be undone.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
+  if (!ok) return;
+  try {
+    const { error } = await sb.from('lists').delete().eq('id', listId);
+    if (error) throw error;
+    toast('List deleted.');
+    location.href = 'lists.html';
+  } catch (e) {
+    toast(e.message || 'Could not delete that List.', 'error');
+  }
+}
+
+// ── ADD/REMOVE-FROM-LIST MODAL ── opened from a profile's "···" menu
+// with the profile being added/removed (`targetId`/`targetUsername`).
+function almModalEl() {
+  let el = document.getElementById('alm-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'alm-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeAddToListModal(); });
+  el.innerHTML = `
+    <div class="modal alm-modal">
+      <a class="modal-close" href="#" onclick="closeAddToListModal();return false;">&#10005;</a>
+      <h2 id="alm-title">Add to Lists</h2>
+      <div id="alm-body"><span class="spinner">Loading&hellip;</span></div>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeAddToListModal();
+  });
+  return el;
+}
+
+let almTargetId = null;
+let almTargetUsername = null;
+
+async function openAddToListModal(ev, targetId, targetUsername) {
+  if (ev) closeProfileMenu(ev);
+  if (!requireLogin()) return;
+  almTargetId = targetId;
+  almTargetUsername = decodeURIComponent(targetUsername);
+  const el = almModalEl();
+  document.getElementById('alm-title').textContent = `Add @${almTargetUsername} to Lists`;
+  el.classList.add('open');
+  lockScroll();
+  await renderAddToListBody();
+}
+
+function closeAddToListModal() {
+  const el = document.getElementById('alm-modal-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
+}
+
+async function renderAddToListBody() {
+  const body = document.getElementById('alm-body');
+  if (!body || !almTargetId) return;
+  body.innerHTML = `<span class="spinner">Loading&hellip;</span>`;
+  const [{ data: myLists, error: listsErr }, { data: memberRows, error: memErr }] = await Promise.all([
+    sb.from('lists').select('*').eq('owner_id', currentSession.user.id).order('created_at', { ascending: false }),
+    sb.from('list_members').select('list_id').eq('member_id', almTargetId)
+  ]);
+  if (listsErr) { body.innerHTML = `<div class="errmsg">${esc(listsErr.message)}</div>`; return; }
+  const memberOf = new Set((memErr ? [] : memberRows || []).map(r => r.list_id));
+  const rows = (myLists || []).map(l => `
+    <label class="alm-row">
+      <span class="list-avatar list-avatar-sm">${listAvatarInner(l)}</span>
+      <span class="who-row-txt">
+        <span class="who-row-name">${esc(l.name)}</span>
+        <span class="who-row-handle">${fmtCount(l.member_count)} member${l.member_count === 1 ? '' : 's'}${l.is_private ? ' &middot; Private' : ''}</span>
+      </span>
+      <input type="checkbox" class="alm-check" ${memberOf.has(l.id) ? 'checked' : ''} onchange="toggleListMembership('${l.id}', this)">
+    </label>`).join('');
+  body.innerHTML = `
+    <div class="alm-list">${rows || `<div class="empty-note" style="padding:16px;">You haven't created any Lists yet.</div>`}</div>
+    <a href="#" class="comm-create-row" onclick="clAddAfterCreate={id:almTargetId,username:almTargetUsername};openCreateListModal();return false;">
+      <span class="comm-avatar comm-avatar-plus">${PLUS_ICON}</span>
+      <span class="who-row-txt"><span class="who-row-name">Create a new List</span></span>
+    </a>`;
+}
+
+async function toggleListMembership(listId, checkbox) {
+  checkbox.disabled = true;
+  try {
+    if (checkbox.checked) {
+      const { error } = await sb.from('list_members').insert({ list_id: listId, member_id: almTargetId });
+      if (error) throw error;
+      toast(`Added @${almTargetUsername} to the List.`);
+    } else {
+      const { error } = await sb.from('list_members').delete().eq('list_id', listId).eq('member_id', almTargetId);
+      if (error) throw error;
+      toast(`Removed @${almTargetUsername} from the List.`);
+    }
+  } catch (e) {
+    checkbox.checked = !checkbox.checked;
+    toast(e.message || 'Could not update that List.', 'error');
+  } finally {
+    checkbox.disabled = false;
+  }
+}
+
+// ── SIDEBAR "MY LISTS" BOX — same self-contained pattern as
+// renderMyCommunities() above: only runs on pages with a
+// #my-lists container.
+async function renderMyLists() {
+  const box = document.getElementById('my-lists');
+  if (!box) return;
+  const header = `<div class="t-lbl">Lists</div>`;
+  const createRow = `<a href="#" class="comm-create-row" onclick="openCreateListModal();return false;">
+      <span class="comm-avatar comm-avatar-plus">${PLUS_ICON}</span>
+      <span class="who-row-txt"><span class="who-row-name">Create a List</span></span>
+    </a>`;
+
+  if (!currentSession) {
+    box.innerHTML = header + createRow +
+      `<a class="show-more" href="lists.html">Browse Lists</a>`;
+    return;
+  }
+
+  const { data, error } = await sb.from('lists')
+    .select('*')
+    .eq('owner_id', currentSession.user.id)
+    .order('created_at', { ascending: false })
+    .limit(4);
+
+  const mine = error ? [] : (data || []);
+  box.innerHTML = header + createRow +
+    mine.map(l => listRowHtml(l)).join('') +
+    `<a class="show-more" href="lists.html">${mine.length ? 'See all' : 'Browse Lists'}</a>`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!document.getElementById('my-lists')) return;
+  if (typeof authReady !== 'undefined') await authReady;
+  renderMyLists();
 });
 
 // The small "↻ [Name] reposted" line shown above a card that's in a

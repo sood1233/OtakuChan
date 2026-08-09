@@ -455,6 +455,61 @@ select {
 .comm-leave-btn:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.4); }
 .comm-join-btn:disabled, .comm-leave-btn:disabled { opacity:.6; cursor:default; }
 
+/* ── LISTS — sidebar box rows, browse list, and single-list page.
+   Square glyph avatar (instead of communities' circle) so a list
+   card never reads as a person or a community at a glance. ── */
+.list-avatar {
+  flex:none; width:40px; height:40px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center;
+  background:var(--maroon); color:#fff; overflow:hidden;
+}
+.list-avatar-glyph { width:18px; height:18px; }
+.list-avatar-glyph svg { width:100%; height:100%; stroke:currentColor; fill:none; stroke-width:2.2; }
+.list-avatar-sm { width:36px; height:36px; }
+.list-avatar-lg { width:56px; height:56px; border-radius:var(--r-md); }
+.list-avatar-lg .list-avatar-glyph { width:26px; height:26px; }
+.list-privacy-tag { display:inline-flex; align-items:center; gap:3px; font-size:12px; font-weight:700; color:var(--muted); vertical-align:middle; }
+.list-lock-ic { width:11px; height:11px; }
+
+.list-list { display:flex; flex-direction:column; }
+.list-list .list-row { border-bottom:1px solid var(--line); padding:14px 16px; }
+.list-list .list-avatar { width:48px; height:48px; }
+.list-list .list-avatar-glyph { width:22px; height:22px; }
+.list-list .who-row-name { font-size:15px; }
+
+/* Create/edit-list modal — same .modal shell as the create-community
+   modal, just a little taller to fit the Private toggle row. */
+.cl-modal { width:380px; }
+
+/* Add/remove-from-Lists popup, opened from a profile's "···" menu */
+.alm-modal { width:380px; max-height:80vh; display:flex; flex-direction:column; }
+.alm-modal h2 { flex:none; }
+#alm-body { overflow-y:auto; }
+.alm-list { display:flex; flex-direction:column; }
+.alm-row { display:flex; align-items:center; gap:10px; padding:10px 16px; cursor:pointer; transition:background-color .12s ease; }
+.alm-row:hover { background:rgba(15,20,25,.03); }
+.alm-check { flex:none; width:20px; height:20px; accent-color:var(--maroon); cursor:pointer; }
+
+/* Single-list header (list.html) — mirrors .community-hero */
+.list-hero { padding:16px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:flex-start; }
+.list-hero-body { flex:1; min-width:0; }
+.list-hero-name { font-size:19px; font-weight:800; color:var(--ink); word-break:break-word; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.list-hero-desc { font-size:14px; color:var(--ink); margin-top:4px; line-height:1.4; }
+.list-hero-meta { font-size:13px; color:var(--muted); margin-top:8px; }
+.list-hero-owner { font-size:13px; color:var(--muted); margin-top:2px; }
+.list-hero-owner a { color:inherit; font-weight:700; }
+.list-hero-actions { flex:none; display:flex; gap:8px; }
+.list-edit-btn, .list-delete-btn {
+  font-size:14px; font-weight:800; padding:8px 18px; border-radius:999px; cursor:pointer;
+  background:none; color:var(--ink); border:1px solid var(--line); transition:background-color .12s ease;
+}
+.list-edit-btn:hover { background:var(--hover-bg); }
+.list-delete-btn:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.4); }
+
+/* Member row on the single-list Members tab — a who-row plus a
+   Remove button that only the list's owner ever sees. */
+.list-member-remove { background:none; color:var(--muted); border:1px solid var(--line); font-size:13px; font-weight:800; padding:6px 14px; border-radius:999px; cursor:pointer; transition:background-color .12s ease, color .12s ease; }
+.list-member-remove:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.4); }
+
 
 /* ── SEARCH BOX (right column, decorative like the reference) ── */
 .xsearch { display:flex; align-items:center; gap:8px; background:var(--hover-bg); border-radius:999px; padding:10px 16px; margin:4px 0 16px; }
@@ -516,12 +571,12 @@ select {
   box-shadow:var(--shadow-pop); overflow:hidden;
 }
 .pc-menu-wrap.open .pc-menu-dd { display:block; }
-.pc-menu-dd button {
+.pc-menu-dd button, .pc-menu-dd a {
   display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer;
   font-family:inherit; font-size:14px; font-weight:700; color:var(--ink);
-  padding:10px 14px;
+  padding:10px 14px; text-decoration:none; box-sizing:border-box;
 }
-.pc-menu-dd button:hover { background:var(--hover-bg); }
+.pc-menu-dd button:hover, .pc-menu-dd a:hover { background:var(--hover-bg); text-decoration:none; }
 .pc-menu-dd button.pc-menu-danger { color:var(--like); }
 .pc-menu-dd button.pc-menu-danger:hover { background:var(--like-tint); }
 

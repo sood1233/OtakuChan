@@ -13,6 +13,10 @@
     { "source": "/communities",        "destination": "/communities.html" },
     { "source": "/communities/:slug",  "destination": "/community.html" },
 
+    { "source": "/lists",              "destination": "/lists.html" },
+    { "source": "/i/lists/:id",        "destination": "/list.html" },
+    { "source": "/:username/lists",    "destination": "/profilelists.html" },
+
     { "source": "/messages",           "destination": "/chat.html" },
     { "source": "/messages/:username", "destination": "/chat.html" },
 
