@@ -421,6 +421,7 @@ select {
 .comm-list { display:flex; flex-direction:column; }
 .comm-list .comm-row { border-bottom:1px solid var(--line); padding:14px 16px; }
 .comm-list .comm-avatar { width:48px; height:48px; font-size:18px; }
+.comm-list .avatar { width:48px; height:48px; }
 .comm-list .who-row-name { font-size:15px; }
 .comm-list .comm-desc { font-size:13px; color:var(--muted); margin-top:2px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
