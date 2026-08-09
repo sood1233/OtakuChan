@@ -1189,7 +1189,7 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 .auth-card { flex:1 1 auto; background:var(--cream-card); border:none; width:100%; padding:36px 32px; display:flex; flex-direction:column; justify-content:center; }
 .auth-card-logo { display:flex; align-items:center; gap:9px; font-weight:800; font-size:16px; color:var(--ink); text-decoration:none; margin-bottom:22px; }
 .auth-card-logo .badge { width:30px; height:30px; border-radius:50%; background:var(--hover-bg); display:flex; align-items:center; justify-content:center; flex:none; }
-.auth-card-logo .badge .logo-mark { display:block; width:20px; height:20px; }
+.auth-card-logo .badge .logo-mark { width:20px; height:20px; }
 .auth-card-logo em { font-style:normal; color:var(--maroon); }
 .auth-card b {
   display:block; font-family:inherit; font-weight:800; font-size:25px;

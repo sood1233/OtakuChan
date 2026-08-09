@@ -170,6 +170,15 @@ function togglePwVis(inputId, btn) {
 }
 
 // ── SIGN UP ──
+// Flow: signUp() creates the auth.users row (and, via the DB trigger,
+// the profiles row + auto-follow of @marpe) right away, but with email
+// confirmation ON Supabase withholds a session until the code is
+// verified. We show a 6-digit code step instead of Supabase's default
+// magic-link email; verifyOtp() below returns a real session the
+// instant the code checks out, so the user never has to separately
+// log in — "verified" and "logged in" happen in the same step.
+let pendingSignupEmail = null;
+
 async function doSignUp(e) {
   e?.preventDefault();
   const email    = document.getElementById('su-email').value.trim();
@@ -197,17 +206,82 @@ async function doSignUp(e) {
     if (error) throw error;
 
     if (data.session) {
-      // Email confirmation is off — user is logged in immediately.
+      // Email confirmation is OFF in the Supabase dashboard — the
+      // account is created and already logged in, nothing to verify.
       location.href = 'index.html';
-    } else {
-      document.getElementById('su-form').style.display = 'none';
-      document.getElementById('su-ok').style.display = 'block';
+      return;
     }
+
+    // Email confirmation is ON — the account exists, but needs the
+    // code from their inbox before we get a session. Swap to the
+    // code-entry step.
+    pendingSignupEmail = email;
+    document.getElementById('su-form').style.display = 'none';
+    const emailSpan = document.getElementById('su-code-email');
+    if (emailSpan) emailSpan.textContent = email;
+    document.getElementById('su-code-step').style.display = 'block';
+    document.getElementById('su-code')?.focus();
   } catch (err) {
     showErr(errEl, err.message?.includes('duplicate') || err.message?.includes('unique')
       ? 'That username or email is already taken.'
       : (err.message || 'Sign up failed.'));
     btn.disabled = false; btn.value = 'Sign Up';
+  }
+}
+
+// ── VERIFY SIGNUP CODE ──
+// verifyOtp({ type: 'signup' }) both confirms the email AND returns a
+// session in one call — that's what lets us skip a separate log-in.
+async function doVerifySignupCode(e) {
+  e?.preventDefault();
+  const code = document.getElementById('su-code').value.trim();
+  const btn = document.getElementById('su-code-btn');
+  const errEl = document.getElementById('su-code-err');
+  clearErr(errEl);
+
+  if (!pendingSignupEmail) {
+    showErr(errEl, 'Something went wrong — refresh and sign up again.');
+    return;
+  }
+  if (!/^\d{6}$/.test(code)) {
+    showErr(errEl, 'Enter the 6-digit code from your email.');
+    return;
+  }
+
+  btn.disabled = true; btn.value = 'Verifying…';
+  try {
+    const { data, error } = await sb.auth.verifyOtp({
+      email: pendingSignupEmail,
+      token: code,
+      type: 'signup'
+    });
+    if (error) throw error;
+    if (!data.session) throw new Error('Verified, but no session came back — try logging in.');
+    // Logged in — account fully created, no separate log-in step needed.
+    location.href = 'index.html';
+  } catch (err) {
+    showErr(errEl, /expired/i.test(err.message || '') ? 'That code expired — send a new one below.'
+      : /invalid|token/i.test(err.message || '') ? 'That code is incorrect.'
+      : (err.message || 'Verification failed.'));
+    btn.disabled = false; btn.value = 'Verify';
+  }
+}
+
+// ── RESEND SIGNUP CODE ──
+async function doResendSignupCode() {
+  const errEl = document.getElementById('su-code-err');
+  const resendBtn = document.getElementById('su-resend-btn');
+  clearErr(errEl);
+  if (!pendingSignupEmail) return;
+  if (resendBtn) { resendBtn.disabled = true; resendBtn.textContent = 'Sending…'; }
+  try {
+    const { error } = await sb.auth.resend({ type: 'signup', email: pendingSignupEmail });
+    if (error) throw error;
+    toast('New code sent — check your email.', 'success');
+  } catch (err) {
+    showErr(errEl, err.message || 'Could not resend the code.');
+  } finally {
+    if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = 'Resend code'; }
   }
 }
 
