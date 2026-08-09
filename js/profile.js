@@ -65,7 +65,7 @@ async function loadProfile() {
         <button class="xtab" id="ptab-replies" onclick="switchProfileTab('replies');return false;">Replies</button>
       </div>
     </div>
-    <div id="profile-posts"><span class="spinner">Loading posts&hellip;</span></div>
+    <div id="profile-posts">${skeletonFeedHtml(3)}</div>
   `;
 
   if (!isOwnProfile && session) {

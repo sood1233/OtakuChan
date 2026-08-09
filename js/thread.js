@@ -15,6 +15,7 @@ let allReplies = []; // flat list, kept around so inline "reply to this comment"
 async function loadThread() {
   const wrap = document.getElementById('thread-root');
   if (!postId) { wrap.innerHTML = `<div class="errmsg">No post specified.</div>`; return; }
+  wrap.innerHTML = skeletonThreadHtml();
 
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();

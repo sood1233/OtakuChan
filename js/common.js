@@ -25,6 +25,37 @@
 //   messagesUrl('marc')               -> /messages/marc
 function u_(s) { return encodeURIComponent(s); }
 
+// ── HOVER/TOUCH PREFETCH — this app does full page navigations (no
+// SPA router), so the biggest thing standing between a click and a
+// painted page is the round trip to fetch that page's HTML. Warming
+// it into the browser's cache the moment a pointer touches the link
+// (hover on desktop, touchstart on mobile — both fire well before the
+// actual click/tap completes) means it's often already there by the
+// time navigation starts. Same trick behind Twitter/Bluesky's route
+// prefetching, just done with a plain <link rel=prefetch> since there's
+// no bundler-level chunk to fetch here.
+const _prefetched = new Set();
+function prefetchHref(href) {
+  if (!href || _prefetched.has(href)) return;
+  if (href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('javascript:')) return;
+  _prefetched.add(href);
+  const link = document.createElement('link');
+  link.rel = 'prefetch';
+  link.href = href;
+  document.head.appendChild(link);
+}
+function wireLinkPrefetch() {
+  const grab = e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (a) prefetchHref(a.getAttribute('href'));
+  };
+  // pointerover bubbles (unlike pointerenter), so one listener on the
+  // document catches every link on the page, present now or added later.
+  document.addEventListener('pointerover', grab, { passive: true });
+  document.addEventListener('touchstart', grab, { passive: true });
+}
+document.addEventListener('DOMContentLoaded', wireLinkPrefetch);
+
 // ── SHARED SCROLL LOCK — the global compose modal, the GIF picker
 // (opened *from inside* the compose modal), and the delete-confirm
 // modal each need to lock body scroll while open. Previously each
@@ -629,34 +660,31 @@ function setLikeUiState(btn, isLiked, delta) {
 }
 
 // Toggles like/unlike — mirrors toggleBookmark's insert-or-delete pattern.
+// OPTIMISTIC: flips the heart and count the instant you tap it, before
+// the network call resolves — same as X/Bluesky, and what actually
+// makes a like feel instant instead of laggy. If the write fails, it
+// quietly rolls back to the pre-tap state and surfaces the error.
 async function toggleLike(postId, btn) {
   if (!requireLogin()) return;
-  const isLiked = liked.has(postId);
-  btn.disabled = true;
+  const wasLiked = liked.has(postId);
+  if (wasLiked) { liked.delete(postId); setLikeUiState(btn, false, -1); }
+  else { liked.add(postId); setLikeUiState(btn, true, 1); }
+  localStorage.setItem('oc_liked', JSON.stringify([...liked]));
   try {
-    if (isLiked) {
+    if (wasLiked) {
       const { error } = await sb.from('likes').delete()
         .eq('post_id', postId).eq('user_id', currentSession.user.id);
       if (error) throw error;
-      liked.delete(postId);
-      setLikeUiState(btn, false, -1);
     } else {
       const { error } = await sb.from('likes').insert({ post_id: postId, user_id: currentSession.user.id });
-      if (error) {
-        if (error.code === '23505') { // unique violation — already liked elsewhere
-          liked.add(postId);
-          setLikeUiState(btn, true, 0);
-        } else throw error;
-        return;
-      }
-      liked.add(postId);
-      setLikeUiState(btn, true, 1);
+      if (error && error.code !== '23505') throw error; // 23505 = already liked elsewhere, treat as success
     }
-    localStorage.setItem('oc_liked', JSON.stringify([...liked]));
   } catch (e) {
+    // Roll back the optimistic update.
+    if (wasLiked) { liked.add(postId); setLikeUiState(btn, true, 1); }
+    else { liked.delete(postId); setLikeUiState(btn, false, -1); }
+    localStorage.setItem('oc_liked', JSON.stringify([...liked]));
     alert(e.message || 'Could not update like.');
-  } finally {
-    btn.disabled = false;
   }
 }
 
@@ -673,42 +701,44 @@ async function ensureBookmarksLoaded() {
   bookmarked = new Set((data || []).map(b => b.post_id));
 }
 
+function setBookmarkUiState(btn, isBookmarked, delta) {
+  btn.classList.toggle('bookmarked', isBookmarked);
+  const bc = btn.querySelector('.bc');
+  if (bc) {
+    const n = Math.max((parseInt(btn.dataset.count, 10) || 0) + delta, 0);
+    btn.dataset.count = n;
+    bc.textContent = fmtCount(n);
+  }
+}
+
+// OPTIMISTIC, like toggleLike() above — instant visual state, rolled
+// back only if the write actually fails.
 async function toggleBookmark(postId, btn) {
   if (!requireLogin()) return;
-  const isBookmarked = bookmarked.has(postId);
-  btn.disabled = true;
+  const wasBookmarked = bookmarked.has(postId);
+  if (wasBookmarked) { bookmarked.delete(postId); setBookmarkUiState(btn, false, -1); }
+  else { bookmarked.add(postId); setBookmarkUiState(btn, true, 1); }
+  // On the bookmarks page itself, removing one should drop its card
+  // right away — same instant feel as the toggle itself.
+  if (wasBookmarked && document.body.dataset.page === 'bookmarks') {
+    document.getElementById(`post-${postId}`)?.remove();
+    if (!document.querySelector('#feed-posts .pc')) {
+      document.getElementById('feed-posts').innerHTML = `<div id="feed-empty">No bookmarks yet. Tap the bookmark icon on any post to save it here.</div>`;
+    }
+  }
   try {
-    if (isBookmarked) {
+    if (wasBookmarked) {
       const { error } = await sb.from('bookmarks').delete()
         .eq('post_id', postId).eq('user_id', currentSession.user.id);
       if (error) throw error;
-      bookmarked.delete(postId);
     } else {
       const { error } = await sb.from('bookmarks').insert({ post_id: postId, user_id: currentSession.user.id });
-      if (error) throw error;
-      bookmarked.add(postId);
-    }
-    btn.classList.toggle('bookmarked', !isBookmarked);
-    // Only present on the detail-page action row (opDetailActionsHtml)
-    // — the compact feed/reply row has no visible bookmark count.
-    const bc = btn.querySelector('.bc');
-    if (bc) {
-      const delta = isBookmarked ? -1 : 1;
-      const n = Math.max((parseInt(btn.dataset.count, 10) || 0) + delta, 0);
-      btn.dataset.count = n;
-      bc.textContent = fmtCount(n);
-    }
-    // On the bookmarks page itself, removing one should drop its card.
-    if (isBookmarked && document.body.dataset.page === 'bookmarks') {
-      document.getElementById(`post-${postId}`)?.remove();
-      if (!document.querySelector('#feed-posts .pc')) {
-        document.getElementById('feed-posts').innerHTML = `<div id="feed-empty">No bookmarks yet. Tap the bookmark icon on any post to save it here.</div>`;
-      }
+      if (error && error.code !== '23505') throw error;
     }
   } catch (e) {
+    if (wasBookmarked) { bookmarked.add(postId); setBookmarkUiState(btn, true, 1); }
+    else { bookmarked.delete(postId); setBookmarkUiState(btn, false, -1); }
     alert(e.message || 'Could not update bookmark.');
-  } finally {
-    btn.disabled = false;
   }
 }
 
@@ -765,19 +795,22 @@ function setRepostUiState(postId, isReposted, delta) {
   if (doBtn) doBtn.style.display = isReposted ? 'none' : '';
 }
 
+// OPTIMISTIC, same pattern as toggleLike()/toggleBookmark() — the icon
+// flips green and the count bumps immediately on tap, before the
+// insert/delete round-trip resolves.
 async function doRepost(postId, ev) {
   if (ev) ev.stopPropagation();
   if (!requireLogin()) return;
   toggleRepostMenu(postId);
   if (reposted.has(postId)) return;
-  const { error } = await sb.from('reposts').insert({ post_id: postId, user_id: currentSession.user.id });
-  if (error) {
-    if (error.code === '23505') { reposted.add(postId); setRepostUiState(postId, true, 0); }
-    else alert(error.message || 'Could not repost.');
-    return;
-  }
   reposted.add(postId);
   setRepostUiState(postId, true, 1);
+  const { error } = await sb.from('reposts').insert({ post_id: postId, user_id: currentSession.user.id });
+  if (error && error.code !== '23505') {
+    reposted.delete(postId);
+    setRepostUiState(postId, false, -1);
+    alert(error.message || 'Could not repost.');
+  }
 }
 
 async function undoRepost(postId, ev) {
@@ -785,11 +818,15 @@ async function undoRepost(postId, ev) {
   if (!requireLogin()) return;
   toggleRepostMenu(postId);
   if (!reposted.has(postId)) return;
-  const { error } = await sb.from('reposts').delete()
-    .eq('post_id', postId).eq('user_id', currentSession.user.id);
-  if (error) { alert(error.message || 'Could not undo repost.'); return; }
   reposted.delete(postId);
   setRepostUiState(postId, false, -1);
+  const { error } = await sb.from('reposts').delete()
+    .eq('post_id', postId).eq('user_id', currentSession.user.id);
+  if (error) {
+    reposted.add(postId);
+    setRepostUiState(postId, true, 1);
+    alert(error.message || 'Could not undo repost.');
+  }
 }
 
 // The repost icon + count, plus its "Repost / Quote" dropdown. Kept
@@ -1183,10 +1220,37 @@ function repostBannerHtml(reposter) {
 // left alone so those keep working normally. If `p._repostedBy` is
 // set (see board.js/profile.js), a "[Name] reposted" banner is shown
 // above the card, same as Twitter.
+// ── SKELETON PLACEHOLDERS — swapped in the instant a feed/thread
+// starts loading, replaced with real markup once data lands. See the
+// .skel-* rules in style.css for the shimmer.
+function skeletonFeedHtml(n = 4) {
+  const card = `
+    <div class="skel-card">
+      <div class="skel-avatar"></div>
+      <div class="skel-lines">
+        <div class="skel-line w40"></div>
+        <div class="skel-line w90"></div>
+        <div class="skel-line w60"></div>
+      </div>
+    </div>`;
+  return card.repeat(n);
+}
+function skeletonThreadHtml() {
+  return `
+    <div class="skel-card skel-op">
+      <div class="skel-avatar"></div>
+      <div class="skel-lines">
+        <div class="skel-line w20"></div>
+        <div class="skel-line w90 tall"></div>
+        <div class="skel-line w60 tall"></div>
+      </div>
+    </div>` + skeletonFeedHtml(2);
+}
+
 function postCardHtml(p, flash = false) {
   cachePost(p);
   return `
-  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})">
+  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})" onpointerover="prefetchHref('${postUrl(p)}')" ontouchstart="prefetchHref('${postUrl(p)}')">
     ${repostBannerHtml(p._repostedBy)}
     <div class="pc-row">
       ${pcAvatarHtml(p.profile)}

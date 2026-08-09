@@ -8,7 +8,7 @@ let pendingPosts = [];    // realtime posts held back until "Show N posts" is cl
 
 async function loadFeed() {
   const feedEl = document.getElementById('feed-posts');
-  feedEl.innerHTML = `<span class="spinner">Loading posts&hellip;</span>`;
+  feedEl.innerHTML = skeletonFeedHtml();
   pendingPosts = [];
   hidePendingPill();
   await ensureBookmarksLoaded();

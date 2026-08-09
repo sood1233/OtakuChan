@@ -30,7 +30,7 @@ async function runSearch() {
     return;
   }
   document.title = `${searchQuery} — Search — Otakuchan`;
-  root.innerHTML = `<span class="spinner">Searching&hellip;</span>`;
+  root.innerHTML = skeletonFeedHtml();
   if (searchTab === 'people') return searchPeople(root);
   return searchPosts(root);
 }
