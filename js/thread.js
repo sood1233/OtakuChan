@@ -52,6 +52,7 @@ async function loadThread() {
   cachePost(p);
   await attachQuotedPosts([p]);
   document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — InteractInk';
+  setPageDescription(p.body || 'A post on InteractInk.');
   // Now that we know who posted it, upgrade a generic /i/status/<id>
   // (or a legacy ?id= link) to the canonical /<username>/status/<id>
   // address, same as x.com does — no reload, just a clean URL bar.
@@ -121,13 +122,13 @@ function replyComposerHtml() {
         <textarea id="rf-body" placeholder="Post your reply" rows="1"></textarea>
         <div id="rf-fp" class="fp"></div>
         <div class="rfm-row">
-          <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('rf-file').click();return false;">
+          <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('rf-file').click();return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('rf');return false;">
+          <button type="button" class="pf-ic" title="GIF" aria-label="GIF" onclick="openGifPicker('rf');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('rf', this);return false;">
+          <button type="button" class="pf-ic" title="Emoji" aria-label="Emoji" onclick="toggleEmojiPicker('rf', this);return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
           </button>
           <input type="file" id="rf-file" accept="image/*,video/*" style="display:none;">

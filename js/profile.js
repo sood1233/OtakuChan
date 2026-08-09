@@ -30,6 +30,7 @@ async function loadProfile() {
   viewedProfile = profile;
   isOwnProfile = session && session.user.id === profile.id;
   document.title = `@${profile.username} — InteractInk`;
+  setPageDescription(profile.bio || `@${profile.username}'s posts on InteractInk.`);
   // Canonicalize casing (usernames are matched case-insensitively
   // above via ilike) and upgrade a legacy ?u= link, same idea as
   // thread.js's /i/status/ -> /<username>/status/ upgrade.
@@ -51,7 +52,7 @@ async function loadProfile() {
           <div class="uname">${esc(profile.display_name || profile.username)}</div>
           <div class="profile-hdr-actions">
             ${!isOwnProfile && session ? `
-              <a class="profile-icon-btn" href="${messagesUrl(profile.username)}" title="Message">${ICON_MESSAGE}</a>
+              <a class="profile-icon-btn" href="${messagesUrl(profile.username)}" title="Message" aria-label="Message">${ICON_MESSAGE}</a>
               <div class="pc-menu-wrap" id="pmenu-profile-${profile.id}">
                 <button class="pc-menu-btn profile-icon-btn" onclick="togglePostMenu('profile-${profile.id}', event)">${ICON.menu}</button>
                 <div class="pc-menu-dd" id="profile-menu-dd">${profileMenuItemsHtml(profile)}</div>
@@ -65,7 +66,7 @@ async function loadProfile() {
         <div class="bio">${esc(profile.bio || '')}</div>
         <div class="profile-meta-row">
           ${locationLabel ? `<span class="pmr-item" title="${esc(locationFull)}">${ICON_LOC}<span class="pmr-text">${esc(locationLabel)}</span></span>` : ''}
-          ${websiteHref ? `<span class="pmr-item"><a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer" title="${esc(websiteFullLabel)}">${ICON_LINK}<span class="pmr-text">${esc(websiteLabel)}</span></a></span>` : ''}
+          ${websiteHref ? `<span class="pmr-item"><a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer" title="${esc(websiteFullLabel)}" aria-label="${esc(websiteFullLabel)}">${ICON_LINK}<span class="pmr-text">${esc(websiteLabel)}</span></a></span>` : ''}
           <span class="pmr-item">${ICON_CAL}Joined ${new Date(profile.created_at).toLocaleDateString()}</span>
         </div>
         <div class="profile-stats">

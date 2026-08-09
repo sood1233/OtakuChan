@@ -23,6 +23,27 @@
 //                                         before we know the author)
 //   followListUrl('marc','following') -> /marc/following
 //   messagesUrl('marc')               -> /messages/marc
+// Updates the page's <meta name="description"> plus the matching OG/Twitter
+// tags so a shared link (Discord/iMessage/etc. unfurl, search result) shows
+// real content instead of the generic per-page fallback baked into the HTML.
+// Call this alongside document.title on any page that renders its title from
+// live data (profile bio, thread body, community name, list name, ...).
+function setPageDescription(text) {
+  if (!text) return;
+  text = text.replace(/\s+/g, ' ').trim().slice(0, 200);
+  const setMeta = (selector, attr) => {
+    const el = document.querySelector(selector);
+    if (el) el.setAttribute(attr, text);
+  };
+  setMeta('meta[name="description"]', 'content');
+  setMeta('meta[property="og:description"]', 'content');
+  setMeta('meta[name="twitter:description"]', 'content');
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute('content', document.title);
+  const twTitle = document.querySelector('meta[name="twitter:title"]');
+  if (twTitle) twTitle.setAttribute('content', document.title);
+}
+
 function u_(s) { return encodeURIComponent(s); }
 
 // ── HOVER/TOUCH PREFETCH — this app does full page navigations (no
@@ -462,13 +483,13 @@ function gcModalEl() {
             <div class="cx-poll-row">
               <button type="button" class="cx-poll-add" onclick="addPollOption('gc');return false;">+ Add option</button>
               <select id="gc-poll-dur"><option value="1">1 day</option><option value="3" selected>3 days</option><option value="7">7 days</option></select>
-              <button type="button" class="cx-poll-remove" title="Remove poll" onclick="removePoll('gc');return false;">&#10005;</button>
+              <button type="button" class="cx-poll-remove" title="Remove poll" aria-label="Remove poll" onclick="removePoll('gc');return false;">&#10005;</button>
             </div>
           </div>
           <div class="cx-sched" id="gc-sched-box" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
             <input type="datetime-local" id="gc-sched-input">
-            <button type="button" class="cx-sched-remove" title="Remove" onclick="removeSchedule('gc');return false;">&#10005;</button>
+            <button type="button" class="cx-sched-remove" title="Remove" aria-label="Remove" onclick="removeSchedule('gc');return false;">&#10005;</button>
           </div>
         </div>
       </div>
@@ -478,19 +499,19 @@ function gcModalEl() {
       </div>
       <div class="pf-toolbar gc-toolbar">
         <div class="pf-icons">
-          <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('gc-file').click();return false;">
+          <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('gc-file').click();return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('gc');return false;">
+          <button type="button" class="pf-ic" title="GIF" aria-label="GIF" onclick="openGifPicker('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Poll" onclick="togglePollBuilder('gc');return false;">
+          <button type="button" class="pf-ic" title="Poll" aria-label="Poll" onclick="togglePollBuilder('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v2M12 11v6M17 8v10"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('gc', this);return false;">
+          <button type="button" class="pf-ic" title="Emoji" aria-label="Emoji" onclick="toggleEmojiPicker('gc', this);return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Schedule" onclick="toggleScheduleBuilder('gc');return false;">
+          <button type="button" class="pf-ic" title="Schedule" aria-label="Schedule" onclick="toggleScheduleBuilder('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13.5h1M12 13.5h1M16 13.5h1M8 17h1M12 17h1"/></svg>
           </button>
           <input type="file" id="gc-file" accept="image/*,video/*" style="display:none;">
@@ -647,13 +668,13 @@ function rpcModalEl() {
       </div>
       <div class="pf-toolbar gc-toolbar">
         <div class="pf-icons">
-          <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('rpc-file').click();return false;">
+          <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('rpc-file').click();return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('rpc');return false;">
+          <button type="button" class="pf-ic" title="GIF" aria-label="GIF" onclick="openGifPicker('rpc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
           </button>
-          <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('rpc', this);return false;">
+          <button type="button" class="pf-ic" title="Emoji" aria-label="Emoji" onclick="toggleEmojiPicker('rpc', this);return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
           </button>
           <input type="file" id="rpc-file" accept="image/*,video/*" style="display:none;">
@@ -2400,7 +2421,7 @@ function renderMedia(url, type, extraClass = '', owner = null) {
   if (type === 'video') {
     return `<div class="pm"><video src="${esc(url)}" controls preload="metadata" onclick="lbVideoClick(event, ${idx})"></video></div>`;
   }
-  return `<div class="pm"><img src="${esc(url)}" class="${extraClass}" onclick="openLightbox(${idx})" loading="lazy"></div>`;
+  return `<div class="pm"><img src="${esc(url)}" class="${extraClass}" alt="" onclick="openLightbox(${idx})" loading="lazy" decoding="async"></div>`;
 }
 
 // ─────────────────────────────────────────────────────────────

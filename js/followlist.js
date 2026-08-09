@@ -34,7 +34,7 @@ function flRowHtml(profile, viewerId) {
   const following = flMyFollowing.has(profile.id);
   const locked = showBtn && following && isProtectedFollowUsername(uname);
   const btnHtml = locked
-    ? `<button class="follow-btn following locked" disabled title="You can't unfollow this account.">${ICON_LOCK_SM}Following</button>`
+    ? `<button class="follow-btn following locked" disabled title="You can't unfollow this account." aria-label="You can't unfollow this account.">${ICON_LOCK_SM}Following</button>`
     : `<button class="follow-btn${following ? ' following' : ''}" onclick="flToggleFollow('${profile.id}', this)">${following ? 'Following' : 'Follow'}</button>`;
   return `
   <div class="fl-row">

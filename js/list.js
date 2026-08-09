@@ -29,6 +29,7 @@ async function loadList() {
   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This List doesn't exist, or is private.</div>`; return; }
   list = data;
   document.title = `${list.name} — InteractInk`;
+  setPageDescription(`${list.name} — a List on InteractInk.`);
 
   isOwner = !!(currentSession && list.owner_id === currentSession.user.id);
 

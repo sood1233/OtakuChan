@@ -74,8 +74,8 @@ async function loadConversationList(session, root) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
         <input id="chat-new-user" placeholder="Message a username&hellip;" onkeydown="if(event.key==='Enter'){startChat();}if(event.key==='Escape'){toggleNewChat(false);}">
       </div>
-      <button type="button" class="chat-send-btn" title="Send" onclick="startChat()">${ICON_SEND}</button>
-      <button type="button" class="chat-new-close" title="Cancel" onclick="toggleNewChat(false)">${ICON_CLOSE}</button>
+      <button type="button" class="chat-send-btn" title="Send" aria-label="Send" onclick="startChat()">${ICON_SEND}</button>
+      <button type="button" class="chat-new-close" title="Cancel" aria-label="Cancel" onclick="toggleNewChat(false)">${ICON_CLOSE}</button>
     </div>
     <div class="errmsg" id="chat-new-err" style="display:none;margin:0 16px 10px;"></div>`;
 
@@ -161,7 +161,7 @@ async function loadThread(session, root) {
         <textarea id="chat-body" maxlength="2000" placeholder="Start a message&hellip;" rows="1"
           oninput="autoGrowChatInput(this)"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
-        <button class="chat-send-btn" id="chat-send-btn" title="Send" disabled onclick="sendMessage()">${ICON_SEND}</button>
+        <button class="chat-send-btn" id="chat-send-btn" title="Send" aria-label="Send" disabled onclick="sendMessage()">${ICON_SEND}</button>
       </div>
     </div>`;
 
