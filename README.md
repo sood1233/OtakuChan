@@ -83,11 +83,16 @@ All the pretty paths above are handled by the `rewrites` block in
 `vercel.json` — Vercel serves the real `.html` file behind the scenes
 while the address bar keeps the clean URL. Every internal link in the
 app is built through one of the helpers at the top of `js/common.js`
-(`profileUrl()`, `postUrl()`, `followListUrl()`, `messagesUrl()`), so
-the whole scheme lives in one place if it ever needs to change.
-Old-style links (`profile.html?u=marc`, `thread.html?id=<uuid>`) still
-work as a fallback — useful for local dev with plain `npx serve .`,
-which doesn't understand `vercel.json` rewrites. To test the pretty
+(`profileUrl()`, `postUrl()`, `followListUrl()`, `messagesUrl()`), and
+those now build the pretty path directly (e.g. `profileUrl('marc')`
+-> `/marc`), so the whole scheme lives in one place if it ever needs
+to change. That means pretty URLs need the `vercel.json` rewrites to
+actually be active — a real Vercel deploy, a Vercel Preview URL, or
+`vercel dev` locally — or every link 404s. Old-style links
+(`profile.html?u=marc`, `thread.html?id=<uuid>` — see the `legacy*()`
+helpers in `js/common.js`) are still *read* correctly by every page
+as a fallback (old bookmarks, shared links, hosts without the
+rewrites), but are no longer what the app itself links to. To test
 URLs locally, use `vercel dev` instead, or just deploy — Vercel
 Preview URLs get the rewrites too.
 

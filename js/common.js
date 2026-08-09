@@ -2,30 +2,27 @@
 // COMMON HELPERS — shared by board.js and thread.js
 // ─────────────────────────────────────────────────────────────
 
-// ── URLS — two families. See vercel.json for the rewrites that map
-// pretty paths to the real .html files.
+// ── URLS — every actual `<a href>` / `location.href = ...` in the
+// app is built through the functions below, and they now build the
+// pretty Twitter/X-style path directly (/marc, /marc/status/<id>,
+// /marc/followers, /messages/marc, ...) instead of the plain
+// file+query form. That only resolves correctly on a host that runs
+// the `rewrites` in vercel.json (a real Vercel deploy, a Vercel
+// Preview URL, or `vercel dev` locally) — see README.md. The
+// `legacy*()` versions below build the old file+query form
+// (profile.html?u=marc, thread.html?id=<uuid>, ...), which every
+// page's own URL-reading code (currentProfileUsername(),
+// currentStatusId(), chat.js, followlist.js) still accepts as a
+// fallback, so old bookmarks/shared links and non-Vercel hosting
+// (GitHub Pages, plain `npx serve .`, opening the file directly)
+// keep working — they just won't show the pretty form in the
+// address bar.
 //
-// pretty*() builds Twitter/X-style paths (/marc, /marc/status/<id>,
-// ...). These only resolve when the host actually runs the
-// vercel.json rewrites (a real Vercel deploy, or `vercel dev`
-// locally) — a plain `npx serve .`, GitHub Pages, or opening a file
-// straight off disk has no idea what "/marc" means and shows a
-// blank page. So pretty*() is ONLY used for two things that never
-// hit the network: swapping the address bar via history.replaceState
-// once a page already knows its own data (see profile.js, thread.js,
-// followlist.js, chat.js), and building the "copy link" share URL.
-//
-//   prettyProfileUrl('marc')                -> /marc
-//   prettyPostUrl(post)                     -> /marc/status/<id> (or /i/status/<id>
-//                                               before we know the author)
-//   prettyFollowListUrl('marc','followers') -> /marc/followers
-//   prettyMessagesUrl('marc')               -> /messages/marc
-//
-// The plain versions below (profileUrl, postUrl, ...) build the REAL
-// file + query string instead (e.g. "profile.html?u=marc"). Every
-// actual <a href> and `location.href = ...` in the app is built with
-// these, so every click works regardless of hosting — the page that
-// loads then upgrades the address bar to the pretty form itself.
+//   profileUrl('marc')                -> /marc
+//   postUrl(post)                     -> /marc/status/<id> (or /i/status/<id>
+//                                         before we know the author)
+//   followListUrl('marc','following') -> /marc/following
+//   messagesUrl('marc')               -> /messages/marc
 function u_(s) { return encodeURIComponent(s); }
 
 // ── SHARED SCROLL LOCK — the global compose modal, the GIF picker
@@ -42,28 +39,42 @@ function lockScroll() { _scrollLockCount++; document.body.style.overflow = 'hidd
 function unlockScroll() { _scrollLockCount = Math.max(0, _scrollLockCount - 1); if (_scrollLockCount === 0) document.body.style.overflow = ''; }
 
 
-function prettyProfileUrl(username) { return `/${u_(username)}`; }
-function prettyPostUrl(post, replyId = null) {
+function profileUrl(username) { return `/${u_(username)}`; }
+function postUrl(post, replyId = null) {
   const id = replyId || post?.id;
   const base = post?.profile?.username ? `/${u_(post.profile.username)}/status/${u_(post.id)}` : `/i/status/${u_(post?.id ?? id)}`;
   return replyId ? `${base}#reply-${u_(replyId)}` : base;
 }
-function prettyPostUrlById(id, username = null) {
+function postUrlById(id, username = null) {
   return username ? `/${u_(username)}/status/${u_(id)}` : `/i/status/${u_(id)}`;
 }
-function prettyFollowListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
-function prettyMessagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
+function followListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
+function messagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
 
-function profileUrl(username) { return `profile.html?u=${u_(username)}`; }
-function postUrl(post, replyId = null) {
+// Kept as prettyXxx() aliases too — profile.js/thread.js/followlist.js/
+// chat.js/common.js's sharePost() already call these names directly
+// (for canonicalizing the address bar once a page's own data has
+// loaded, and for building the "copy link" URL), so they still work
+// unchanged now that the plain names above build the same thing.
+function prettyProfileUrl(username) { return profileUrl(username); }
+function prettyPostUrl(post, replyId = null) { return postUrl(post, replyId); }
+function prettyPostUrlById(id, username = null) { return postUrlById(id, username); }
+function prettyFollowListUrl(username, tab) { return followListUrl(username, tab); }
+function prettyMessagesUrl(username = null) { return messagesUrl(username); }
+
+// ── LEGACY file+query URLS — the pre-pretty-URL link form. No
+// longer used to build any link in the app, but currentProfileUsername()
+// still reads the `?u=` param it uses as a fallback (see below), and
+// these stay here named/documented in case a host without the Vercel
+// rewrites active needs them wired back in as the default.
+function legacyProfileUrl(username) { return `profile.html?u=${u_(username)}`; }
+function legacyPostUrl(post, replyId = null) {
   const id = replyId || post?.id;
   return `thread.html?id=${u_(post?.id ?? id)}${replyId ? `#reply-${u_(replyId)}` : ''}`;
 }
-function postUrlById(id, username = null) {
-  return `thread.html?id=${u_(id)}`;
-}
-function followListUrl(username, tab) { return `followlist.html?u=${u_(username)}&tab=${tab === 'following' ? 'following' : 'followers'}`; }
-function messagesUrl(username = null) { return username ? `chat.html?u=${u_(username)}` : 'chat.html'; }
+function legacyPostUrlById(id) { return `thread.html?id=${u_(id)}`; }
+function legacyFollowListUrl(username, tab) { return `followlist.html?u=${u_(username)}&tab=${tab === 'following' ? 'following' : 'followers'}`; }
+function legacyMessagesUrl(username = null) { return username ? `chat.html?u=${u_(username)}` : 'chat.html'; }
 
 // ── STATIC PRETTY-URL UPGRADE — pages with no dynamic id (home,
 // search, settings, ...) can't wait for a data load before deciding
@@ -102,11 +113,24 @@ function currentStatusId() {
 
 // Reads the profile username out of the current URL on profile.html,
 // whether it arrived as a pretty path (/marc) or the legacy query
-// form (profile.html?u=marc).
+// form (profile.html?u=marc — used whenever the pretty-path rewrite
+// isn't active, e.g. no Vercel rewrites configured, a plain static
+// host, or local dev via `python -m http.server` / `npx serve`).
+//
+// Real usernames only ever match /^[a-zA-Z0-9_]{3,20}$/ (enforced at
+// signup — see doSignUp() in auth.js), so that's used as the check
+// for "is this path segment actually a pretty username" instead of
+// just an exclude-list of reserved words. Without it, hitting the
+// page at its own literal filename ("/profile.html") — i.e. every
+// visit that isn't going through the pretty-URL rewrite — took
+// "profile.html" itself as the first path segment, treated it as
+// the username to look up, and always failed with "No user found",
+// even for your own profile link.
 const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i']);
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 function currentProfileUsername() {
   const seg = location.pathname.split('/').filter(Boolean)[0];
-  if (seg && !RESERVED_TOP_LEVEL.has(seg.toLowerCase())) return decodeURIComponent(seg);
+  if (seg && USERNAME_RE.test(seg) && !RESERVED_TOP_LEVEL.has(seg.toLowerCase())) return decodeURIComponent(seg);
   return new URLSearchParams(location.search).get('u');
 }
 
