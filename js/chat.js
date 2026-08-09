@@ -9,6 +9,12 @@ const chatWithUsername = (() => {
 })();
 let chatOther = null;   // the other user's profile, once a thread is open
 let chatChannel = null;
+let lastMineMsgId = null; // id of the most recent message I sent, for the "Seen" receipt
+
+const ICON_COMPOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICON_SEND = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20V4l18 8-18 8Zm2-3 12.85-5L5 7v3.83L11 12l-6 1.17V17Z"/></svg>';
+const ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+const ICON_CHAT_EMPTY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5.5h16v11H9.5L5 20.5v-4H4Z"/><path d="M8 10h8M8 13h5" stroke-linecap="round"/></svg>';
 
 // Same address-bar upgrade as profile.js/thread.js/followlist.js —
 // safe to run immediately since chatWithUsername (if any) already
@@ -57,15 +63,30 @@ async function loadConversationList(session, root) {
     }
   });
 
+  // Compose is collapsed behind a single pill by default (Twitter-
+  // style) instead of a bar that permanently eats space above the
+  // list — toggled open/closed by toggleNewChat().
   const newMsgBox = `
-    <div class="chat-new">
-      <input id="chat-new-user" placeholder="Message a username&hellip;" onkeydown="if(event.key==='Enter'){startChat();}">
-      <button class="pf-btn" onclick="startChat()">Message</button>
+    <button type="button" class="chat-new-trigger" id="chat-new-trigger" onclick="toggleNewChat(true)">
+      ${ICON_COMPOSE}<span>New message&hellip;</span>
+    </button>
+    <div class="chat-new" id="chat-new" style="display:none;">
+      <div class="xsearch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="chat-new-user" placeholder="Message a username&hellip;" onkeydown="if(event.key==='Enter'){startChat();}if(event.key==='Escape'){toggleNewChat(false);}">
+      </div>
+      <button type="button" class="chat-send-btn" title="Send" onclick="startChat()">${ICON_SEND}</button>
+      <button type="button" class="chat-new-close" title="Cancel" onclick="toggleNewChat(false)">${ICON_CLOSE}</button>
     </div>
     <div class="errmsg" id="chat-new-err" style="display:none;margin:0 16px 10px;"></div>`;
 
   if (!seen.size) {
-    root.innerHTML = newMsgBox + `<div id="feed-empty">No conversations yet. Message someone to get started.</div>`;
+    root.innerHTML = newMsgBox + `
+      <div class="chat-empty">
+        ${ICON_CHAT_EMPTY}
+        <h3>No messages yet</h3>
+        <p>When you message someone, it'll show up here.</p>
+      </div>`;
     return;
   }
 
@@ -88,6 +109,16 @@ async function loadConversationList(session, root) {
   }).join('');
 
   root.innerHTML = newMsgBox + rows;
+}
+
+function toggleNewChat(open) {
+  const trigger = document.getElementById('chat-new-trigger');
+  const panel = document.getElementById('chat-new');
+  if (!trigger || !panel) return;
+  panel.style.display = open ? 'flex' : 'none';
+  trigger.style.display = open ? 'none' : 'flex';
+  if (open) document.getElementById('chat-new-user')?.focus();
+  else clearErr(document.getElementById('chat-new-err'));
 }
 
 async function startChat() {
@@ -128,13 +159,16 @@ async function loadThread(session, root) {
       </div>
       <div class="chat-msgs" id="chat-msgs">${renderMsgsHtml(msgs || [], session.user.id)}</div>
       <div class="chat-composer">
-        <textarea id="chat-body" maxlength="2000" placeholder="Start a message&hellip;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
-        <button class="pf-btn" onclick="sendMessage()">Send</button>
+        <textarea id="chat-body" maxlength="2000" placeholder="Start a message&hellip;" rows="1"
+          oninput="autoGrowChatInput(this)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+        <button class="chat-send-btn" id="chat-send-btn" title="Send" disabled onclick="sendMessage()">${ICON_SEND}</button>
       </div>
     </div>`;
 
   sizeChatThread();
   scrollChatToBottom();
+  renderSeenReceipt(msgs || [], session.user.id);
 
   const unreadIds = (msgs || []).filter(m => m.recipient_id === session.user.id && !m.read).map(m => m.id);
   if (unreadIds.length) {
@@ -146,6 +180,31 @@ async function loadThread(session, root) {
   }
 
   subscribeChatRealtime(session.user.id, other.id);
+}
+
+// Grows the composer textarea to fit its content (up to the CSS
+// max-height, after which it scrolls internally) and toggles the
+// send button on/off based on whether there's anything to send.
+function autoGrowChatInput(el) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+  const btn = document.getElementById('chat-send-btn');
+  if (btn) btn.disabled = !el.value.trim();
+}
+
+// "Seen" read receipt under the last message I sent, mirroring the
+// `read` flag on that row (true once the recipient has opened the
+// thread). Kept in sync by subscribeChatRealtime()'s UPDATE handler.
+function renderSeenReceipt(msgs, myId) {
+  const mine = msgs.filter(m => m.sender_id === myId);
+  const last = mine[mine.length - 1];
+  lastMineMsgId = last ? last.id : null;
+  updateSeenReceipt(last && last.read);
+}
+function updateSeenReceipt(seen) {
+  document.getElementById('msg-seen')?.remove();
+  if (!seen) return;
+  document.getElementById('chat-msgs')?.insertAdjacentHTML('beforeend', `<div class="msg-seen" id="msg-seen">Seen</div>`);
 }
 
 // "Today" / "Yesterday" / "Monday" / "Aug 6" — same day-grouping
@@ -165,22 +224,35 @@ function chatClockTime(iso) {
 }
 
 // Renders the full message list with day-divider headers inserted
-// wherever the calendar day changes between consecutive messages.
+// wherever the calendar day changes between consecutive messages,
+// and groups consecutive same-sender messages sent within 5 minutes
+// of each other (tight spacing, tail only on the group's last
+// bubble) rather than giving every message its own gap and tail.
+const GROUP_GAP_MS = 5 * 60 * 1000;
 function renderMsgsHtml(msgs, myId) {
   let html = '';
   let lastDay = null;
-  msgs.forEach(m => {
+  msgs.forEach((m, i) => {
     const day = chatDayLabel(m.created_at);
     if (day !== lastDay) { html += `<div class="chat-daydivider">${esc(day)}</div>`; lastDay = day; }
-    html += msgBubbleHtml(m, myId);
+    const prev = msgs[i - 1];
+    const next = msgs[i + 1];
+    const groupsWithPrev = prev && prev.sender_id === m.sender_id && day === chatDayLabel(prev.created_at)
+      && (new Date(m.created_at) - new Date(prev.created_at)) < GROUP_GAP_MS;
+    const groupsWithNext = next && next.sender_id === m.sender_id && day === chatDayLabel(next.created_at)
+      && (new Date(next.created_at) - new Date(m.created_at)) < GROUP_GAP_MS;
+    html += msgBubbleHtml(m, myId, { start: !groupsWithPrev, end: !groupsWithNext });
   });
   return html;
 }
 
-function msgBubbleHtml(m, myId) {
+function msgBubbleHtml(m, myId, group = { start: true, end: true }) {
   const mine = m.sender_id === myId;
+  const cls = ['msg-row', mine ? 'mine' : 'theirs'];
+  if (group.start) cls.push('g-start');
+  if (group.end) cls.push('g-end');
   return `
-  <div class="msg-row ${mine ? 'mine' : 'theirs'}" id="msg-${m.id}" data-day="${esc(chatDayLabel(m.created_at))}">
+  <div class="${cls.join(' ')}" id="msg-${m.id}" data-day="${esc(chatDayLabel(m.created_at))}" data-sender="${esc(m.sender_id)}" data-ts="${esc(m.created_at)}">
     <div class="msg-bubble">${renderBody(m.body)}</div>
     <span class="msg-time-inline">${chatClockTime(m.created_at)}</span>
   </div>`;
@@ -188,16 +260,25 @@ function msgBubbleHtml(m, myId) {
 
 // Appends one new message (from sendMessage() or the realtime
 // subscription below), inserting a fresh day-divider first if it
-// falls on a different day than the last message already shown.
+// falls on a different day than the last message already shown, and
+// re-flagging the previously-last row as a group continuation if the
+// new message groups with it (same sender, <5min apart, same day).
 function appendChatMsg(m, myId) {
   const container = document.getElementById('chat-msgs');
   if (!container) return;
+  document.getElementById('msg-seen')?.remove(); // stale once a new message lands
   const day = chatDayLabel(m.created_at);
   const rows = container.querySelectorAll('.msg-row');
-  const lastDay = rows.length ? rows[rows.length - 1].dataset.day : null;
+  const lastRow = rows.length ? rows[rows.length - 1] : null;
+  const lastDay = lastRow ? lastRow.dataset.day : null;
+
+  const groupsWithLast = lastRow && lastRow.dataset.sender === m.sender_id && day === lastDay
+    && (new Date(m.created_at) - new Date(lastRow.dataset.ts)) < GROUP_GAP_MS;
+  if (groupsWithLast) lastRow.classList.remove('g-end');
+
   let html = '';
   if (day !== lastDay) html += `<div class="chat-daydivider">${esc(day)}</div>`;
-  html += msgBubbleHtml(m, myId);
+  html += msgBubbleHtml(m, myId, { start: !groupsWithLast, end: true });
   container.insertAdjacentHTML('beforeend', html);
 }
 
@@ -229,6 +310,7 @@ async function sendMessage() {
   const body = bodyEl.value.trim();
   if (!body || !chatOther || !currentSession) return;
   bodyEl.value = '';
+  autoGrowChatInput(bodyEl);
   const { data, error } = await sb.from('messages').insert({
     sender_id: currentSession.user.id,
     recipient_id: chatOther.id,
@@ -236,7 +318,8 @@ async function sendMessage() {
   }).select('*').single();
   if (error) { alert(error.message || 'Failed to send.'); return; }
   if (!document.getElementById(`msg-${data.id}`)) {
-    document.getElementById('chat-msgs').insertAdjacentHTML('beforeend', msgBubbleHtml(data, currentSession.user.id));
+    appendChatMsg(data, currentSession.user.id);
+    lastMineMsgId = data.id;
     scrollChatToBottom();
   }
 }
@@ -248,7 +331,7 @@ function subscribeChatRealtime(myId, otherId) {
       const m = payload.new;
       if (m.recipient_id !== myId) return;
       if (document.getElementById(`msg-${m.id}`)) return;
-      document.getElementById('chat-msgs')?.insertAdjacentHTML('beforeend', msgBubbleHtml(m, myId));
+      appendChatMsg(m, myId);
       scrollChatToBottom();
       sb.from('messages').update({ read: true }).eq('id', m.id);
       // subscribeChatBadge() (auth.js) also reacts to this INSERT and
@@ -258,6 +341,13 @@ function subscribeChatRealtime(myId, otherId) {
         unreadChatCount--;
         renderSideNav(); renderMobileChrome();
       }
+    })
+    // Flips on the "Seen" receipt the moment the other person reads
+    // the last message I sent them (their client sets read:true).
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `sender_id=eq.${myId}` }, payload => {
+      const m = payload.new;
+      if (m.recipient_id !== otherId || m.id !== lastMineMsgId) return;
+      updateSeenReceipt(!!m.read);
     })
     .subscribe();
 }

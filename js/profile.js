@@ -38,7 +38,10 @@ async function loadProfile() {
 
   const flu = kind => followListUrl(profile.username, kind);
   const websiteHref = profile.website || null;
-  const websiteLabel = websiteHref ? websiteHref.replace(/^https?:\/\//i, '').replace(/\/$/, '') : null;
+  const websiteFullLabel = websiteHref ? websiteHref.replace(/^https?:\/\//i, '').replace(/\/$/, '') : null;
+  const websiteLabel = truncateLabel(websiteFullLabel);
+  const locationFull = profile.location || null;
+  const locationLabel = truncateLabel(locationFull);
 
   root.innerHTML = `
     <div class="profile-hdr" style="${profile.banner_url ? `--banner-img:url('${esc(profile.banner_url)}')` : ''}">
@@ -61,8 +64,8 @@ async function loadProfile() {
         <div class="handle">@${esc(profile.username)}</div>
         <div class="bio">${esc(profile.bio || '')}</div>
         <div class="profile-meta-row">
-          ${profile.location ? `<span class="pmr-item">${ICON_LOC}${esc(profile.location)}</span>` : ''}
-          ${websiteHref ? `<span class="pmr-item"><a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer">${ICON_LINK}${esc(websiteLabel)}</a></span>` : ''}
+          ${locationLabel ? `<span class="pmr-item" title="${esc(locationFull)}">${ICON_LOC}<span class="pmr-text">${esc(locationLabel)}</span></span>` : ''}
+          ${websiteHref ? `<span class="pmr-item"><a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer" title="${esc(websiteFullLabel)}">${ICON_LINK}<span class="pmr-text">${esc(websiteLabel)}</span></a></span>` : ''}
           <span class="pmr-item">${ICON_CAL}Joined ${new Date(profile.created_at).toLocaleDateString()}</span>
         </div>
         <div class="profile-stats">
@@ -99,6 +102,15 @@ const ICON_LOC_RAW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const ICON_LOC = `<span class="pmr-icon">${ICON_LOC_RAW}</span>`;
 const ICON_LINK = '<span class="pmr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 14.5 14.5 9.5"/><path d="M11 7.5 12.6 5.9a3.5 3.5 0 1 1 5 5L16 12.5"/><path d="M13 16.5 11.4 18.1a3.5 3.5 0 1 1-5-5L8 11.5"/></svg></span>';
 const ICON_CAL = '<span class="pmr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>';
+
+// Twitter-style truncation: "domain.com/some-long-path..." capped at
+// maxLen visible characters (ellipsis included). Used for both the
+// profile website link and the location field so a single absurdly
+// long value can't blow out the header layout.
+function truncateLabel(str, maxLen = 26) {
+  if (!str) return str;
+  return str.length > maxLen ? str.slice(0, maxLen - 1).trimEnd() + '\u2026' : str;
+}
 
 // The profile "···" dropdown — "Add/remove from Lists" opens the
 // shared alm-modal (see common.js) pre-loaded with this profile;

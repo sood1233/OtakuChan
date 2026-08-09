@@ -1301,12 +1301,13 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 .profile-hdr-actions .pc-menu-dd { min-width:220px; top:40px; }
 
 /* ── location / website / joined row ── */
-.profile-meta-row { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:10px; font-size:14px; color:var(--muted); }
-.pmr-item { display:inline-flex; align-items:center; gap:5px; }
-.pmr-item a { color:var(--maroon); text-decoration:none; }
-.pmr-item a:hover { text-decoration:underline; }
-.pmr-icon { display:inline-flex; width:15px; height:15px; flex:none; }
-.pmr-icon svg { width:15px; height:15px; }
+.profile-meta-row { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:10px; font-size:14px; color:var(--muted); max-width:100%; }
+.pmr-item { display:inline-flex; align-items:center; gap:5px; max-width:100%; min-width:0; }
+.pmr-item a { display:inline-flex; align-items:center; gap:5px; color:var(--maroon); text-decoration:none; min-width:0; max-width:100%; }
+.pmr-item a:hover .pmr-text { text-decoration:underline; }
+.pmr-icon { display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; flex:none; }
+.pmr-icon svg { width:15px; height:15px; display:block; }
+.pmr-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 
 /* ── "Followed by X and Y" mutuals line ── */
 .profile-followed-by { font-size:13px; color:var(--muted); margin-top:8px; }
@@ -1371,22 +1372,41 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 /* ═══════════════════════════════════════════════════════════════
    CHAT PAGE
    ═══════════════════════════════════════════════════════════════ */
-.conv-row { display:flex; gap:12px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); text-decoration:none; color:var(--ink); transition:background-color .12s ease; position:relative; animation:oc-fade-in .2s ease both; }
+
+/* ── conversation list ── */
+.conv-row { display:flex; gap:12px; align-items:center; padding:12px 16px 12px 14px; border-bottom:1px solid var(--line); text-decoration:none; color:var(--ink); transition:background-color .12s ease; position:relative; animation:oc-fade-in .2s ease both; border-left:3px solid transparent; }
 .conv-row:hover { background:var(--hover-bg); text-decoration:none; }
-.conv-row .avatar { flex:none; width:48px; height:48px; }
+.conv-row .avatar { flex:none; width:50px; height:50px; }
 .conv-txt { flex:1; min-width:0; }
 .conv-top { display:flex; align-items:baseline; gap:6px; }
 .conv-name { font-weight:800; font-size:15px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.conv-handle { font-size:13.5px; color:var(--muted); white-space:nowrap; }
+.conv-handle { font-size:13.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .conv-time { font-size:12.5px; color:var(--muted); margin-left:auto; flex:none; }
-.conv-snip { font-size:13.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+.conv-snip { font-size:13.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+.conv-row.unread { border-left-color:var(--maroon); background:var(--maroon-tint); }
+.conv-row.unread:hover { background:var(--maroon-tint); filter:brightness(0.97); }
 .conv-row.unread .conv-snip, .conv-row.unread .conv-name { color:var(--ink); font-weight:700; }
-.conv-dot { width:9px; height:9px; border-radius:50%; background:var(--maroon); flex:none; }
+.conv-dot { width:9px; height:9px; border-radius:50%; background:var(--maroon); flex:none; align-self:center; box-shadow:0 0 0 3px var(--maroon-tint); }
 
-.chat-new { display:flex; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); }
-.chat-new input { flex:1; }
-.chat-new button { flex:none; }
+/* new-message composer: collapsed to a single pill trigger by
+   default; expands into an input+send row when tapped, instead of
+   permanently occupying a full-width bar above the conversation
+   list. */
+.chat-new-trigger { display:flex; align-items:center; gap:10px; margin:10px 16px 6px; padding:10px 16px; border-radius:999px; background:var(--hover-bg); color:var(--muted); border:none; font-size:14.5px; font-family:inherit; cursor:pointer; width:calc(100% - 32px); text-align:left; transition:background .12s ease; }
+.chat-new-trigger:hover { background:var(--border-input); }
+.chat-new-trigger svg { width:18px; height:18px; flex:none; color:var(--maroon); }
+.chat-new { display:flex; gap:8px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); animation:oc-fade-in .15s ease both; }
+.chat-new .xsearch { flex:1; margin:0; }
+.chat-new-close { flex:none; width:36px; height:36px; border-radius:50%; border:none; background:none; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s ease; }
+.chat-new-close:hover { background:var(--hover-bg); }
+.chat-new-close svg { width:18px; height:18px; }
 
+.chat-empty { text-align:center; padding:64px 24px; color:var(--muted); }
+.chat-empty svg { width:52px; height:52px; color:var(--maroon); opacity:.5; margin-bottom:14px; }
+.chat-empty h3 { font-size:17px; color:var(--ink); margin:0 0 6px; }
+.chat-empty p { font-size:14px; margin:0; }
+
+/* ── one-on-one thread ── */
 /* .chat-thread is a fixed-height flex column (height set from JS —
    see sizeChatThread() in chat.js) so the header stays put, the
    message list is the only thing that scrolls, and the composer is
@@ -1399,19 +1419,39 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 .chat-hdr .nm { font-weight:800; font-size:16px; }
 .chat-hdr .pc-handle { font-size:13.5px; color:var(--muted); display:block; }
 
-.chat-msgs { flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:6px; padding:16px; }
-.chat-daydivider { text-align:center; font-size:12.5px; font-weight:700; color:var(--muted); margin:14px 0 6px; }
+.chat-msgs { flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; padding:16px; }
+.chat-daydivider { text-align:center; font-size:12.5px; font-weight:700; color:var(--muted); margin:14px 0 10px; }
 .chat-daydivider:first-child { margin-top:0; }
-.msg-row { display:flex; align-items:flex-end; gap:6px; }
+
+/* Messages sent within a few minutes of each other by the same
+   person are visually grouped (tight spacing, fully-rounded corners
+   throughout) with the speech-bubble "tail" only on the last bubble
+   of the group — same convention as iMessage/Telegram — instead of
+   every single message getting its own tail and full gap. */
+.msg-row { display:flex; align-items:flex-end; gap:6px; margin-top:2px; animation:oc-fade-in .15s ease both; }
+.msg-row.g-start { margin-top:14px; }
+.chat-daydivider + .msg-row.g-start { margin-top:0; }
 .msg-row.mine { justify-content:flex-end; }
-.msg-bubble { max-width:72%; padding:9px 14px; border-radius:18px; font-size:14.5px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
-.msg-row.mine .msg-bubble { background:var(--maroon); color:#fff; border-bottom-right-radius:4px; }
-.msg-row.theirs .msg-bubble { background:var(--hover-bg); color:var(--ink); border-bottom-left-radius:4px; }
-.msg-time-inline { font-size:11px; color:var(--muted); white-space:nowrap; padding-bottom:3px; flex:none; }
+.msg-bubble { max-width:72%; padding:9px 14px; border-radius:18px; font-size:14.5px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; box-shadow:0 1px 1px rgba(0,0,0,.04); }
+.msg-row.mine .msg-bubble { background:var(--maroon); color:#fff; border-bottom-right-radius:18px; }
+.msg-row.theirs .msg-bubble { background:var(--hover-bg); color:var(--ink); border-bottom-left-radius:18px; }
+.msg-row.mine.g-end .msg-bubble { border-bottom-right-radius:4px; }
+.msg-row.theirs.g-end .msg-bubble { border-bottom-left-radius:4px; }
+/* timestamp is always in the layout (so nothing reflows) but only
+   visibly shown on the last bubble of a group or on hover, keeping
+   the thread visually calm without hiding the info entirely. */
+.msg-time-inline { font-size:11px; color:var(--muted); white-space:nowrap; padding-bottom:3px; flex:none; opacity:0; transition:opacity .12s ease; }
+.msg-row.g-end .msg-time-inline, .msg-row:hover .msg-time-inline { opacity:1; }
+.msg-seen { text-align:right; font-size:11.5px; color:var(--muted); padding:2px 6px 0; }
 
 .chat-composer { display:flex; gap:8px; align-items:flex-end; padding:10px 16px; border-top:1px solid var(--line); flex:none; background:var(--cream-card); }
-.chat-composer textarea { flex:1; height:40px; resize:none; border-radius:20px; padding:9px 16px; }
-.chat-composer button { flex:none; }
+.chat-composer textarea { flex:1; height:40px; max-height:120px; resize:none; border-radius:20px; padding:9px 16px; overflow-y:auto; transition:height .08s ease; }
+.chat-send-btn { flex:none; width:38px; height:38px; border-radius:50%; border:none; background:var(--maroon); color:#fff; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s ease, opacity .1s ease, transform .1s ease; }
+.chat-send-btn svg { width:17px; height:17px; margin-left:-1px; }
+.chat-send-btn:hover { background:var(--maroon-dk); }
+.chat-send-btn:active { transform:scale(.92); }
+.chat-send-btn:disabled { opacity:.4; cursor:default; }
+
 
 /* ═══════════════════════════════════════════════════════════════
    SETTINGS PAGE
