@@ -933,15 +933,36 @@ async function confirmDeletePost() {
   const btn = document.getElementById('dc-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   try {
+    // Re-check the session against Supabase itself right before deleting,
+    // rather than trusting the in-memory currentSession variable — that
+    // variable is only ever set once, at page load (see renderAuthArea()
+    // in auth.js), so a session that expired or was signed out in
+    // another tab since this page loaded would otherwise go undetected
+    // until the delete itself fails with a confusing RLS error.
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      alert('Your session has expired. Please log in again and retry.');
+      closeDeleteConfirm();
+      location.href = 'login.html';
+      return;
+    }
+    // Confirm ownership client-side before attempting the write, so a
+    // real ownership mismatch (e.g. a stale card rendered before an
+    // account switch) surfaces as a clear message instead of the raw
+    // Postgres RLS error.
+    const { data: existing, error: fetchErr } = await sb.from('posts')
+      .select('author_id').eq('id', postId).maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!existing) throw new Error('This post no longer exists.');
+    if (existing.author_id !== session.user.id) {
+      throw new Error("This isn't your post, so it can't be deleted from here.");
+    }
+
     // Deliberately no .select() here: once is_deleted flips to true the
     // row stops matching the "read non-deleted posts" RLS policy, so a
     // RETURNING clause would come back empty even on a successful
     // delete and make this look like it failed. An empty error is the
-    // correct success signal for this particular update. Filtering by
-    // id alone and letting RLS enforce ownership (rather than also
-    // adding .eq('author_id', ...) client-side) means a stale/refreshed
-    // session can never turn a real ownership match into a spurious
-    // RLS error here.
+    // correct success signal for this particular update.
     const { error } = await sb.from('posts').update({ is_deleted: true }).eq('id', postId);
     if (error) throw error;
     closeDeleteConfirm();
@@ -957,6 +978,10 @@ async function confirmDeletePost() {
     // safe to decrement when it's present.
     if (typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
   } catch (e) {
+    // Full object (code/details/hint included) goes to the console so
+    // it's inspectable via devtools if this ever needs debugging again
+    // — the alert only has room for the short version.
+    console.error('deletePost failed:', e);
     closeDeleteConfirm();
     alert(e.message || 'Could not delete that post.');
   } finally {
