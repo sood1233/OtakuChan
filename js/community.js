@@ -61,16 +61,26 @@ function updateComposerVisibility() {
 
 function renderHero() {
   const heroEl = document.getElementById('community-hero');
-  const initial = esc((community.name || '?').trim().charAt(0).toUpperCase() || '?');
   const actionBtn = !currentSession
     ? `<a class="comm-join-btn" href="login.html">Join</a>`
     : isMember
       ? `<button type="button" class="comm-leave-btn" id="hero-join-btn" onclick="heroToggleJoin()">Joined</button>`
       : `<button type="button" class="comm-join-btn" id="hero-join-btn" onclick="heroToggleJoin()">Join</button>`;
+  // Only the community's own creator can change its picture — same
+  // "isOwner" idea as postMenuHtml's Delete button, just for the
+  // community row itself instead of a post/reply row.
+  const isCreator = currentSession && community.created_by === currentSession.user.id;
+  const avatarInner = `
+    <span class="comm-avatar comm-avatar-lg">${communityAvatarInner(community)}</span>
+    ${isCreator ? `
+      <label class="comm-avatar-pick" for="hero-avatar-file" title="Change community picture">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4V7Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      </label>
+      <input type="file" id="hero-avatar-file" accept="image/*" style="display:none;" onchange="changeCommunityAvatar(this)">` : ''}`;
 
   heroEl.innerHTML = `
     <div class="community-hero">
-      <span class="comm-avatar">${initial}</span>
+      <span class="comm-avatar-wrap">${avatarInner}</span>
       <div class="community-hero-body">
         <div class="community-hero-name">${esc(community.name)}</div>
         ${community.description ? `<div class="community-hero-desc">${esc(community.description)}</div>` : ''}
@@ -78,6 +88,31 @@ function renderHero() {
       </div>
       <div class="community-hero-actions">${actionBtn}</div>
     </div>`;
+}
+
+// Only the creator ever sees the picker (see isCreator above), but the
+// upload itself is still checked server-side too: `avatars` storage
+// only allows writing inside your own <uid> folder, and the
+// "creator can update own community" RLS policy only allows this
+// UPDATE if auth.uid() = created_by (see
+// supabase/community_creator_and_post_limit.sql).
+async function changeCommunityAvatar(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file || !community || !currentSession) return;
+  if (!requireLogin()) return;
+  if (community.created_by !== currentSession.user.id) return;
+  const errEl = document.getElementById('cf-err'); // reuse the composer's error slot if present
+  if (!validateFile(file, errEl)) return;
+  try {
+    const avatar_url = await uploadAvatar(file, currentSession.user.id);
+    const { error } = await sb.from('communities').update({ avatar_url }).eq('id', community.id);
+    if (error) throw error;
+    community.avatar_url = avatar_url;
+    renderHero();
+  } catch (e) {
+    alert(e.message || 'Could not update the community picture.');
+  }
 }
 
 async function heroToggleJoin() {
@@ -125,6 +160,7 @@ async function loadCommunityFeed() {
   feedEl.innerHTML = skeletonFeedHtml();
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false).eq('community_id', community.id);
   query = communityTab === 'trending'
@@ -156,7 +192,7 @@ async function submitCommunityPost() {
 
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Comment can't be empty."); return; }
-  if (body.length > 4000) { showErr(errEl, 'Comment too long (max 4000 chars).'); return; }
+  if (body.length > 500) { showErr(errEl, 'Comment too long (max 500 chars).'); return; }
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';

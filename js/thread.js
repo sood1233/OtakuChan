@@ -44,6 +44,7 @@ async function loadThread() {
 
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
   const { data: p, error } = await sb.from('posts').select(POST_SELECT).eq('id', postId).eq('is_deleted', false).single();
   if (error || !p) {
     wrap.innerHTML = `<div class="errmsg">Post not found or has been removed.</div>`;
@@ -151,7 +152,7 @@ function opBlockHtml(p) {
           <a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>
           <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
         </div>
-        ${postMenuHtml(p.id, null, p.author_id)}
+        ${postMenuHtml(p.id, null, p.author_id, p.community_id)}
       </div>
       <div class="op-detail-body">${renderBody(p.body)}</div>
       ${p.quote_of ? quotedPostHtml(p.quoted) : ''}

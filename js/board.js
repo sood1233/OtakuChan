@@ -13,6 +13,7 @@ async function loadFeed() {
   hidePendingPill();
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false);
 
@@ -159,7 +160,7 @@ async function submitPost() {
 
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Comment can't be empty."); return; }
-  if (body.length > 4000) { showErr(errEl, 'Comment too long (max 4000 chars).'); return; }
+  if (body.length > 500) { showErr(errEl, 'Comment too long (max 500 chars).'); return; }
   if (!validatePollAndSchedule('pf', errEl)) return;
 
   btn.disabled = true;

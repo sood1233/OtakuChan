@@ -433,7 +433,7 @@ function gcModalEl() {
       <div class="pf-row gc-row">
         <span class="pf-avatar" id="gc-avatar"></span>
         <div class="pf-col">
-          <textarea id="gc-body" maxlength="4000" placeholder="What's happening?"></textarea>
+          <textarea id="gc-body" maxlength="500" placeholder="What's happening?"></textarea>
           <div id="gc-fp" class="fp"></div>
           <div class="cx-poll" id="gc-poll-box" hidden>
             <div class="cx-poll-opts" id="gc-poll-opts">
@@ -473,9 +473,6 @@ function gcModalEl() {
           </button>
           <button type="button" class="pf-ic" title="Schedule" onclick="toggleScheduleBuilder('gc');return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13.5h1M12 13.5h1M16 13.5h1M8 17h1M12 17h1"/></svg>
-          </button>
-          <button type="button" class="pf-ic" title="Location" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
           </button>
           <input type="file" id="gc-file" accept="image/*,video/*" style="display:none;">
         </div>
@@ -537,7 +534,7 @@ async function submitGlobalCompose() {
 
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Post can't be empty."); return; }
-  if (body.length > 4000) { showErr(errEl, 'Post too long (max 4000 chars).'); return; }
+  if (body.length > 500) { showErr(errEl, 'Post too long (max 500 chars).'); return; }
   if (!validatePollAndSchedule('gc', errEl)) return;
 
   btn.disabled = true;
@@ -595,6 +592,174 @@ async function submitGlobalCompose() {
 }
 
 document.addEventListener('DOMContentLoaded', renderMobileChrome);
+
+// ─────────────────────────────────────────────────────────────
+// REPLY POPUP — tapping the comment/reply icon on a feed post card
+// (postCardHtml's postActionsHtml) used to do nothing, since those
+// cards never passed a replyHref/replyOnclick. Twitter's equivalent
+// opens a small "Post your reply" popup right there instead of
+// navigating away — this is that popup. Same lazy-build-into-<body>
+// pattern as gcModalEl()/dcModalEl()/ccModalEl() above, so it works
+// from any page that renders post cards (feed, community, profile,
+// search, bookmarks) with no per-page markup needed. Submits into
+// `replies`, not `posts` — this is a comment on the post, never a
+// new top-level post.
+// ─────────────────────────────────────────────────────────────
+let rpcTargetPostId = null;
+
+function rpcModalEl() {
+  let el = document.getElementById('rpc-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'rpc-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeReplyPopup(); });
+  el.innerHTML = `
+    <div class="modal gc-modal rpc-modal">
+      <a class="modal-close" href="#" onclick="closeReplyPopup();return false;">&#10005;</a>
+      <div class="rpc-context" id="rpc-context"></div>
+      <div class="errmsg" id="rpc-err" style="display:none;margin:0 16px 8px;"></div>
+      <div class="pf-row gc-row">
+        <span class="pf-avatar" id="rpc-avatar"></span>
+        <div class="pf-col">
+          <textarea id="rpc-body" maxlength="4000" placeholder="Post your reply"></textarea>
+          <div id="rpc-fp" class="fp"></div>
+        </div>
+      </div>
+      <div class="pf-toolbar gc-toolbar">
+        <div class="pf-icons">
+          <button type="button" class="pf-ic" title="Media" onclick="document.getElementById('rpc-file').click();return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
+          </button>
+          <button type="button" class="pf-ic" title="GIF" onclick="openGifPicker('rpc');return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 9.5v5M13.5 9.5h-2.2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1H13v-2h-1M16 14.5v-5h2.4M16 12h1.8"/></svg>
+          </button>
+          <button type="button" class="pf-ic" title="Emoji" onclick="toggleEmojiPicker('rpc', this);return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
+          </button>
+          <input type="file" id="rpc-file" accept="image/*,video/*" style="display:none;">
+        </div>
+        <input type="submit" id="rpc-btn" class="pf-btn" value="Reply" onclick="submitReplyPopup();return false;" disabled>
+      </div>
+      <span id="rpc-st" class="gc-status"></span>
+    </div>`;
+  document.body.appendChild(el);
+
+  wireFilePreview('rpc-file', 'rpc-fp', 'rpc-err');
+  const rpcBody = document.getElementById('rpc-body');
+  rpcBody.addEventListener('input', () => {
+    updateRpcBtnState();
+    rpcBody.style.height = 'auto';
+    rpcBody.style.height = Math.max(64, rpcBody.scrollHeight) + 'px';
+  });
+  rpcBody.addEventListener('keydown', e => { if (e.key === 'Escape') closeReplyPopup(); });
+  return el;
+}
+
+function updateRpcBtnState() {
+  const bodyEl = document.getElementById('rpc-body');
+  const btn = document.getElementById('rpc-btn');
+  if (!bodyEl || !btn) return;
+  btn.disabled = bodyEl.value.trim().length === 0;
+}
+
+// `postId` is whichever post's comment icon was tapped — cachePost()
+// (called by postCardHtml() for every card ever rendered) means we
+// almost always already have that post's author handy for the
+// "Replying to @user" line with no extra fetch.
+function openReplyPopup(postId) {
+  if (!requireLogin()) return;
+  rpcTargetPostId = postId;
+  const el = rpcModalEl();
+  const p = postCache[postId];
+  const ctx = document.getElementById('rpc-context');
+  if (ctx) {
+    const uname = p?.profile?.username || 'unknown';
+    ctx.innerHTML = `Replying to <a href="${profileUrl(uname)}">@${esc(uname)}</a>`;
+  }
+  const avEl = document.getElementById('rpc-avatar');
+  if (avEl) avEl.innerHTML = `<img src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">`;
+  const errEl = document.getElementById('rpc-err');
+  clearErr(errEl);
+  if (el.classList.contains('open')) return; // already open — ignore a double tap
+  el.classList.add('open');
+  lockScroll();
+  setTimeout(() => document.getElementById('rpc-body')?.focus(), 50);
+}
+
+function closeReplyPopup() {
+  const el = document.getElementById('rpc-modal-bg');
+  if (!el || !el.classList.contains('open')) return;
+  el.classList.remove('open');
+  unlockScroll();
+  rpcTargetPostId = null;
+}
+
+async function submitReplyPopup() {
+  if (!requireLogin()) return;
+  const targetPostId = rpcTargetPostId;
+  if (!targetPostId) return;
+  const bodyEl = document.getElementById('rpc-body');
+  const fileEl = document.getElementById('rpc-file');
+  const btn    = document.getElementById('rpc-btn');
+  const stEl   = document.getElementById('rpc-st');
+  const errEl  = document.getElementById('rpc-err');
+  clearErr(errEl);
+
+  const body = bodyEl.value.trim();
+  if (!body) { showErr(errEl, "Reply can't be empty."); return; }
+  if (body.length > 4000) { showErr(errEl, 'Reply too long (max 4000 chars).'); return; }
+
+  btn.disabled = true;
+  stEl.textContent = 'Posting…';
+  try {
+    let media_url = null, media_type = null;
+    const gifUrl = composeExtras.rpc?.gifUrl;
+    const file = fileEl.files[0];
+    if (gifUrl) {
+      media_url = gifUrl; media_type = 'gif';
+    } else if (file) {
+      if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
+      stEl.textContent = 'Uploading file…';
+      ({ media_url, media_type } = await uploadMedia(file));
+    }
+    const { data, error } = await sb.from('replies').insert({
+      post_id: targetPostId,
+      parent_reply_id: null,
+      author_id: currentSession.user.id,
+      body, media_url, media_type
+    }).select('*, profile:profiles(username,display_name,avatar_url)').single();
+    if (error) throw error;
+
+    bodyEl.value = ''; bodyEl.style.height = '';
+    fileEl.value = ''; document.getElementById('rpc-fp').innerHTML = '';
+    resetComposeExtras('rpc');
+    stEl.textContent = '';
+    closeReplyPopup();
+
+    // Bump the visible reply count on every copy of this post's card
+    // that happens to be on screen right now (a repost of it, e.g.,
+    // could render twice) — same "every copy" reasoning confirmDeletePost()
+    // uses for delete.
+    document.querySelectorAll(`[data-post-id="${targetPostId}"] .act.reply .act-label`).forEach(lbl => {
+      const n = (parseInt((lbl.textContent || '0').replace(/[^\d]/g, ''), 10) || 0) + 1;
+      lbl.textContent = fmtCount(n);
+    });
+
+    // If we're already sitting on that post's own thread page, drop
+    // the new reply straight into the visible conversation too.
+    if (typeof currentStatusId === 'function' && typeof insertReplyIntoTree === 'function'
+        && currentStatusId() === targetPostId) {
+      insertReplyIntoTree(data);
+    }
+  } catch (e) {
+    showErr(errEl, e.message || 'Failed to post reply.');
+    stEl.textContent = '';
+  } finally {
+    btn.disabled = false;
+    updateRpcBtnState();
+  }
+}
 
 
 // Wires the (formerly decorative) sidebar search box: Enter jumps to
@@ -783,6 +948,20 @@ async function ensureRepostsLoaded() {
   reposted = new Set((data || []).map(r => r.post_id));
 }
 
+// ── OWNED COMMUNITIES ── (same fetch-fresh-per-render pattern as
+// bookmarked/reposted above.) The set of community ids the current
+// user created — used to show a Delete option on ANY post inside a
+// community you created, not just your own posts, and to gate the
+// "change community picture" control on community.html.
+let ownedCommunities = new Set();
+
+async function ensureOwnedCommunitiesLoaded() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { ownedCommunities = new Set(); return; }
+  const { data } = await sb.from('communities').select('id').eq('created_by', session.user.id);
+  ownedCommunities = new Set((data || []).map(c => c.id));
+}
+
 // Every post rendered as a card is stashed here by id, so the Quote
 // modal (opened from a plain onclick with just the post id) can pull
 // up the author/body/media to embed in the preview without a refetch.
@@ -944,7 +1123,7 @@ async function submitQuote() {
   const btn    = document.getElementById('qm-btn');
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, 'Add a comment before posting.'); return; }
-  if (body.length > 4000) { showErr(errEl, 'Comment too long (max 4000 chars).'); return; }
+  if (body.length > 500) { showErr(errEl, 'Comment too long (max 500 chars).'); return; }
   btn.disabled = true;
   try {
     const { data, error } = await sb.from('posts').insert({
@@ -1065,25 +1244,57 @@ function opDetailActionsHtml(p, replyOnclick) {
     </div>`;
 }
 
-// The "···" header menu (Report, and Delete for your own posts/replies).
-// `replyId` set only for reply-card menus. `authorId` is the author_id
-// of whichever row this menu belongs to (the post, or the reply when
-// replyId is set) — used to show Delete only when it's the logged-in
-// user's own row. Ownership no longer excludes replies: a reply you
-// own gets a working Delete button too, deleting the reply itself
-// (not the parent post).
-function postMenuHtml(postId, replyId = null, authorId = null) {
+// The "···" header menu (Report, and Delete for your own posts/replies,
+// or for ANY post in a community you created). `replyId` set only for
+// reply-card menus. `authorId` is the author_id of whichever row this
+// menu belongs to (the post, or the reply when replyId is set) — used
+// to show Delete when it's the logged-in user's own row. Ownership no
+// longer excludes replies: a reply you own gets a working Delete
+// button too, deleting the reply itself (not the parent post).
+// `communityId` (top-level posts only — pass the post's community_id,
+// leave null for replies) additionally shows Delete when the current
+// user created that community, even if they didn't author the post —
+// same as a moderator being able to remove posts in their own space.
+function postMenuHtml(postId, replyId = null, authorId = null, communityId = null) {
   const target = replyId ? `'${postId}','${replyId}'` : `'${postId}'`;
-  const isOwner = currentSession && authorId && currentSession.user.id === authorId;
+  const isAuthor = currentSession && authorId && currentSession.user.id === authorId;
+  const isCommunityCreator = !replyId && currentSession && communityId && ownedCommunities.has(communityId);
+  const isOwner = isAuthor || isCommunityCreator;
   const deleteArgs = replyId ? `'${replyId}', event, true` : `'${postId}', event`;
+  // Pin/unpin only makes sense for your own top-level posts (not
+  // replies, not posts you can only delete as a community mod).
+  const canPin = !replyId && isAuthor;
+  const isPinned = canPin && currentProfile && currentProfile.pinned_post_id === postId;
   return `
     <div class="pc-menu-wrap" id="pmenu-${replyId || postId}">
       <button class="pc-menu-btn" onclick="togglePostMenu('${replyId || postId}', event)">${ICON.menu}</button>
       <div class="pc-menu-dd">
+        ${canPin ? `<button onclick="togglePin('${postId}', event)">${isPinned ? 'Unpin from profile' : 'Pin to your profile'}</button>` : ''}
         ${isOwner ? `<button class="pc-menu-danger" onclick="deletePost(${deleteArgs})">Delete</button>` : ''}
         <button onclick="openReport(${target})">Report</button>
       </div>
     </div>`;
+}
+
+// Pins/unpins one of your own posts to the top of your profile
+// (profiles.pinned_post_id — only one at a time, same as Twitter:
+// pinning a second post silently replaces the first).
+async function togglePin(postId, ev) {
+  if (ev) { ev.stopPropagation(); togglePostMenu(postId, ev); }
+  if (!requireLogin() || !currentProfile) return;
+  const nowPinned = currentProfile.pinned_post_id === postId;
+  const newValue = nowPinned ? null : postId;
+  try {
+    const { error } = await sb.from('profiles').update({ pinned_post_id: newValue }).eq('id', currentProfile.id);
+    if (error) throw error;
+    currentProfile.pinned_post_id = newValue;
+    if (typeof viewedProfile !== 'undefined' && viewedProfile && viewedProfile.id === currentProfile.id) {
+      viewedProfile.pinned_post_id = newValue;
+      if (typeof loadUserPosts === 'function') loadUserPosts(currentProfile.id);
+    }
+  } catch (e) {
+    alert(e.message || 'Could not update pinned post.');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1177,14 +1388,21 @@ async function confirmDeletePost() {
     // Confirm ownership client-side before attempting the write, so a
     // real ownership mismatch (e.g. a stale card rendered before an
     // account switch) surfaces as a clear message instead of the raw
-    // Postgres RLS error.
+    // Postgres RLS error. A post (never a reply) also allows through
+    // whoever created the community it's posted in — the RPC below is
+    // still the authoritative check either way.
     const { data: existing, error: fetchErr } = await sb.from(table)
-      .select('author_id').eq('id', id).maybeSingle();
+      .select(isReply ? 'author_id' : 'author_id, community_id').eq('id', id).maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!existing) throw new Error(isReply ? 'This reply no longer exists.' : 'This post no longer exists.');
-    if (existing.author_id !== session.user.id) {
+    let allowed = existing.author_id === session.user.id;
+    if (!allowed && !isReply && existing.community_id) {
+      const { data: comm } = await sb.from('communities').select('created_by').eq('id', existing.community_id).maybeSingle();
+      allowed = !!comm && comm.created_by === session.user.id;
+    }
+    if (!allowed) {
       throw new Error(isReply ? "This isn't your reply, so it can't be deleted from here."
-                               : "This isn't your post, so it can't be deleted from here.");
+                               : "This isn't your post and you don't own its community, so it can't be deleted from here.");
     }
 
     // Delete now goes through a SECURITY DEFINER RPC (see
@@ -1348,17 +1566,24 @@ async function leaveCommunity(communityId) {
   return { error };
 }
 
+// Shared "avatar or initial-letter fallback" markup for a community —
+// used by the sidebar box, communities.html's browse list, and
+// community.html's own hero, so all three stay in sync the moment a
+// creator sets/changes their community's picture.
+function communityAvatarInner(c) {
+  return c.avatar_url ? `<img src="${esc(c.avatar_url)}" alt="">` : esc((c.name || '?').trim().charAt(0).toUpperCase() || '?');
+}
+
 // Compact list-row markup for a community — used by the sidebar box
 // below and by communities.html's browse list. `joined` controls
 // whether the pill reads Join or Joined/Leave-on-hover.
 function communityRowHtml(c, joined) {
-  const initial = esc((c.name || '?').trim().charAt(0).toUpperCase() || '?');
   const btn = joined
     ? `<button class="who-follow-btn comm-joined-btn" onclick="event.preventDefault();communityToggleJoin('${c.id}', this, true)">Joined</button>`
     : `<button class="who-follow-btn" onclick="event.preventDefault();communityToggleJoin('${c.id}', this, false)">Join</button>`;
   return `
     <a class="who-row comm-row" href="${communityUrl(c.slug)}">
-      <span class="comm-avatar">${initial}</span>
+      <span class="comm-avatar">${communityAvatarInner(c)}</span>
       <span class="who-row-txt">
         <span class="who-row-name">${esc(c.name)}</span>
         <span class="who-row-handle">${fmtCount(c.member_count)} member${c.member_count === 1 ? '' : 's'}</span>
@@ -1437,6 +1662,15 @@ function repostBannerHtml(reposter) {
   return `<div class="repost-banner">${ICON.repost}${inner}</div>`;
 }
 
+// The "📌 Pinned" tag shown above a profile's pinned post — same
+// banner styling as repostBannerHtml above, just a pin icon + static
+// label since (unlike a repost) there's no one else to credit.
+const ICON_PIN = '<svg viewBox="0 0 24 24"><path d="M12 2.5 9.5 8 4 10l5.5 3L11 19l1-6L18 10l-5.5-2Z"/></svg>';
+function pinBannerHtml(pinned) {
+  if (!pinned) return '';
+  return `<div class="repost-banner">${ICON_PIN}<span>Pinned</span></div>`;
+}
+
 // Full tweet-style post card — used by the main feed and profile page.
 // The whole card is clickable (opens the post's comments), matching
 // Twitter — but clicks on an actual link/button/menu inside it are
@@ -1475,19 +1709,20 @@ function postCardHtml(p, flash = false) {
   return `
   <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" data-view="post:${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})" onpointerover="prefetchHref('${postUrl(p)}')" ontouchstart="prefetchHref('${postUrl(p)}')">
     ${repostBannerHtml(p._repostedBy)}
+    ${pinBannerHtml(p._pinned)}
     <div class="pc-row">
       ${pcAvatarHtml(p.profile)}
       <div class="pc-main">
         <div class="ph">
           ${pcNameHtml(p.profile)}
           <span class="dt">${timeAgo(p.created_at)}</span>
-          ${postMenuHtml(p.id, null, p.author_id)}
+          ${postMenuHtml(p.id, null, p.author_id, p.community_id)}
         </div>
         <div class="pb">${renderBody(p.body)}</div>
         ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
         ${renderMedia(p.media_url, p.media_type, '', p)}
         ${pollHtml(p)}
-        ${postActionsHtml(p)}
+        ${postActionsHtml(p, { replyOnclick: `openReplyPopup('${p.id}')` })}
       </div>
     </div>
   </div>`;
@@ -1719,6 +1954,39 @@ async function unfollowUser(followeeId) {
     .eq('follower_id', currentSession.user.id).eq('followee_id', followeeId);
 }
 
+// ── MUTE / BLOCK — same shape as follow/unfollow above. Muting only
+// affects your own feeds (nothing to tell the other person); blocking
+// is mutual-visible, same as Twitter, and the DB trigger in
+// profile_extras.sql drops any existing follow either direction the
+// moment a block row is inserted.
+async function isMuted(mutedId) {
+  if (!currentSession) return false;
+  const { data } = await sb.from('mutes').select('muter_id')
+    .eq('muter_id', currentSession.user.id).eq('muted_id', mutedId).maybeSingle();
+  return !!data;
+}
+async function muteUser(mutedId) {
+  return sb.from('mutes').insert({ muter_id: currentSession.user.id, muted_id: mutedId });
+}
+async function unmuteUser(mutedId) {
+  return sb.from('mutes').delete()
+    .eq('muter_id', currentSession.user.id).eq('muted_id', mutedId);
+}
+
+async function isBlocked(blockedId) {
+  if (!currentSession) return false;
+  const { data } = await sb.from('blocks').select('blocker_id')
+    .eq('blocker_id', currentSession.user.id).eq('blocked_id', blockedId).maybeSingle();
+  return !!data;
+}
+async function blockUser(blockedId) {
+  return sb.from('blocks').insert({ blocker_id: currentSession.user.id, blocked_id: blockedId });
+}
+async function unblockUser(blockedId) {
+  return sb.from('blocks').delete()
+    .eq('blocker_id', currentSession.user.id).eq('blocked_id', blockedId);
+}
+
 function mediaTypeFor(file) {
   if (file.type.startsWith('image/')) return 'image';
   if (file.type.startsWith('video/')) return 'video';
@@ -1913,7 +2181,7 @@ function renderLbSidebar(owner) {
         <a class="nm" href="${profileUrl(uname)}">${esc(owner.profile?.display_name || uname)}</a>
         <span class="pc-handle">@${esc(uname)}</span>
       </div>
-      ${postMenuHtml(isReply ? owner.post_id : owner.id, isReply ? owner.id : null, owner.author_id)}
+      ${postMenuHtml(isReply ? owner.post_id : owner.id, isReply ? owner.id : null, owner.author_id, isReply ? null : owner.community_id)}
     </div>
     <div class="op-detail-body">${renderBody(owner.body || '')}</div>
     <div class="op-detail-meta">${fullDateTime(owner.created_at)} &middot; <b>${fmtCount(owner.view_count)}</b> Views</div>
@@ -2485,11 +2753,18 @@ function userRowHtml(profile) {
 }
 
 // ── REPORT MODAL (shared across board + thread pages) ──
-let reportTarget = null; // { postId, replyId }
+let reportTarget = null; // { postId, replyId } or { userId }
 
 function openReport(postId, replyId = null) {
   if (typeof requireLogin === 'function' && !requireLogin()) return;
   reportTarget = { postId, replyId };
+  document.getElementById('modal-report').classList.add('open');
+}
+// Reports a profile itself (the "···" menu on a profile page), rather
+// than one specific post/reply of theirs.
+function openReportUser(userId) {
+  if (typeof requireLogin === 'function' && !requireLogin()) return;
+  reportTarget = { userId };
   document.getElementById('modal-report').classList.add('open');
 }
 function closeReport() {
@@ -2502,8 +2777,9 @@ async function submitReport() {
   const details = document.getElementById('report-details').value.trim().slice(0, 500);
   try {
     await sb.from('reports').insert({
-      post_id: reportTarget.postId,
-      reply_id: reportTarget.replyId,
+      post_id: reportTarget.postId || null,
+      reply_id: reportTarget.replyId || null,
+      reported_user_id: reportTarget.userId || null,
       reporter_id: currentSession?.user?.id,
       reason,
       details

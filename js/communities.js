@@ -78,13 +78,12 @@ async function renderList() {
 // shape (so communityToggleJoin()'s .comm-row lookups still work),
 // plus the description line, which the sidebar box has no room for.
 function communityRowHtml(c, joined) {
-  const initial = esc((c.name || '?').trim().charAt(0).toUpperCase() || '?');
   const btn = joined
     ? `<button class="who-follow-btn comm-joined-btn" onclick="event.preventDefault();communityToggleJoin('${c.id}', this, true)">Joined</button>`
     : `<button class="who-follow-btn" onclick="event.preventDefault();communityToggleJoin('${c.id}', this, false)">Join</button>`;
   return `
     <a class="who-row comm-row" href="${communityUrl(c.slug)}">
-      <span class="comm-avatar">${initial}</span>
+      <span class="comm-avatar">${communityAvatarInner(c)}</span>
       <span class="who-row-txt">
         <span class="who-row-name">${esc(c.name)}</span>
         ${c.description ? `<span class="comm-desc">${esc(c.description)}</span>` : ''}

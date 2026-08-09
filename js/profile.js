@@ -37,6 +37,8 @@ async function loadProfile() {
   if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
 
   const flu = kind => followListUrl(profile.username, kind);
+  const websiteHref = profile.website || null;
+  const websiteLabel = websiteHref ? websiteHref.replace(/^https?:\/\//i, '').replace(/\/$/, '') : null;
 
   root.innerHTML = `
     <div class="profile-hdr" style="${profile.banner_url ? `--banner-img:url('${esc(profile.banner_url)}')` : ''}">
@@ -44,18 +46,31 @@ async function loadProfile() {
       <div class="profile-id">
         <div class="uname-row">
           <div class="uname">${esc(profile.display_name || profile.username)}</div>
-          ${!isOwnProfile && session ? `<button class="follow-btn" id="follow-btn" onclick="toggleFollow()">Follow</button>` : ''}
-          ${!isOwnProfile && !session ? `<a class="follow-btn" href="login.html">Follow</a>` : ''}
-          ${isOwnProfile ? `<a class="profile-edit-btn" href="editprofile.html">Edit Profile</a>` : ''}
+          <div class="profile-hdr-actions">
+            ${!isOwnProfile && session ? `
+              <a class="profile-icon-btn" href="${messagesUrl(profile.username)}" title="Message">${ICON_MESSAGE}</a>
+              <div class="pc-menu-wrap" id="pmenu-profile-${profile.id}">
+                <button class="pc-menu-btn profile-icon-btn" onclick="togglePostMenu('profile-${profile.id}', event)">${ICON.menu}</button>
+                <div class="pc-menu-dd" id="profile-menu-dd">${profileMenuItemsHtml(profile)}</div>
+              </div>` : ''}
+            ${!isOwnProfile && session ? `<button class="follow-btn" id="follow-btn" onclick="toggleFollow()">Follow</button>` : ''}
+            ${!isOwnProfile && !session ? `<a class="follow-btn" href="login.html">Follow</a>` : ''}
+            ${isOwnProfile ? `<a class="profile-edit-btn" href="editprofile.html">Edit Profile</a>` : ''}
+          </div>
         </div>
         <div class="handle">@${esc(profile.username)}</div>
         <div class="bio">${esc(profile.bio || '')}</div>
+        <div class="profile-meta-row">
+          ${profile.location ? `<span class="pmr-item">${ICON_LOC}${esc(profile.location)}</span>` : ''}
+          ${websiteHref ? `<span class="pmr-item"><a href="${esc(websiteHref)}" target="_blank" rel="noopener noreferrer">${ICON_LINK}${esc(websiteLabel)}</a></span>` : ''}
+          <span class="pmr-item">${ICON_CAL}Joined ${new Date(profile.created_at).toLocaleDateString()}</span>
+        </div>
         <div class="profile-stats">
           <span class="stat-item stat-static"><b id="stat-posts">${fmtCount(profile.posts_count)}</b> Posts</span>
           <a class="stat-item" href="${flu('followers')}"><b id="stat-followers">${fmtCount(profile.followers_count)}</b> Followers</a>
           <a class="stat-item" href="${flu('following')}"><b id="stat-following">${fmtCount(profile.following_count)}</b> Following</a>
         </div>
-        <div class="profile-meta">Joined ${new Date(profile.created_at).toLocaleDateString()}</div>
+        <div id="profile-followed-by"></div>
       </div>
     </div>
 
@@ -70,9 +85,128 @@ async function loadProfile() {
 
   if (!isOwnProfile && session) {
     isFollowing(profile.id).then(f => setFollowBtnState(f));
+    loadFollowedBy(profile.id);
+    isMuted(profile.id).then(m => { const b = document.getElementById('pm-mute-btn'); if (b && m) b.textContent = 'Unmute'; });
+    isBlocked(profile.id).then(b => { const btn = document.getElementById('pm-block-btn'); if (btn && b) btn.textContent = `Unblock @${profile.username}`; });
   }
 
   loadUserPosts(profile.id);
+}
+
+// ── HEADER ICONS used only on the profile page ──
+const ICON_MESSAGE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4.5h16v12H8.5L4 20.5v-16Z"/></svg>';
+const ICON_LOC_RAW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>';
+const ICON_LOC = `<span class="pmr-icon">${ICON_LOC_RAW}</span>`;
+const ICON_LINK = '<span class="pmr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 14.5 14.5 9.5"/><path d="M11 7.5 12.6 5.9a3.5 3.5 0 1 1 5 5L16 12.5"/><path d="M13 16.5 11.4 18.1a3.5 3.5 0 1 1-5-5L8 11.5"/></svg></span>';
+const ICON_CAL = '<span class="pmr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>';
+
+// The profile "···" dropdown — Lists is a UI stub (Otakuchan has no
+// Lists feature yet, so those two just say so rather than pretending
+// to save anything); Share/Copy/Mute/Block/Report are fully wired.
+function profileMenuItemsHtml(profile) {
+  return `
+    <button onclick="profileMenuStub(event, 'Lists')">Add/remove from Lists</button>
+    <button onclick="profileMenuStub(event, 'Lists')">View Lists</button>
+    <button onclick="profileMenuShare(event, '${u_(profile.username)}')">Share @${esc(profile.username)} via&hellip;</button>
+    <button onclick="profileMenuCopyLink(event, '${u_(profile.username)}')">Copy link to profile</button>
+    <button id="pm-mute-btn" onclick="profileMenuMute(event, '${profile.id}')">Mute</button>
+    <button id="pm-block-btn" class="pc-menu-danger" onclick="profileMenuBlock(event, '${profile.id}', '${u_(profile.username)}')">Block @${esc(profile.username)}</button>
+    <button onclick="profileMenuReport(event, '${profile.id}')">Report @${esc(profile.username)}</button>`;
+}
+
+function closeProfileMenu(ev) {
+  if (ev) ev.stopPropagation();
+  document.querySelectorAll('.pc-menu-wrap.open').forEach(w => w.classList.remove('open'));
+}
+
+function profileMenuStub(ev, feature) {
+  closeProfileMenu(ev);
+  alert(`${feature} aren't available on Otakuchan yet — this is a placeholder for now.`);
+}
+
+function profileMenuShare(ev, username) {
+  closeProfileMenu(ev);
+  const url = `${location.origin}${profileUrl(decodeURIComponent(username))}`;
+  if (navigator.share) {
+    navigator.share({ url }).catch(() => {});
+  } else if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
+  } else {
+    prompt('Copy link:', url);
+  }
+}
+
+function profileMenuCopyLink(ev, username) {
+  closeProfileMenu(ev);
+  const url = `${location.origin}${profileUrl(decodeURIComponent(username))}`;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
+  } else {
+    prompt('Copy link:', url);
+  }
+}
+
+async function profileMenuMute(ev, userId) {
+  closeProfileMenu(ev);
+  if (!requireLogin()) return;
+  const btn = document.getElementById('pm-mute-btn');
+  try {
+    const muted = btn && btn.textContent === 'Unmute';
+    if (muted) { await unmuteUser(userId); if (btn) btn.textContent = 'Mute'; alert(`Unmuted @${viewedProfile.username}.`); }
+    else { await muteUser(userId); if (btn) btn.textContent = 'Unmute'; alert(`Muted @${viewedProfile.username}. You won't see their posts in your feeds.`); }
+  } catch (e) { alert(e.message || 'Could not update mute status.'); }
+}
+
+async function profileMenuBlock(ev, userId, username) {
+  closeProfileMenu(ev);
+  if (!requireLogin()) return;
+  const btn = document.getElementById('pm-block-btn');
+  const currentlyBlocked = btn && btn.textContent.startsWith('Unblock');
+  if (!currentlyBlocked && !confirm(`Block @${decodeURIComponent(username)}? They won't be able to follow or message you, and you'll stop following each other.`)) return;
+  try {
+    if (currentlyBlocked) {
+      await unblockUser(userId);
+      if (btn) btn.textContent = `Block @${decodeURIComponent(username)}`;
+    } else {
+      await blockUser(userId);
+      if (btn) btn.textContent = `Unblock @${decodeURIComponent(username)}`;
+      setFollowBtnState(false);
+    }
+  } catch (e) { alert(e.message || 'Could not update block status.'); }
+}
+
+function profileMenuReport(ev, userId) {
+  closeProfileMenu(ev);
+  openReportUser(userId);
+}
+
+// "Followed by X and Y" — up to 3 people the *current* logged-in user
+// follows who also follow this profile, same idea as Twitter's mutual-
+// followers line. Runs after the header paints since it's a couple of
+// extra queries nobody needs to wait on to see the profile itself.
+async function loadFollowedBy(profileId) {
+  const el = document.getElementById('profile-followed-by');
+  if (!el || !currentSession) return;
+  try {
+    const { data: iFollowRows } = await sb.from('follows').select('followee_id')
+      .eq('follower_id', currentSession.user.id).limit(1000);
+    const iFollowIds = (iFollowRows || []).map(r => r.followee_id);
+    if (!iFollowIds.length) return;
+    const { data: mutualRows } = await sb.from('follows')
+      .select('follower_id, profile:profiles!follows_follower_id_fkey(username,display_name)')
+      .eq('followee_id', profileId).in('follower_id', iFollowIds).limit(3);
+    if (!mutualRows || !mutualRows.length) return;
+    const names = mutualRows.map(r => esc(r.profile?.display_name || r.profile?.username || 'someone'));
+    let label;
+    if (names.length === 1) label = `Followed by ${names[0]}`;
+    else if (names.length === 2) label = `Followed by ${names[0]} and ${names[1]}`;
+    else label = `Followed by ${names[0]}, ${names[1]} and others you follow`;
+    el.innerHTML = `<div class="profile-followed-by">${label}</div>`;
+  } catch (e) {
+    // Non-essential — silently skip if the FK-named embed above isn't
+    // available in this schema cache yet, same reasoning as the
+    // plain-lookup fallback used elsewhere in this file.
+  }
 }
 
 // ── POSTS / REPLIES TABS ──
@@ -80,19 +214,31 @@ async function loadProfile() {
 // "Replies" = every reply this person has left on other posts/replies,
 // each shown with a small "Replying to @x" tag and linking straight
 // into the thread at that reply, same as Twitter's second profile tab.
+//
+// BUGFIX: both tabs render into the same #profile-posts element, so a
+// "loaded once, never refetch" flag isn't enough on its own — loading
+// Replies overwrites whatever Posts had rendered there, and switching
+// back used to skip re-fetching (postsRendered was already true) and
+// so just left the Replies markup on screen under the "Posts" tab.
+// Fixed by caching each tab's rendered HTML the first time it loads
+// and re-painting straight from that cache on every switch back,
+// instead of only guarding the network call.
 let profileTab = 'posts';
-let postsRendered = false;
-let repliesRendered = false;
+let postsHtmlCache = null;
+let repliesHtmlCache = null;
 
 function switchProfileTab(tab) {
   if (tab === profileTab) return;
   profileTab = tab;
   document.getElementById('ptab-posts').classList.toggle('active', tab === 'posts');
   document.getElementById('ptab-replies').classList.toggle('active', tab === 'replies');
+  const el = document.getElementById('profile-posts');
   if (tab === 'posts') {
-    if (!postsRendered) loadUserPosts(viewedProfile.id);
+    if (postsHtmlCache !== null) el.innerHTML = postsHtmlCache;
+    else loadUserPosts(viewedProfile.id);
   } else {
-    if (!repliesRendered) loadUserReplies(viewedProfile.id);
+    if (repliesHtmlCache !== null) el.innerHTML = repliesHtmlCache;
+    else loadUserReplies(viewedProfile.id);
   }
 }
 
@@ -111,8 +257,7 @@ async function loadUserReplies(userId) {
     return;
   }
   if (!replies.length) {
-    el.innerHTML = `<div class="empty-note">No replies yet.</div>`;
-    repliesRendered = true;
+    el.innerHTML = repliesHtmlCache = `<div class="empty-note">No replies yet.</div>`;
     return;
   }
 
@@ -130,13 +275,12 @@ async function loadUserReplies(userId) {
   const postById = new Map((postsRes.data || []).map(p => [p.id, p]));
   const parentById = new Map((parentsRes.data || []).map(r => [r.id, r]));
 
-  el.innerHTML = replies.map(r => {
+  el.innerHTML = repliesHtmlCache = replies.map(r => {
     const post = postById.get(r.post_id);
     const parent = r.parent_reply_id ? parentById.get(r.parent_reply_id) : null;
     const replyingToProfile = parent ? parent.profile : post?.profile;
     return replyCardHtml(r, replyingToProfile, post?.profile?.username);
   }).join('');
-  repliesRendered = true;
 }
 
 // Same "click the card, not an interactive bit inside it" behavior
@@ -236,6 +380,7 @@ async function loadUserPosts(userId) {
   const el = document.getElementById('profile-posts');
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
 
   const [ownRes, repostRowsRes] = await Promise.all([
     sb.from('posts').select(POST_SELECT)
@@ -271,17 +416,28 @@ async function loadUserPosts(userId) {
       .filter(Boolean);
   }
 
-  const combined = [...ownPosts, ...repostedPosts]
+  let combined = [...ownPosts, ...repostedPosts]
     .sort((a, b) => new Date(b._sortTime) - new Date(a._sortTime));
 
+  // Pinned post — pulled out of its chronological spot and shown
+  // first, tagged like Twitter's own pinned-post banner. Only ever
+  // one of this user's own posts (not a repost) can be pinned.
+  const pinnedId = viewedProfile.pinned_post_id;
+  if (pinnedId) {
+    const idx = combined.findIndex(p => p.id === pinnedId && !p._repostedBy);
+    if (idx > -1) {
+      const [pinned] = combined.splice(idx, 1);
+      pinned._pinned = true;
+      combined = [pinned, ...combined];
+    }
+  }
+
   if (!combined.length) {
-    el.innerHTML = `<div class="empty-note">No posts yet.</div>`;
-    postsRendered = true;
+    el.innerHTML = postsHtmlCache = `<div class="empty-note">No posts yet.</div>`;
     return;
   }
   await attachQuotedPosts(combined);
-  el.innerHTML = combined.map(p => postCardHtml(p)).join('');
-  postsRendered = true;
+  el.innerHTML = postsHtmlCache = combined.map(p => postCardHtml(p)).join('');
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

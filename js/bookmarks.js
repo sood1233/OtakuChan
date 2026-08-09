@@ -12,6 +12,7 @@ async function loadBookmarks() {
 
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
 
   const { data, error } = await sb.from('bookmarks')
     .select('post:posts(*, profile:profiles(username,display_name,avatar_url))')

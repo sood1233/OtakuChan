@@ -431,6 +431,15 @@ select {
 /* Single community header (community.html) */
 .community-hero { padding:16px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:flex-start; }
 .community-hero .comm-avatar { width:56px; height:56px; font-size:22px; }
+.comm-avatar-wrap { position:relative; flex:none; width:56px; height:56px; }
+.comm-avatar-lg { width:56px; height:56px; font-size:22px; }
+.comm-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.comm-avatar-pick {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  border-radius:50%; background:rgba(15,20,25,.5); color:#fff; opacity:0; cursor:pointer; transition:opacity .12s ease;
+}
+.comm-avatar-pick:hover { opacity:1; }
+.comm-avatar-pick svg { width:20px; height:20px; }
 .community-hero-body { flex:1; min-width:0; }
 .community-hero-name { font-size:19px; font-weight:800; color:var(--ink); word-break:break-word; }
 .community-hero-desc { font-size:14px; color:var(--ink); margin-top:4px; line-height:1.4; }
@@ -643,6 +652,19 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 @media (max-width:520px) {
   .modal.gc-modal { width:100%; max-width:100%; height:100%; border-radius:0; padding-top:52px; max-height:100vh; overflow-y:auto; }
   #gc-modal-bg.open { align-items:stretch; justify-content:stretch; }
+}
+
+/* ── REPLY POPUP — opened by tapping the comment icon on a feed post
+   card. Same .gc-modal shell as the global compose modal above, just
+   shorter (no poll/schedule) and with a "Replying to @user" line up
+   top. Built in common.js (rpcModalEl()). ── */
+.modal.rpc-modal { padding-top:44px; }
+.rpc-context { padding:0 16px 8px; font-size:13px; color:var(--muted); }
+.rpc-context a { color:var(--link); text-decoration:none; }
+.rpc-context a:hover { text-decoration:underline; }
+@media (max-width:520px) {
+  .modal.rpc-modal { width:100%; max-width:100%; height:100%; border-radius:0; padding-top:52px; max-height:100vh; overflow-y:auto; }
+  #rpc-modal-bg.open { align-items:stretch; justify-content:stretch; }
 }
 
 /* legacy classes still referenced by unused code paths — harmless if present */
@@ -1142,7 +1164,31 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 
 #pv-avatar { margin-top:-44px; position:relative; z-index:1; }
 
-/* ── follow button + follower/following stats ── */
+/* ── header action row: message + "···" menu + follow/edit ── */
+.profile-hdr-actions { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.profile-hdr-actions .follow-btn, .profile-hdr-actions .profile-edit-btn { margin-top:0; }
+.profile-icon-btn {
+  width:36px; height:36px; border-radius:50%; border:1px solid var(--border-input);
+  display:inline-flex; align-items:center; justify-content:center; background:none; cursor:pointer;
+  color:var(--ink); transition:background .12s ease, border-color .12s ease;
+}
+.profile-icon-btn:hover { background:var(--hover-bg); }
+.profile-icon-btn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.profile-hdr-actions .pc-menu-wrap { margin-left:0; }
+.profile-hdr-actions .pc-menu-dd { min-width:220px; top:40px; }
+
+/* ── location / website / joined row ── */
+.profile-meta-row { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:10px; font-size:14px; color:var(--muted); }
+.pmr-item { display:inline-flex; align-items:center; gap:5px; }
+.pmr-item a { color:var(--maroon); text-decoration:none; }
+.pmr-item a:hover { text-decoration:underline; }
+.pmr-icon { display:inline-flex; width:15px; height:15px; flex:none; }
+.pmr-icon svg { width:15px; height:15px; }
+
+/* ── "Followed by X and Y" mutuals line ── */
+.profile-followed-by { font-size:13px; color:var(--muted); margin-top:8px; }
+
+/* follow button + follower/following stats */
 .follow-btn {
   font-family:inherit; font-size:14px; font-weight:700;
   background:var(--ink); color:var(--bg); border:none; border-radius:999px;

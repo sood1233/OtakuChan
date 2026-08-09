@@ -51,6 +51,7 @@ async function runSearch() {
 async function searchPosts(root) {
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('is_deleted', false)
     .ilike('body', `%${searchQuery}%`)
@@ -232,6 +233,7 @@ async function renderCategoryTab(root, category) {
   }
   await ensureBookmarksLoaded();
   await ensureRepostsLoaded();
+  await ensureOwnedCommunitiesLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('is_deleted', false)
     .in('community_id', ids)

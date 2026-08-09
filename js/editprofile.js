@@ -49,6 +49,12 @@ async function loadEditProfile() {
       <textarea id="ep-bio" maxlength="200" placeholder="Tell people about yourself&hellip;">${esc(epProfile.bio || '')}</textarea>
       <span class="pf-note" id="ep-bio-count">${(epProfile.bio || '').length}/200</span>
 
+      <label>Location</label>
+      <input type="text" id="ep-location" maxlength="30" value="${esc(epProfile.location || '')}" placeholder="Where are you based?">
+
+      <label>Website</label>
+      <input type="text" id="ep-website" maxlength="100" value="${esc(epProfile.website || '')}" placeholder="yourlink.com">
+
       <div class="edit-row">
         <input type="submit" class="pf-btn" value="Save" onclick="saveEditProfile();return false;">
         <a class="profile-edit-btn" href="${profileUrl(epProfile.username)}">Cancel</a>
@@ -90,7 +96,9 @@ async function saveEditProfile() {
   try {
     const updates = {
       display_name: document.getElementById('ep-display').value.trim().slice(0, 50) || null,
-      bio: document.getElementById('ep-bio').value.trim().slice(0, 200) || null
+      bio: document.getElementById('ep-bio').value.trim().slice(0, 200) || null,
+      location: document.getElementById('ep-location').value.trim().slice(0, 30) || null,
+      website: normalizeWebsite(document.getElementById('ep-website').value.trim())
     };
     if (epAvatarFile) {
       stEl.textContent = 'Uploading avatar…';
@@ -108,6 +116,15 @@ async function saveEditProfile() {
     showErr(errEl, e.message || 'Could not save changes.');
     stEl.textContent = '';
   }
+}
+
+// Twitter-style link field: users type "example.com" without a
+// scheme, but the profile page needs a real absolute href, so a
+// missing http(s):// is added on save rather than on every render.
+function normalizeWebsite(raw) {
+  if (!raw) return null;
+  const trimmed = raw.slice(0, 100);
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
 document.addEventListener('DOMContentLoaded', loadEditProfile);
