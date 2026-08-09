@@ -1094,12 +1094,11 @@ function dcModalEl() {
 }
 
 // Soft-deletes one of the current user's own posts OR replies (sets
-// is_deleted = true; RLS lets an author update their own row — see
-// "users can edit own posts" / "users can edit own replies" in
-// schema.sql — so no new policy is needed for this). Opens the
-// confirmation modal above instead of deleting immediately.
-// `isReply` = true means `id` is a reply id and the replies table is
-// used instead of posts.
+// is_deleted = true) via a SECURITY DEFINER RPC — see
+// supabase/fix_delete_via_rpc.sql — rather than a raw client-side
+// UPDATE gated by RLS. Opens the confirmation modal above instead of
+// deleting immediately. `isReply` = true means `id` is a reply id and
+// the replies table/RPC is used instead of posts.
 function deletePost(id, ev, isReply = false) {
   if (ev) { ev.stopPropagation(); togglePostMenu(id, ev); }
   if (!requireLogin()) return;
@@ -1159,12 +1158,14 @@ async function confirmDeletePost() {
                                : "This isn't your post, so it can't be deleted from here.");
     }
 
-    // Deliberately no .select() here: once is_deleted flips to true the
-    // row stops matching the "read non-deleted posts/replies" RLS policy,
-    // so a RETURNING clause would come back empty even on a successful
-    // delete and make this look like it failed. An empty error is the
-    // correct success signal for this particular update.
-    const { error } = await sb.from(table).update({ is_deleted: true }).eq('id', id);
+    // Delete now goes through a SECURITY DEFINER RPC (see
+    // supabase/fix_delete_via_rpc.sql) instead of a raw client-side
+    // UPDATE — that function checks ownership itself and bypasses
+    // table RLS for its own write, so it isn't at the mercy of the
+    // posts/replies table's RLS policy state the way the old
+    // `.update({ is_deleted: true })` call was.
+    const { error } = await sb.rpc(isReply ? 'delete_own_reply' : 'delete_own_post',
+      isReply ? { reply_id: id } : { post_id: id });
     if (error) throw error;
     closeDeleteConfirm();
     if (!isReply && document.getElementById('op-post') && id === currentStatusId()) {
