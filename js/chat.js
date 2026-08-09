@@ -106,19 +106,22 @@ async function loadThread(session, root) {
   if (error) { root.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
 
   root.innerHTML = `
-    <div class="chat-hdr">
-      <a href="profile.html?u=${encodeURIComponent(other.username)}"><img class="avatar" src="${esc(avatarUrl(other.avatar_url))}" alt=""></a>
-      <div>
-        <a class="nm" href="profile.html?u=${encodeURIComponent(other.username)}">${esc(other.display_name || other.username)}</a>
-        <span class="pc-handle">@${esc(other.username)}</span>
+    <div class="chat-thread">
+      <div class="chat-hdr">
+        <a href="profile.html?u=${encodeURIComponent(other.username)}"><img class="avatar" src="${esc(avatarUrl(other.avatar_url))}" alt=""></a>
+        <div>
+          <a class="nm" href="profile.html?u=${encodeURIComponent(other.username)}">${esc(other.display_name || other.username)}</a>
+          <span class="pc-handle">@${esc(other.username)}</span>
+        </div>
       </div>
-    </div>
-    <div class="chat-msgs" id="chat-msgs">${(msgs || []).map(m => msgBubbleHtml(m, session.user.id)).join('')}</div>
-    <div class="chat-composer">
-      <textarea id="chat-body" maxlength="2000" placeholder="Start a message&hellip;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
-      <button class="pf-btn" onclick="sendMessage()">Send</button>
+      <div class="chat-msgs" id="chat-msgs">${renderMsgsHtml(msgs || [], session.user.id)}</div>
+      <div class="chat-composer">
+        <textarea id="chat-body" maxlength="2000" placeholder="Start a message&hellip;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+        <button class="pf-btn" onclick="sendMessage()">Send</button>
+      </div>
     </div>`;
 
+  sizeChatThread();
   scrollChatToBottom();
 
   const unreadIds = (msgs || []).filter(m => m.recipient_id === session.user.id && !m.read).map(m => m.id);
@@ -133,18 +136,81 @@ async function loadThread(session, root) {
   subscribeChatRealtime(session.user.id, other.id);
 }
 
+// "Today" / "Yesterday" / "Monday" / "Aug 6" — same day-grouping
+// labels used by real chat apps, shown as dividers between messages.
+function chatDayLabel(iso) {
+  const d = new Date(iso);
+  const startOfDay = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function chatClockTime(iso) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+// Renders the full message list with day-divider headers inserted
+// wherever the calendar day changes between consecutive messages.
+function renderMsgsHtml(msgs, myId) {
+  let html = '';
+  let lastDay = null;
+  msgs.forEach(m => {
+    const day = chatDayLabel(m.created_at);
+    if (day !== lastDay) { html += `<div class="chat-daydivider">${esc(day)}</div>`; lastDay = day; }
+    html += msgBubbleHtml(m, myId);
+  });
+  return html;
+}
+
 function msgBubbleHtml(m, myId) {
   const mine = m.sender_id === myId;
   return `
-  <div class="msg-row ${mine ? 'mine' : 'theirs'}" id="msg-${m.id}">
+  <div class="msg-row ${mine ? 'mine' : 'theirs'}" id="msg-${m.id}" data-day="${esc(chatDayLabel(m.created_at))}">
     <div class="msg-bubble">${renderBody(m.body)}</div>
+    <span class="msg-time-inline">${chatClockTime(m.created_at)}</span>
   </div>`;
+}
+
+// Appends one new message (from sendMessage() or the realtime
+// subscription below), inserting a fresh day-divider first if it
+// falls on a different day than the last message already shown.
+function appendChatMsg(m, myId) {
+  const container = document.getElementById('chat-msgs');
+  if (!container) return;
+  const day = chatDayLabel(m.created_at);
+  const rows = container.querySelectorAll('.msg-row');
+  const lastDay = rows.length ? rows[rows.length - 1].dataset.day : null;
+  let html = '';
+  if (day !== lastDay) html += `<div class="chat-daydivider">${esc(day)}</div>`;
+  html += msgBubbleHtml(m, myId);
+  container.insertAdjacentHTML('beforeend', html);
 }
 
 function scrollChatToBottom() {
   const el = document.getElementById('chat-msgs');
   if (el) el.scrollTop = el.scrollHeight;
 }
+
+// Sizes .chat-thread to exactly fill the space between wherever it
+// starts (below the sticky section bar / mobile top bar) and the
+// bottom of the screen (above the mobile tab bar, if present), so
+// the message list scrolls internally and the composer stays pinned
+// to the bottom of the screen instead of trailing after the last
+// message. Recomputed on resize / orientation change / keyboard
+// open, since all of those change the available viewport height.
+function sizeChatThread() {
+  const wrap = document.querySelector('.chat-thread');
+  if (!wrap) return;
+  const top = wrap.getBoundingClientRect().top;
+  const isMobile = window.matchMedia('(max-width:700px)').matches;
+  const bottomGap = isMobile ? 'calc(50px + env(safe-area-inset-bottom))' : '0px';
+  wrap.style.height = `calc(100vh - ${top}px - ${bottomGap})`;
+}
+window.addEventListener('resize', sizeChatThread);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', sizeChatThread);
 
 async function sendMessage() {
   const bodyEl = document.getElementById('chat-body');

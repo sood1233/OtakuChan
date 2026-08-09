@@ -128,9 +128,14 @@ function renderMobileChrome() {
   const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
   const avatar = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
 
-  const topPill = currentSession
-    ? `<button class="m-pill" onclick="mobileCompose();return false;">Post</button>`
-    : `<a class="m-pill" href="login.html">Log in</a>`;
+  // On the chat page the "Post" pill and the floating "+" FAB both
+  // just detour to the board's composer, which reads as a broken/
+  // unrelated button floating over chat's own message composer — so
+  // skip them there in favor of chat's own send controls.
+  const onChatPage = here === 'chat.html';
+
+  const topPill = !currentSession ? `<a class="m-pill" href="login.html">Log in</a>`
+    : onChatPage ? '' : `<button class="m-pill" onclick="mobileCompose();return false;">Post</button>`;
 
   el.innerHTML = `
     <div id="m-topbar">
@@ -154,7 +159,7 @@ function renderMobileChrome() {
       <a class="${cur('chat.html')}" href="chat.html">${NAV_ICON.chat}${chatBadge}</a>
     </div>
 
-    ${currentSession ? `<button id="m-fab" onclick="mobileCompose();return false;" aria-label="Post">${PLUS_ICON}</button>` : ''}
+    ${currentSession && !onChatPage ? `<button id="m-fab" onclick="mobileCompose();return false;" aria-label="Post">${PLUS_ICON}</button>` : ''}
 
     <div class="m-drawer-bg" id="m-drawer-bg" onclick="if(event.target===this)closeMobileDrawer();">
       <div class="m-drawer">
