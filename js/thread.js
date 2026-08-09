@@ -11,6 +11,31 @@ const POST_SELECT   = '*, profile:profiles(username,display_name,avatar_url)';
 const REPLY_SELECT  = '*, profile:profiles(username,display_name,avatar_url)';
 
 let allReplies = []; // flat list, kept around so inline "reply to this comment" forms can insert without a refetch
+let currentPost = null; // the OP post, kept around so hash-driven re-renders don't need to refetch it
+
+// ── FOCUSED-REPLY VIEW ──
+// Clicking any comment opens a Twitter-style "detail" view of just
+// that comment: the OP and the chain of ancestors above it (compact),
+// the comment itself enlarged with its own reply composer, and its
+// own children below — same idea as tapping a reply on Twitter/X.
+// Driven entirely by the #reply-<id> URL hash so back/forward and
+// shared links (see profile.js) all work, and switching focus never
+// needs a refetch — it just re-renders from the already-loaded
+// `allReplies` list.
+function currentFocusedReplyId() {
+  const m = location.hash.match(/^#reply-(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function focusReply(replyId) {
+  if (currentFocusedReplyId() === replyId) return;
+  location.hash = 'reply-' + replyId;
+}
+// Shared "did this click land on something interactive" guard, same
+// list cardClick() uses for post cards in the feed.
+function rcClick(ev, replyId) {
+  if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
+  focusReply(replyId);
+}
 
 async function loadThread() {
   const wrap = document.getElementById('thread-root');
@@ -24,6 +49,7 @@ async function loadThread() {
     wrap.innerHTML = `<div class="errmsg">Post not found or has been removed.</div>`;
     return;
   }
+  currentPost = p;
   cachePost(p);
   await attachQuotedPosts([p]);
   document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — Otakuchan';
@@ -32,7 +58,7 @@ async function loadThread() {
   // address, same as x.com does — no reload, just a clean URL bar.
   if (p.profile?.username) {
     const canonical = prettyPostUrl(p);
-    if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
+    if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical + location.hash); } catch (e) {} }
   }
 
   const { data: replies } = await sb.from('replies').select(REPLY_SELECT)
@@ -41,30 +67,54 @@ async function loadThread() {
 
   allReplies = replies || [];
 
-  wrap.innerHTML = `
-    <div class="op-detail" id="op-post">
-      <div class="op-detail-head">
-        ${pcAvatarHtml(p.profile)}
-        <div class="op-detail-names">
-          <a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>
-          <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
-        </div>
-        ${postMenuHtml(p.id, null, p.author_id)}
-      </div>
-      <div class="op-detail-body">${renderBody(p.body)}</div>
-      ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
-      ${renderMedia(p.media_url, p.media_type)}
-      ${pollHtml(p)}
-      <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
-      <div class="op-detail-divider"></div>
-      ${opDetailActionsHtml(p, "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();")}
-      <div class="op-detail-divider"></div>
-      <div class="op-relevant">
-        <button type="button" class="op-relevant-btn" onclick="return false;"><span>Relevant</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
-        <a href="#" id="op-quotes-toggle" hidden onclick="toggleQuotesList(event)">View quotes &rsaquo;</a>
-      </div>
-      <div class="op-quotes-list" id="op-quotes-list" hidden></div>
-    </div>
+  renderConversation();
+  afterRender();
+  loadQuoteCount(p.id);
+
+  // Re-render (from the already-fetched data — no refetch) whenever
+  // the #reply-<id> focus hash changes: a comment being clicked (see
+  // rcClick/focusReply above), the browser's back/forward buttons, or
+  // a direct link landing straight on a specific comment.
+  window.addEventListener('hashchange', () => {
+    renderConversation();
+    afterRender();
+    document.getElementById('main')?.scrollIntoView({ behavior: 'instant', block: 'start' });
+  });
+
+  // The OP itself counts as viewed the moment its thread is opened
+  // (see common.js — this still respects the once-per-session dedup,
+  // so it won't double-count if it was already counted by scrolling
+  // past it in a feed). Replies are counted individually as each one
+  // actually scrolls into view — see the data-view attribute on the
+  // .rc card above and the shared observer in common.js — rather than
+  // all being bumped at once just because the thread loaded.
+  bumpPostView(p.id);
+}
+
+// Re-wires everything that lives inside #thread-root and gets thrown
+// away/rebuilt on every render (the reply composer's file-picker,
+// autosize, and login/logout gating) — called once after the initial
+// load and again after every hash-driven re-render, since the actual
+// DOM nodes (e.g. #rf-body) are fresh each time.
+function afterRender() {
+  wireFilePreview('rf-file', 'rf-fp', 'rf-err');
+  refreshPostGates();
+  const rfBody = document.getElementById('rf-body');
+  if (rfBody) {
+    rfBody.addEventListener('input', () => {
+      rfBody.style.height = 'auto';
+      rfBody.style.height = Math.max(40, rfBody.scrollHeight) + 'px';
+    });
+  }
+}
+
+// The composer markup is identical whether it's replying to the OP
+// (default view) or to whichever comment is currently focused — only
+// what submitReply() ends up targeting changes (see its default
+// parameter below). Kept as one template so both call sites stay in
+// sync.
+function replyComposerHtml() {
+  return `
     <div class="rfm" data-requires-auth style="display:none;">
       <span class="pf-avatar" id="rf-avatar"></span>
       <div class="rfm-col">
@@ -89,31 +139,122 @@ async function loadThread() {
     </div>
     <div class="post-login-gate" data-requires-anon style="display:none;">
       You need an account to reply. <a href="login.html">Log in</a> or <a href="signup.html">sign up</a>.
-    </div>
-    <div class="rw" id="replies-list">
-      ${renderReplyTree()}
     </div>`;
+}
 
-  wireFilePreview('rf-file', 'rf-fp', 'rf-err');
-  refreshPostGates();
-  loadQuoteCount(p.id);
+function opBlockHtml(p) {
+  return `
+    <div class="op-detail" id="op-post">
+      <div class="op-detail-head">
+        ${pcAvatarHtml(p.profile)}
+        <div class="op-detail-names">
+          <a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>
+          <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
+        </div>
+        ${postMenuHtml(p.id, null, p.author_id)}
+      </div>
+      <div class="op-detail-body">${renderBody(p.body)}</div>
+      ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
+      ${renderMedia(p.media_url, p.media_type)}
+      ${pollHtml(p)}
+      <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
+      <div class="op-detail-divider"></div>
+      ${opDetailActionsHtml(p, "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();")}
+      <div class="op-detail-divider"></div>
+      <div class="op-relevant">
+        <button type="button" class="op-relevant-btn" onclick="return false;"><span>Relevant</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <a href="#" id="op-quotes-toggle" hidden onclick="toggleQuotesList(event)">View quotes &rsaquo;</a>
+      </div>
+      <div class="op-quotes-list" id="op-quotes-list" hidden></div>
+    </div>`;
+}
 
-  const rfBody = document.getElementById('rf-body');
-  if (rfBody) {
-    rfBody.addEventListener('input', () => {
-      rfBody.style.height = 'auto';
-      rfBody.style.height = Math.max(40, rfBody.scrollHeight) + 'px';
-    });
+// Compact context row for an ancestor comment sitting between the OP
+// and the focused comment — same look as a normal comment card but
+// no actions row, since it's here for context, not interaction.
+// Clicking one re-focuses on IT instead, same as X does when you tap
+// an ancestor tweet in a reply's detail view.
+function ancestorRowHtml(r) {
+  return `
+  <div class="rc has-children" onclick="rcClick(event,'${r.id}')">
+    <div class="pc-row">
+      ${pcAvatarHtml(r.profile)}
+      <div class="pc-main">
+        <div class="ph">${pcNameHtml(r.profile)}<span class="dt">${timeAgo(r.created_at)}</span></div>
+        <div class="pb">${renderBody(r.body)}</div>
+        ${renderMedia(r.media_url, r.media_type)}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Walks parent_reply_id up from `replyId`, returning ancestors ordered
+// top-down (closest to the OP first, immediate parent last) — NOT
+// including `replyId` itself. Empty when the comment replies directly
+// to the OP.
+function ancestorChain(replyId) {
+  const chain = [];
+  let cur = allReplies.find(r => r.id === replyId);
+  while (cur && cur.parent_reply_id) {
+    const parent = allReplies.find(x => x.id === cur.parent_reply_id);
+    if (!parent) break;
+    chain.unshift(parent);
+    cur = parent;
+  }
+  return chain;
+}
+
+// Builds everything under #thread-root: the default full-thread view,
+// or — when the URL carries a #reply-<id> hash — a focused "detail"
+// view of that one comment (ancestor chain above, the comment itself
+// enlarged with its own composer, its own children below), exactly
+// like tapping a reply on Twitter/X opens that reply's own page.
+function renderConversation() {
+  const wrap = document.getElementById('thread-root');
+  if (!wrap || !currentPost) return;
+  const p = currentPost;
+  const focusedId = currentFocusedReplyId();
+  const focused = focusedId ? allReplies.find(r => r.id === focusedId) : null;
+
+  if (!focused) {
+    wrap.innerHTML = `
+      ${opBlockHtml(p)}
+      ${replyComposerHtml()}
+      <div class="rw" id="replies-list">
+        ${renderReplyTree()}
+      </div>`;
+    return;
   }
 
-  // The OP itself counts as viewed the moment its thread is opened
-  // (see common.js — this still respects the once-per-session dedup,
-  // so it won't double-count if it was already counted by scrolling
-  // past it in a feed). Replies are counted individually as each one
-  // actually scrolls into view — see the data-view attribute on the
-  // .rc card above and the shared observer in common.js — rather than
-  // all being bumped at once just because the thread loaded.
-  bumpPostView(p.id);
+  const ancestors = ancestorChain(focusedId);
+  const kids = childrenOf(focusedId);
+  wrap.innerHTML = `
+    ${opBlockHtml(p)}
+    <div class="thread-focus-bar"><a href="#" onclick="event.preventDefault();location.hash='';">&larr; Back to full conversation</a></div>
+    ${ancestors.map(ancestorRowHtml).join('')}
+    <div class="op-detail" id="focused-reply">
+      <div class="op-detail-head">
+        ${pcAvatarHtml(focused.profile)}
+        <div class="op-detail-names">
+          <a class="nm" href="${profileUrl(focused.profile?.username || 'unknown')}">${esc(focused.profile?.display_name || focused.profile?.username || 'unknown')}</a>
+          <span class="pc-handle">@${esc(focused.profile?.username || 'unknown')}</span>
+        </div>
+        ${postMenuHtml(postId, focused.id, focused.author_id)}
+      </div>
+      <div class="op-detail-body">${renderBody(focused.body)}</div>
+      ${renderMedia(focused.media_url, focused.media_type)}
+      <div class="op-detail-meta">${fullDateTime(focused.created_at)}</div>
+      <div class="op-detail-divider"></div>
+      ${postActionsHtml(focused, {
+        replyOnclick: "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();",
+        replyCount: kids.length, bookmarkable: false, repostable: false
+      })}
+      <div class="op-detail-divider"></div>
+    </div>
+    ${replyComposerHtml()}
+    <div class="rw" id="replies-list">
+      ${kids.length ? kids.map(k => replyHtml(k, 0)).join('') : '<div class="no-t">No replies yet. Be the first to reply.</div>'}
+    </div>`;
 }
 
 // Fills in the reply composer's avatar once we know who's logged in
@@ -180,7 +321,7 @@ function replyHtml(r, depth) {
   const kids = childrenOf(r.id);
   const parent = r.parent_reply_id ? allReplies.find(x => x.id === r.parent_reply_id) : null;
   return `
-  <div class="rc${kids.length ? ' has-children' : ''}" id="reply-${r.id}" data-view="reply:${r.id}">
+  <div class="rc${kids.length ? ' has-children' : ''}" id="reply-${r.id}" data-view="reply:${r.id}" onclick="rcClick(event,'${r.id}')">
     <div class="pc-row">
       ${pcAvatarHtml(r.profile)}
       <div class="pc-main">
@@ -230,7 +371,7 @@ function toggleReplyBox(replyId) {
   }
 }
 
-async function submitReply(parentReplyId = null) {
+async function submitReply(parentReplyId = currentFocusedReplyId()) {
   if (!requireLogin()) return;
   const suffix   = parentReplyId ? `-${parentReplyId}` : '';
   const bodyEl   = parentReplyId ? document.getElementById(`rf-inline-body-${parentReplyId}`) : document.getElementById('rf-body');
@@ -289,15 +430,26 @@ function insertReplyIntoTree(r) {
   if (allReplies.some(x => x.id === r.id)) return; // already there (e.g. our own realtime echo)
   allReplies.push(r);
 
-  const list = document.getElementById('replies-list');
-  const emptyMsg = list.querySelector('.no-t');
-  if (emptyMsg) emptyMsg.remove();
-
   const html = replyHtml(r, 0);
   if (r.parent_reply_id) {
     const container = document.getElementById(`rc-children-${r.parent_reply_id}`);
     if (container) { container.insertAdjacentHTML('beforeend', html); return; }
   }
+
+  // No matching parent container on screen right now — either it's a
+  // top-level reply to the OP (only relevant in the full-thread view)
+  // or a reply to a comment that isn't the one currently focused. In
+  // either case it's already saved in `allReplies` above, so it'll
+  // show up correctly the moment the view it belongs in is rendered;
+  // don't force it into whatever's on screen right now.
+  const focusedId = currentFocusedReplyId();
+  const belongsHere = focusedId ? r.parent_reply_id === focusedId : !r.parent_reply_id;
+  if (!belongsHere) return;
+
+  const list = document.getElementById('replies-list');
+  if (!list) return;
+  const emptyMsg = list.querySelector(':scope > .no-t');
+  if (emptyMsg) emptyMsg.remove();
   list.insertAdjacentHTML('beforeend', html);
 }
 
