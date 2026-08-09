@@ -28,6 +28,20 @@
 // loads then upgrades the address bar to the pretty form itself.
 function u_(s) { return encodeURIComponent(s); }
 
+// ── SHARED SCROLL LOCK — the global compose modal, the GIF picker
+// (opened *from inside* the compose modal), and the delete-confirm
+// modal each need to lock body scroll while open. Previously each
+// one set/cleared `document.body.style.overflow` independently, so
+// closing an inner modal (e.g. the GIF picker) while an outer one
+// (the composer) was still open would blindly clear the lock —
+// the page behind would start scrolling/jumping under the still-open
+// modal. A simple counter keeps the lock held until every open
+// modal has released it.
+let _scrollLockCount = 0;
+function lockScroll() { _scrollLockCount++; document.body.style.overflow = 'hidden'; }
+function unlockScroll() { _scrollLockCount = Math.max(0, _scrollLockCount - 1); if (_scrollLockCount === 0) document.body.style.overflow = ''; }
+
+
 function prettyProfileUrl(username) { return `/${u_(username)}`; }
 function prettyPostUrl(post, replyId = null) {
   const id = replyId || post?.id;
@@ -239,14 +253,14 @@ function renderMobileChrome() {
   const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : 'login.html';
   const avatar = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
 
-  // On the chat page the "Post" pill and the floating "+" FAB both
-  // just detour to the board's composer, which reads as a broken/
-  // unrelated button floating over chat's own message composer — so
-  // skip them there in favor of chat's own send controls.
+  // On the chat page the floating "+" FAB just detours to the board's
+  // composer, which reads as a broken/unrelated button floating over
+  // chat's own message composer — so skip it there in favor of chat's
+  // own send controls. (The top-right "Post"/"Log in" pill has been
+  // removed entirely — posting on mobile goes through the "+" FAB or
+  // the drawer's Sign up/Log in CTAs, and the logo now sits centered
+  // in the topbar instead of being pushed off-center by that pill.)
   const onChatPage = here === 'messages';
-
-  const topPill = !currentSession ? `<a class="m-pill" href="login.html">Log in</a>`
-    : onChatPage ? '' : `<button class="m-pill" onclick="mobileCompose();return false;">Post</button>`;
 
   el.innerHTML = `
     <div id="m-topbar">
@@ -259,7 +273,6 @@ function renderMobileChrome() {
           <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#fff"/>
         </svg>
       </a>
-      ${topPill}
     </div>
 
     <div id="m-tabbar">
@@ -414,16 +427,19 @@ function mobileCompose() { openGlobalCompose(); }
 function openGlobalCompose() {
   if (!requireLogin()) return;
   const el = gcModalEl();
+  if (el.classList.contains('open')) return; // already open — ignore a double tap of the FAB/pill
   const avEl = document.getElementById('gc-avatar');
   if (avEl) avEl.innerHTML = `<img src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">`;
   el.classList.add('open');
-  document.body.style.overflow = 'hidden';
+  lockScroll();
   setTimeout(() => document.getElementById('gc-body')?.focus(), 50);
 }
 
 function closeGlobalCompose() {
-  document.getElementById('gc-modal-bg')?.classList.remove('open');
-  document.body.style.overflow = '';
+  const el = document.getElementById('gc-modal-bg');
+  if (!el || !el.classList.contains('open')) return;
+  el.classList.remove('open');
+  unlockScroll();
 }
 
 async function submitGlobalCompose() {
@@ -1029,13 +1045,14 @@ function deletePost(id, ev, isReply = false) {
   pendingDeletePostId = id;
   pendingDeleteIsReply = isReply;
   const el = dcModalEl();
+  if (el.classList.contains('open')) return;
   el.classList.add('open');
-  document.body.style.overflow = 'hidden';
+  lockScroll();
 }
 
 function closeDeleteConfirm() {
-  document.getElementById('dc-modal-bg')?.classList.remove('open');
-  document.body.style.overflow = '';
+  const el = document.getElementById('dc-modal-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
   pendingDeletePostId = null;
   pendingDeleteIsReply = false;
 }
@@ -1490,16 +1507,19 @@ function openGifPicker(prefix) {
   if (!requireLogin()) return;
   gifPickerTarget = prefix;
   const el = gifModalEl();
+  if (el.classList.contains('open')) return;
   el.classList.add('open');
-  document.body.style.overflow = 'hidden';
+  lockScroll();
   const input = el.querySelector('#gif-search-input');
   input.value = '';
   setTimeout(() => input.focus(), 50);
   loadTrendingGifs();
 }
 function closeGifPicker() {
-  document.getElementById('gif-modal-bg')?.classList.remove('open');
-  document.body.style.overflow = '';
+  const el = document.getElementById('gif-modal-bg');
+  if (!el || !el.classList.contains('open')) return;
+  el.classList.remove('open');
+  unlockScroll();
 }
 async function loadTrendingGifs() {
   await fetchGifs(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=24&rating=pg-13`);

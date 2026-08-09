@@ -33,6 +33,11 @@
   --shadow-card: none;
   --shadow-card-hov: none;
   --shadow-pop:  0 12px 32px rgba(15,20,25,.18), 0 2px 8px rgba(15,20,25,.08);
+  color-scheme: light; /* tells the browser to render native form
+    controls (select dropdowns, date/time pickers, scrollbars) in a
+    light palette — overridden to `dark` below for Dim/Lights out,
+    otherwise those browser-native bits ignore our theme entirely
+    and can render with black-on-dark text. */
 }
 
 /* ── THEMES — "Default" (light) is the :root above; Dim and Lights out
@@ -46,12 +51,14 @@ html[data-theme="dim"] {
   --muted:#8B98A5; --hover-bg:#1E2732; --input-bg:#1E2732; --div:#38444D;
   --border-input:#38444D; --translucent-bg:rgba(21,32,43,.85);
   --maroon-tint: rgba(14,165,233,.16); --like-tint: rgba(244,63,94,.16);
+  color-scheme: dark;
 }
 html[data-theme="dark"] {
   --bg:#000000; --ink:#E7E9EA; --cream-card:#000000; --line:#2F3336;
   --muted:#71767B; --hover-bg:#0B0B0B; --input-bg:#000000; --div:#2F3336;
   --border-input:#2F3336; --translucent-bg:rgba(0,0,0,.85);
   --maroon-tint: rgba(14,165,233,.16); --like-tint: rgba(244,63,94,.16);
+  color-scheme: dark;
 }
 
 /* ── ACCENT COLOR — Settings → Appearance lets people swap the app's
@@ -330,7 +337,10 @@ input[type="file"]::file-selector-button:hover { background:var(--maroon); color
 
 select {
   appearance:none; -webkit-appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%230F1419'/%3E%3C/svg%3E");
+  /* neutral mid-gray works on light AND dark surfaces — a fixed dark
+     fill here (as before) went near-invisible against a dark <select>
+     background in Dim/Lights out mode. */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23536471'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 10px center; padding-right:26px;
 }
 
@@ -387,8 +397,8 @@ select {
   transition:background-color .12s ease;
 }
 .pc:hover { background:var(--hover-bg); border-color:var(--line); }
-.pc.flash { background:#E8F5FE; animation:flashfade 2.4s ease-out; }
-@keyframes flashfade { 0% { background:#D7EDFC; } 100% { background:#E8F5FE; } }
+.pc.flash { background:var(--maroon-tint); animation:flashfade 2.4s ease-out; }
+@keyframes flashfade { 0% { background:var(--maroon-tint); } 100% { background:var(--maroon-tint); } }
 
 /* "[Name] reposted" / "You reposted" line above a card that showed up
    in a feed/profile via a repost rather than authorship. */
@@ -711,6 +721,8 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .rc-inline-compose textarea { height:60px; resize:vertical; font-size:15px; }
 .rc-inline-compose .rfm-row { margin-top:8px; }
 
+html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgba(244,63,94,.14); color:#FDA4AF; }
+
 .spinner { display:block; text-align:center; padding:28px; font-size:14px; color:var(--muted); font-style:normal; }
 .errmsg { background:#FEECEE; border:1px solid var(--like); color:#B0192B; border-radius:var(--r-sm); font-size:13px; padding:8px 12px; margin:10px 16px; }
 #feed-empty { text-align:center; padding:48px 16px; font-size:15px; color:var(--muted); }
@@ -798,20 +810,24 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
   #sidebar, .xright { display:none; }
 
   #m-topbar {
-    display:flex; align-items:center; justify-content:space-between;
+    display:flex; align-items:center; justify-content:flex-start;
     position:fixed; top:0; left:0; right:0; height:53px;
     padding:0 14px; background:var(--translucent-bg); backdrop-filter:blur(10px);
     border-bottom:1px solid var(--line); z-index:900;
   }
-  #m-topbar .m-avatar-btn { background:none; border:none; padding:0; line-height:0; cursor:pointer; }
+  #m-topbar .m-avatar-btn { background:none; border:none; padding:0; line-height:0; cursor:pointer; position:relative; z-index:1; }
   #m-topbar .m-avatar-btn img { width:32px; height:32px; }
-  #m-topbar .m-logo { flex:none; line-height:0; }
-  #m-topbar .m-logo .onigiri { width:26px; height:26px; }
-  #m-topbar .m-pill {
-    font-family:inherit; font-size:14px; font-weight:800; color:#fff; background:var(--ink);
-    border:none; border-radius:999px; padding:7px 15px; text-decoration:none; cursor:pointer; white-space:nowrap;
+  /* Absolutely centered on the bar itself (not flex-centered between
+     siblings) so the logo stays dead-center regardless of what sits
+     to its left — previously it was one of three flex children with
+     the "Post"/"Log in" pill on the right, so removing that pill and
+     centering the logo through flex layout alone would have shifted
+     the whole bar's balance instead of just removing the button. */
+  #m-topbar .m-logo {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    line-height:0;
   }
-  #m-topbar .m-pill:hover { background:#272c30; text-decoration:none; }
+  #m-topbar .m-logo .onigiri { width:26px; height:26px; }
 
   #m-tabbar {
     display:flex; position:fixed; bottom:0; left:0; right:0; z-index:900;
@@ -908,6 +924,7 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .auth-submit:disabled { opacity:.5; cursor:default; }
 .auth-switch { text-align:left; font-size:14px; color:var(--muted); margin-top:16px; }
 .auth-ok { background:#E8F5EA; border:1px solid var(--green); border-radius:var(--r-sm); color:#0A7A44; font-size:13px; padding:10px 12px; margin-bottom:12px; }
+html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:rgba(0,186,124,.14); color:#4ADE80; }
 
 /* ── profile page ── */
 .profile-hdr {
