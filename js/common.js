@@ -2,38 +2,78 @@
 // COMMON HELPERS — shared by board.js and thread.js
 // ─────────────────────────────────────────────────────────────
 
-// ── PRETTY URLS — Twitter/X-style paths (see vercel.json for the
-// rewrites that map these back to the real .html files). Every link
-// in the app should be built with one of these instead of writing
-// "profile.html?u=..." / "thread.html?id=..." by hand, so the whole
-// site stays consistent and there's exactly one place to change the
-// scheme later.
+// ── URLS — two families. See vercel.json for the rewrites that map
+// pretty paths to the real .html files.
 //
-//   profileUrl('marc')                 -> /marc
-//   postUrl(post)                      -> /marc/status/<id>  (or /i/status/<id>
-//                                          if we don't know the author's
-//                                          username at this call site —
-//                                          thread.js resolves and upgrades
-//                                          the address bar once it loads
-//                                          the post, same as x.com does)
-//   followListUrl('marc','followers')  -> /marc/followers
-//   messagesUrl('marc')                -> /messages/marc
+// pretty*() builds Twitter/X-style paths (/marc, /marc/status/<id>,
+// ...). These only resolve when the host actually runs the
+// vercel.json rewrites (a real Vercel deploy, or `vercel dev`
+// locally) — a plain `npx serve .`, GitHub Pages, or opening a file
+// straight off disk has no idea what "/marc" means and shows a
+// blank page. So pretty*() is ONLY used for two things that never
+// hit the network: swapping the address bar via history.replaceState
+// once a page already knows its own data (see profile.js, thread.js,
+// followlist.js, chat.js), and building the "copy link" share URL.
 //
-// Reserved top-level names (home, notifications, messages, bookmarks,
-// settings, search, login, signup, rules) can never collide with a
-// username route because those are matched first in vercel.json.
+//   prettyProfileUrl('marc')                -> /marc
+//   prettyPostUrl(post)                     -> /marc/status/<id> (or /i/status/<id>
+//                                               before we know the author)
+//   prettyFollowListUrl('marc','followers') -> /marc/followers
+//   prettyMessagesUrl('marc')               -> /messages/marc
+//
+// The plain versions below (profileUrl, postUrl, ...) build the REAL
+// file + query string instead (e.g. "profile.html?u=marc"). Every
+// actual <a href> and `location.href = ...` in the app is built with
+// these, so every click works regardless of hosting — the page that
+// loads then upgrades the address bar to the pretty form itself.
 function u_(s) { return encodeURIComponent(s); }
-function profileUrl(username) { return `/${u_(username)}`; }
-function postUrl(post, replyId = null) {
+
+function prettyProfileUrl(username) { return `/${u_(username)}`; }
+function prettyPostUrl(post, replyId = null) {
   const id = replyId || post?.id;
   const base = post?.profile?.username ? `/${u_(post.profile.username)}/status/${u_(post.id)}` : `/i/status/${u_(post?.id ?? id)}`;
   return replyId ? `${base}#reply-${u_(replyId)}` : base;
 }
-function postUrlById(id, username = null) {
+function prettyPostUrlById(id, username = null) {
   return username ? `/${u_(username)}/status/${u_(id)}` : `/i/status/${u_(id)}`;
 }
-function followListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
-function messagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
+function prettyFollowListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
+function prettyMessagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
+
+function profileUrl(username) { return `profile.html?u=${u_(username)}`; }
+function postUrl(post, replyId = null) {
+  const id = replyId || post?.id;
+  return `thread.html?id=${u_(post?.id ?? id)}${replyId ? `#reply-${u_(replyId)}` : ''}`;
+}
+function postUrlById(id, username = null) {
+  return `thread.html?id=${u_(id)}`;
+}
+function followListUrl(username, tab) { return `followlist.html?u=${u_(username)}&tab=${tab === 'following' ? 'following' : 'followers'}`; }
+function messagesUrl(username = null) { return username ? `chat.html?u=${u_(username)}` : 'chat.html'; }
+
+// ── STATIC PRETTY-URL UPGRADE — pages with no dynamic id (home,
+// search, settings, ...) can't wait for a data load before deciding
+// their canonical address, so just swap it in right away. Safe on
+// any host: replaceState never touches the network, so this runs
+// fine even where the pretty rewrites themselves don't work.
+(function upgradeStaticPrettyUrl() {
+  const STATIC_PRETTY = {
+    'index.html': '/home', '': '/home',
+    'notifications.html': '/notifications',
+    'bookmarks.html': '/bookmarks',
+    'settings.html': '/settings',
+    'rules.html': '/rules',
+    'login.html': '/login',
+    'signup.html': '/signup',
+    'search.html': '/search',
+  };
+  const file = location.pathname.split('/').pop();
+  const pretty = STATIC_PRETTY[file];
+  // try/catch: some browsers throw on history.replaceState when the
+  // page is opened straight off disk (file://) instead of served
+  // over http(s) — never let that take the rest of common.js down.
+  if (pretty) { try { history.replaceState(null, '', pretty + location.search + location.hash); } catch (e) {} }
+})();
 
 // Reads the post/reply id out of the current URL on thread.html,
 // whether it arrived as a pretty path (/marc/status/123 or
@@ -167,8 +207,8 @@ function renderSideNav() {
          <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">More</span>
        </button>
        <div class="acct-menu navmore-menu" id="more-menu">
-         <a href="/settings">${NAV_ICON.gear}Settings</a>
-         <a href="/rules">${NAV_ICON.doc}Rules</a>
+         <a href="settings.html">${NAV_ICON.gear}Settings</a>
+         <a href="rules.html">${NAV_ICON.doc}Rules</a>
        </div>
      </div>` +
     postBtn;
@@ -213,7 +253,7 @@ function renderMobileChrome() {
       <button class="m-avatar-btn" onclick="openMobileDrawer();return false;" aria-label="Open menu">
         <img class="avatar" src="${esc(avatar)}" alt="">
       </button>
-      <a class="m-logo" href="/home">
+      <a class="m-logo" href="index.html">
         <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#0EA5E9"/>
           <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#fff"/>
@@ -223,11 +263,11 @@ function renderMobileChrome() {
     </div>
 
     <div id="m-tabbar">
-      <a class="${cur('home')}" href="/home">${NAV_ICON.home}</a>
-      <a class="${cur('search')}" href="/search">${NAV_ICON.search}</a>
-      <a class="${cur('bookmarks')}" href="/bookmarks">${NAV_ICON.bookmark}</a>
-      <a class="${cur('notifications')}" href="/notifications">${NAV_ICON.bell}${badge}</a>
-      <a class="${cur('messages')}" href="/messages">${NAV_ICON.chat}${chatBadge}</a>
+      <a class="${cur('home')}" href="index.html">${NAV_ICON.home}</a>
+      <a class="${cur('search')}" href="search.html">${NAV_ICON.search}</a>
+      <a class="${cur('bookmarks')}" href="bookmarks.html">${NAV_ICON.bookmark}</a>
+      <a class="${cur('notifications')}" href="notifications.html">${NAV_ICON.bell}${badge}</a>
+      <a class="${cur('messages')}" href="chat.html">${NAV_ICON.chat}${chatBadge}</a>
     </div>
 
     ${currentSession && !onChatPage ? `<button id="m-fab" onclick="mobileCompose();return false;" aria-label="Post">${PLUS_ICON}</button>` : ''}
@@ -247,10 +287,10 @@ function renderMobileChrome() {
           <hr>
           <div class="m-drawer-menu">
             <a href="${ownHref}">${NAV_ICON.user}Profile</a>
-            <a href="/bookmarks">${NAV_ICON.bookmark}Bookmarks</a>
+            <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
-            <a href="/settings">${NAV_ICON.gear}Settings and privacy</a>
-            <a href="/rules">${NAV_ICON.doc}Rules</a>
+            <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
+            <a href="rules.html">${NAV_ICON.doc}Rules</a>
           </div>
           <hr>
           <button onclick="closeMobileDrawer();logOut();">Log out</button>
@@ -259,7 +299,7 @@ function renderMobileChrome() {
           <span class="m-drawer-name">Welcome to Otakuchan</span>
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
-            <a href="/rules">${NAV_ICON.doc}Rules</a>
+            <a href="rules.html">${NAV_ICON.doc}Rules</a>
           </div>
           <div class="m-drawer-cta">
             <a class="cta-primary" href="signup.html">Sign up</a>
@@ -465,7 +505,7 @@ function wireSidebarSearch() {
   input.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const q = input.value.trim();
-    if (q) location.href = `/search?q=${encodeURIComponent(q)}`;
+    if (q) location.href = `search.html?q=${encodeURIComponent(q)}`;
   });
 }
 document.addEventListener('DOMContentLoaded', wireSidebarSearch);
@@ -500,7 +540,7 @@ async function renderWhoToFollow() {
 
   box.innerHTML = `<div class="t-lbl">Who to follow</div>` +
     suggestions.map(whoRowHtml).join('') +
-    `<a class="show-more" href="/search">Show more</a>`;
+    `<a class="show-more" href="search.html">Show more</a>`;
 }
 
 function whoRowHtml(profile) {
@@ -832,7 +872,7 @@ async function submitQuote() {
 // Copies a thread's permalink to the clipboard — the reference design's
 // share icon, wired to something real instead of a decorative no-op.
 function sharePost(id, btn) {
-  const url = `${location.origin}${postUrlById(id, postCache?.[id]?.profile?.username)}`;
+  const url = `${location.origin}${prettyPostUrlById(id, postCache?.[id]?.profile?.username)}`;
   const done = () => {
     if (!btn) return;
     const label = btn.querySelector('.act-label');
@@ -1050,7 +1090,7 @@ async function confirmDeletePost() {
     if (error) throw error;
     closeDeleteConfirm();
     if (!isReply && document.getElementById('op-post') && id === currentStatusId()) {
-      location.href = '/home';
+      location.href = 'index.html';
       return;
     }
     // Reply cards use two different markup shapes depending on the page:
@@ -1206,7 +1246,7 @@ function linkifyText(escaped) {
       if (mHandle) {
         return `${mBefore}<a href="${profileUrl(mHandle)}" class="body-mention" onclick="event.stopPropagation()">@${mHandle}</a>`;
       }
-      return `${hBefore}<a href="/search?q=${encodeURIComponent('#' + hTag)}" class="body-hashtag" onclick="event.stopPropagation()">#${hTag}</a>`;
+      return `${hBefore}<a href="search.html?q=${encodeURIComponent('#' + hTag)}" class="body-hashtag" onclick="event.stopPropagation()">#${hTag}</a>`;
     }
   );
 }

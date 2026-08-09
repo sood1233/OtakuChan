@@ -30,8 +30,8 @@ async function loadThread() {
   // (or a legacy ?id= link) to the canonical /<username>/status/<id>
   // address, same as x.com does — no reload, just a clean URL bar.
   if (p.profile?.username) {
-    const canonical = postUrl(p);
-    if (location.pathname + location.search !== canonical) history.replaceState(null, '', canonical);
+    const canonical = prettyPostUrl(p);
+    if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
   }
 
   const { data: replies } = await sb.from('replies').select(REPLY_SELECT)

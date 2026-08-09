@@ -10,6 +10,14 @@ const chatWithUsername = (() => {
 let chatOther = null;   // the other user's profile, once a thread is open
 let chatChannel = null;
 
+// Same address-bar upgrade as profile.js/thread.js/followlist.js —
+// safe to run immediately since chatWithUsername (if any) already
+// came off the URL itself, no data load needed to know it.
+(function () {
+  const canonical = prettyMessagesUrl(chatWithUsername);
+  if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
+})();
+
 async function loadChat() {
   const root = document.getElementById('chat-root');
   const { data: { session } } = await sb.auth.getSession();
@@ -100,7 +108,7 @@ async function loadThread(session, root) {
   if (other.id === session.user.id) { root.innerHTML = `<div class="errmsg">You can't message yourself.</div>`; return; }
   chatOther = other;
 
-  document.getElementById('chat-sec-bar').innerHTML = `<a class="back" href="/messages" style="margin:0 10px 0 0;">&larr;</a> ${esc(other.display_name || other.username)}`;
+  document.getElementById('chat-sec-bar').innerHTML = `<a class="back" href="chat.html" style="margin:0 10px 0 0;">&larr;</a> ${esc(other.display_name || other.username)}`;
 
   const { data: msgs, error } = await sb.from('messages').select('*')
     .or(`and(sender_id.eq.${session.user.id},recipient_id.eq.${other.id}),and(sender_id.eq.${other.id},recipient_id.eq.${session.user.id})`)

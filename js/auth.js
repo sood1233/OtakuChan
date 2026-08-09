@@ -186,7 +186,7 @@ async function doSignUp(e) {
 
     if (data.session) {
       // Email confirmation is off — user is logged in immediately.
-      location.href = '/home';
+      location.href = 'index.html';
     } else {
       document.getElementById('su-form').style.display = 'none';
       document.getElementById('su-ok').style.display = 'block';
@@ -212,7 +212,7 @@ async function doLogIn(e) {
   try {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    location.href = '/home';
+    location.href = 'index.html';
   } catch (err) {
     showErr(errEl, err.message === 'Invalid login credentials'
       ? 'Incorrect email or password.'
@@ -224,7 +224,7 @@ async function doLogIn(e) {
 // ── LOG OUT ──
 async function logOut() {
   await sb.auth.signOut();
-  location.href = '/home';
+  location.href = 'index.html';
 }
 
 // Uploads to avatars/<uid>/<random>.<ext> — the storage RLS policy

@@ -23,7 +23,7 @@ function flRenderTabs() {
 function flSetTab(tab) {
   if (tab === flTab) return;
   flTab = tab;
-  history.replaceState(null, '', followListUrl(flUsername, tab));
+  try { history.replaceState(null, '', prettyFollowListUrl(flUsername, tab)); } catch (e) {}
   flRenderTabs();
   flLoadList();
 }
@@ -117,8 +117,8 @@ async function loadFollowList() {
   document.getElementById('fl-name').textContent = profile.display_name || profile.username;
   document.getElementById('fl-handle').textContent = `@${profile.username}`;
   document.getElementById('fl-back').href = profileUrl(profile.username);
-  const canonical = followListUrl(profile.username, flTab);
-  if (location.pathname !== canonical) history.replaceState(null, '', canonical);
+  const canonical = prettyFollowListUrl(profile.username, flTab);
+  if (location.pathname !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
 
   flRenderTabs();
   await flLoadMyFollowing();

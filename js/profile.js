@@ -33,8 +33,8 @@ async function loadProfile() {
   // Canonicalize casing (usernames are matched case-insensitively
   // above via ilike) and upgrade a legacy ?u= link, same idea as
   // thread.js's /i/status/ -> /<username>/status/ upgrade.
-  const canonical = profileUrl(profile.username);
-  if (location.pathname + location.search !== canonical) history.replaceState(null, '', canonical);
+  const canonical = prettyProfileUrl(profile.username);
+  if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
 
   const flu = kind => followListUrl(profile.username, kind);
 
