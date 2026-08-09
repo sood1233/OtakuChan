@@ -273,6 +273,14 @@ function subscribeRealtime() {
       const card = document.getElementById(`post-${p.id}`);
       if (card) {
         p.profile = await getProfile(p.author_id);
+        // This UPDATE fires on ANY change to the row — a like, a
+        // bookmark, a view bump, a repost, all of it — since they're
+        // all just counter columns on `posts`. `payload.new` is the
+        // raw row, so a quote post needs its embedded original
+        // re-attached here too, or postCardHtml() renders it as if
+        // the original had been deleted. (Same reasoning as the
+        // INSERT handler above.)
+        await attachQuotedPosts([p]);
         card.outerHTML = postCardHtml(p);
       }
     })
