@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — MASTER SCHEMA (run this ONE file for everything)
+-- INTERACTINK — MASTER SCHEMA (run this ONE file for everything)
 -- Run in: Supabase Dashboard → SQL Editor → New query → paste this
 -- WHOLE file → Run. Safe to re-run any time, from any starting state
 -- (fresh project or one that already has some of these files applied).
@@ -27,7 +27,7 @@
 -- FROM: supabase/schema.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Supabase schema (accounts edition)
+-- INTERACTINK — Supabase schema (accounts edition)
 -- Run this whole file once in: Supabase Dashboard → SQL Editor → New query
 -- Safe to re-run (uses IF NOT EXISTS / OR REPLACE / ON CONFLICT throughout).
 --
@@ -644,7 +644,7 @@ end $$;
 -- FROM: supabase/communities.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Communities (Twitter-Communities-style groups)
+-- INTERACTINK — Communities (Twitter-Communities-style groups)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run — IF NOT EXISTS / OR REPLACE / drop-then-create,
@@ -811,7 +811,7 @@ end $$;
 -- FROM: supabase/quotes_and_reposts.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Quote posts + Reposts
+-- INTERACTINK — Quote posts + Reposts
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run — uses IF NOT EXISTS / OR REPLACE / drop-then-create
@@ -964,7 +964,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/settings.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Settings & notification preferences
+-- INTERACTINK — Settings & notification preferences
 -- Run once in: Supabase Dashboard → SQL Editor → New query
 -- Run this AFTER supabase/schema.sql. Safe to re-run (IF NOT EXISTS /
 -- OR REPLACE / ON CONFLICT throughout, same pattern as schema.sql).
@@ -1110,7 +1110,7 @@ create policy "logged in users can send messages" on public.messages
 -- FROM: supabase/bookmark_count.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Public bookmark count
+-- INTERACTINK — Public bookmark count
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run, same pattern as the rest.
@@ -1159,7 +1159,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/lists.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Lists (Twitter-Lists-style curated groups of people)
+-- INTERACTINK — Lists (Twitter-Lists-style curated groups of people)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run — IF NOT EXISTS / OR REPLACE / drop-then-create,
@@ -1379,7 +1379,7 @@ alter table public.reports
 -- FROM: supabase/communities_search.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Communities search
+-- INTERACTINK — Communities search
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql and communities.sql have both already been run).
 -- Safe to re-run — IF NOT EXISTS throughout, same style as the rest
@@ -1406,7 +1406,7 @@ create index if not exists communities_description_trgm_idx
 -- FROM: supabase/community_creator_and_post_limit.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Community creator permissions + post character limit
+-- INTERACTINK — Community creator permissions + post character limit
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql and communities.sql have already been run).
 -- Safe to re-run.
@@ -1493,7 +1493,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/mentions.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — @Mentions (user tagging)
+-- INTERACTINK — @Mentions (user tagging)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql, settings.sql, and quotes_and_reposts.sql have
 -- already been run — settings.sql specifically, since this adds a
@@ -1576,7 +1576,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/gifs_polls_scheduling.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — GIFs, polls, and scheduled posts
+-- INTERACTINK — GIFs, polls, and scheduled posts
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql — and quotes_and_reposts.sql if you've run it —
 -- have already been run at least once).
@@ -1665,7 +1665,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/schedule_max_4y.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Cap scheduled posts at 4 years out (server-side)
+-- INTERACTINK — Cap scheduled posts at 4 years out (server-side)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after supabase/gifs_polls_scheduling.sql has been run at least
 -- once, since that's what adds posts.scheduled_at).
@@ -1757,7 +1757,7 @@ create policy "users can unfollow" on public.follows
 -- FROM: supabase/fix_delete_policy.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Fix: "new row violates row-level security policy for
+-- INTERACTINK — Fix: "new row violates row-level security policy for
 -- table posts" when deleting your own post.
 --
 -- Run this ENTIRE file, BY ITSELF, in a fresh Supabase SQL Editor
@@ -1824,7 +1824,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/fix_delete_policy_replies.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Fix: can't delete your own replies/comments (RLS
+-- INTERACTINK — Fix: can't delete your own replies/comments (RLS
 -- policy for UPDATE on public.replies missing or never committed).
 --
 -- This is the same class of issue fix_delete_policy.sql fixes for
@@ -1880,7 +1880,7 @@ notify pgrst, 'reload schema';
 -- FROM: supabase/fix_delete_via_rpc.sql
 -- ═══════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Delete via SECURITY DEFINER function instead of a raw
+-- INTERACTINK — Delete via SECURITY DEFINER function instead of a raw
 -- client-side UPDATE + RLS policy.
 --
 -- Why: the soft-delete (is_deleted = true) previously relied on the
@@ -1999,6 +1999,9 @@ create policy "read non-deleted posts" on public.posts
 alter table public.posts add column if not exists repost_count integer not null default 0;
 alter table public.posts add column if not exists bookmark_count integer not null default 0;
 
+-- Twitter-style ranking: weighted engagement signals + recency decay
+-- + follow boost + block/mute filtering + per-author diversity decay
+-- (so one prolific author's posts can't fill the whole feed).
 create or replace function public.get_for_you_feed(
   viewer   uuid default null,
   limit_n  integer default 50,
@@ -2008,23 +2011,69 @@ returns setof public.posts
 language sql
 stable
 as $$
+  with v as (
+    select coalesce(viewer, auth.uid()) as id
+  ),
+  -- Candidate pool: published, non-deleted posts, with anyone the
+  -- viewer has blocked/been blocked by/muted removed up front. This
+  -- runs even for logged-out viewers (v.id is null), where it's a
+  -- no-op — every post stays eligible.
+  eligible as (
+    select p.id, p.author_id, p.like_count, p.reply_count, p.repost_count,
+           p.bookmark_count, p.view_count, p.created_at
+    from public.posts p, v
+    where p.is_deleted = false
+      and (p.scheduled_at is null or p.scheduled_at <= now())
+      and (
+        v.id is null
+        or p.author_id not in (
+          select blocked_id from public.blocks where blocker_id = v.id
+          union
+          select blocker_id from public.blocks where blocked_id = v.id
+          union
+          select muted_id  from public.mutes  where muter_id  = v.id
+        )
+      )
+  ),
+  -- Raw score: replies/reposts weigh more than likes (higher-effort
+  -- signals), bookmarks next, views barely move the needle. Divided
+  -- by an age-based gravity term so fresh posts don't get buried
+  -- under old viral ones forever. Multiplied 3x if the viewer follows
+  -- the author (in-network boost, same idea as Twitter's timeline mix).
+  scored as (
+    select
+      e.id,
+      e.author_id,
+      (
+        (e.like_count * 1.0 + e.reply_count * 2.5 + e.repost_count * 2.5
+         + e.bookmark_count * 1.75 + e.view_count * 0.05 + 1)
+        * (case
+            when (select id from v) is not null and exists (
+              select 1 from public.follows f
+              where f.follower_id = (select id from v) and f.followee_id = e.author_id
+            ) then 3.0
+            else 1.0
+          end)
+        / power((extract(epoch from (now() - e.created_at)) / 3600.0) + 2, 1.8)
+      ) as raw_score
+    from eligible e
+  ),
+  -- Author diversity: rank each author's own posts by score, then
+  -- discount the 2nd/3rd/4th... best post from the same author more
+  -- and more, so a single account's posting streak can't dominate
+  -- the top of the feed even if every post scores well.
+  ranked as (
+    select
+      id,
+      author_id,
+      raw_score,
+      row_number() over (partition by author_id order by raw_score desc) as author_rank
+    from scored
+  )
   select p.*
-  from public.posts p
-  where p.is_deleted = false
-    and (p.scheduled_at is null or p.scheduled_at <= now())
-  order by
-    (
-      (p.like_count * 1.0 + p.reply_count * 2.0 + p.repost_count * 2.0 + p.bookmark_count * 1.5 + 1)
-      * (case
-          when coalesce(viewer, auth.uid()) is not null and exists (
-            select 1 from public.follows f
-            where f.follower_id = coalesce(viewer, auth.uid()) and f.followee_id = p.author_id
-          ) then 3.0
-          else 1.0
-        end)
-      / power((extract(epoch from (now() - p.created_at)) / 3600.0) + 2, 1.8)
-    ) desc,
-    p.created_at desc
+  from ranked r
+  join public.posts p on p.id = r.id
+  order by (r.raw_score / power(r.author_rank, 1.3)) desc, p.created_at desc
   limit limit_n
   offset offset_n;
 $$;

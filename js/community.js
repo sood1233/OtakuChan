@@ -23,7 +23,7 @@ async function loadCommunity() {
   if (error) { heroEl.innerHTML = `<div class="errmsg">Failed to load community: ${esc(error.message)}</div>`; return; }
   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This community doesn't exist.</div>`; return; }
   community = data;
-  document.title = `${community.name} — Otakuchan`;
+  document.title = `${community.name} — InteractInk`;
 
   if (currentSession) {
     const { data: mem } = await sb.from('community_members').select('user_id')

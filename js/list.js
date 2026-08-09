@@ -28,7 +28,7 @@ async function loadList() {
   if (error) { heroEl.innerHTML = `<div class="errmsg">Failed to load List: ${esc(error.message)}</div>`; return; }
   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This List doesn't exist, or is private.</div>`; return; }
   list = data;
-  document.title = `${list.name} — Otakuchan`;
+  document.title = `${list.name} — InteractInk`;
 
   isOwner = !!(currentSession && list.owner_id === currentSession.user.id);
 

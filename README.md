@@ -1,4 +1,4 @@
-# Otakuchan — Setup
+# InteractInk — Setup
 
 A static, no-backend social imageboard with real accounts. All data
 (profiles, posts, replies, likes, media/avatar files) lives in

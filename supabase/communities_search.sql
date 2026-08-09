@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Communities search
+-- INTERACTINK — Communities search
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql and communities.sql have both already been run).
 -- Safe to re-run — IF NOT EXISTS throughout, same style as the rest

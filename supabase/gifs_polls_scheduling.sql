@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — GIFs, polls, and scheduled posts
+-- INTERACTINK — GIFs, polls, and scheduled posts
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql — and quotes_and_reposts.sql if you've run it —
 -- have already been run at least once).

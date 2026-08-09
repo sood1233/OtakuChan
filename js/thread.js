@@ -51,7 +51,7 @@ async function loadThread() {
   currentPost = p;
   cachePost(p);
   await attachQuotedPosts([p]);
-  document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — Otakuchan';
+  document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — InteractInk';
   // Now that we know who posted it, upgrade a generic /i/status/<id>
   // (or a legacy ?id= link) to the canonical /<username>/status/<id>
   // address, same as x.com does — no reload, just a clean URL bar.

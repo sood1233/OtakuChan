@@ -58,7 +58,7 @@ async function loadSettings() {
 
     <div class="settings-section">
       <h2>Appearance</h2>
-      <p class="sub">Pick how Otakuchan looks on this device.</p>
+      <p class="sub">Pick how InteractInk looks on this device.</p>
       <div class="theme-picker" id="theme-picker">
         ${themeSwatchHtml('light', 'Default', curTheme === 'light')}
         ${themeSwatchHtml('dim', 'Dim', curTheme === 'dim')}

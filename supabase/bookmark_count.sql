@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Public bookmark count
+-- INTERACTINK — Public bookmark count
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run, same pattern as the rest.

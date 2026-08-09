@@ -27,7 +27,7 @@ async function loadProfileLists() {
     root.innerHTML = `<div class="errmsg">No user found with that username.</div>`;
     return;
   }
-  document.title = `Lists @${profile.username} is on — Otakuchan`;
+  document.title = `Lists @${profile.username} is on — InteractInk`;
   document.getElementById('pl-name').textContent = 'Lists';
   document.getElementById('pl-handle').textContent = `@${profile.username}`;
   document.getElementById('pl-back').href = profileUrl(profile.username);

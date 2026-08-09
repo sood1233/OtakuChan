@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Supabase schema (accounts edition)
+-- INTERACTINK — Supabase schema (accounts edition)
 -- Run this whole file once in: Supabase Dashboard → SQL Editor → New query
 -- Safe to re-run (uses IF NOT EXISTS / OR REPLACE / ON CONFLICT throughout).
 --

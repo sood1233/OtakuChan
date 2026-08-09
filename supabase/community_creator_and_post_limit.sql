@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Community creator permissions + post character limit
+-- INTERACTINK — Community creator permissions + post character limit
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql and communities.sql have already been run).
 -- Safe to re-run.

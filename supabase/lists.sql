@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Lists (Twitter-Lists-style curated groups of people)
+-- INTERACTINK — Lists (Twitter-Lists-style curated groups of people)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run — IF NOT EXISTS / OR REPLACE / drop-then-create,

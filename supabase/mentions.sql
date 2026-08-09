@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — @Mentions (user tagging)
+-- INTERACTINK — @Mentions (user tagging)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql, settings.sql, and quotes_and_reposts.sql have
 -- already been run — settings.sql specifically, since this adds a

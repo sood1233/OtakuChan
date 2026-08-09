@@ -117,7 +117,7 @@ async function loadFollowList() {
     return;
   }
   flProfile = profile;
-  document.title = `People followed by @${profile.username} — Otakuchan`;
+  document.title = `People followed by @${profile.username} — InteractInk`;
   document.getElementById('fl-name').textContent = profile.display_name || profile.username;
   document.getElementById('fl-handle').textContent = `@${profile.username}`;
   document.getElementById('fl-back').href = profileUrl(profile.username);

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Settings & notification preferences
+-- INTERACTINK — Settings & notification preferences
 -- Run once in: Supabase Dashboard → SQL Editor → New query
 -- Run this AFTER supabase/schema.sql. Safe to re-run (IF NOT EXISTS /
 -- OR REPLACE / ON CONFLICT throughout, same pattern as schema.sql).

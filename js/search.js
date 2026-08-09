@@ -39,10 +39,10 @@ async function runSearch() {
   document.getElementById('sp-input').value = searchQuery;
   const root = document.getElementById('search-root');
   if (!searchQuery.trim()) {
-    document.title = 'Explore — Otakuchan';
+    document.title = 'Explore — InteractInk';
     return runExplore();
   }
-  document.title = `${searchQuery} — Search — Otakuchan`;
+  document.title = `${searchQuery} — Search — InteractInk`;
   root.innerHTML = skeletonFeedHtml();
   if (searchTab === 'people') return searchPeople(root);
   return searchPosts(root);
@@ -219,7 +219,7 @@ async function renderTrendingTab(root) {
 }
 
 // News / Sports / Entertainment: best-effort — shows the latest posts
-// from any community whose name matches that topic. Otakuchan doesn't
+// from any community whose name matches that topic. InteractInk doesn't
 // have a built-in post-classification system, so this is approximate
 // rather than curated, and just says so plainly when nothing matches.
 async function renderCategoryTab(root, category) {

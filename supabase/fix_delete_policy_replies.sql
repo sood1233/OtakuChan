@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Fix: can't delete your own replies/comments (RLS
+-- INTERACTINK — Fix: can't delete your own replies/comments (RLS
 -- policy for UPDATE on public.replies missing or never committed).
 --
 -- This is the same class of issue fix_delete_policy.sql fixes for

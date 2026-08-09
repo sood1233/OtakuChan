@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Cap scheduled posts at 4 years out (server-side)
+-- INTERACTINK — Cap scheduled posts at 4 years out (server-side)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after supabase/gifs_polls_scheduling.sql has been run at least
 -- once, since that's what adds posts.scheduled_at).

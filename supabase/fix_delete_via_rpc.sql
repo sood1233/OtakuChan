@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Delete via SECURITY DEFINER function instead of a raw
+-- INTERACTINK — Delete via SECURITY DEFINER function instead of a raw
 -- client-side UPDATE + RLS policy.
 --
 -- Why: the soft-delete (is_deleted = true) previously relied on the

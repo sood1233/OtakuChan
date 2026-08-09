@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Communities (Twitter-Communities-style groups)
+-- INTERACTINK — Communities (Twitter-Communities-style groups)
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 -- (after schema.sql has already been run at least once).
 -- Safe to re-run — IF NOT EXISTS / OR REPLACE / drop-then-create,

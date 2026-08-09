@@ -410,7 +410,7 @@ function renderMobileChrome() {
           <button onclick="closeMobileDrawer();logOut();">Log out</button>
         ` : `
           <img class="avatar m-drawer-avatar" src="${DEFAULT_AVATAR}" alt="">
-          <span class="m-drawer-name">Welcome to Otakuchan</span>
+          <span class="m-drawer-name">Welcome to InteractInk</span>
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
             <a href="lists.html">${NAV_ICON.list}Lists</a>

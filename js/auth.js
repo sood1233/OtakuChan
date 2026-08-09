@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// AUTH — accounts are required to post on Otakuchan now. This file
+// AUTH — accounts are required to post on InteractInk now. This file
 // wires up: session state, the header's login/signup vs avatar
 // dropdown, sign up / log in / log out, and avatar uploads.
 // Included on every page (after supabase-config.js + common.js).

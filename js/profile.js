@@ -29,7 +29,7 @@ async function loadProfile() {
   }
   viewedProfile = profile;
   isOwnProfile = session && session.user.id === profile.id;
-  document.title = `@${profile.username} — Otakuchan`;
+  document.title = `@${profile.username} — InteractInk`;
   // Canonicalize casing (usernames are matched case-insensitively
   // above via ilike) and upgrade a legacy ?u= link, same idea as
   // thread.js's /i/status/ -> /<username>/status/ upgrade.
@@ -136,7 +136,7 @@ function closeProfileMenu(ev) {
 
 function profileMenuStub(ev, feature) {
   closeProfileMenu(ev);
-  toast(`${feature} aren't available on Otakuchan yet.`);
+  toast(`${feature} aren't available on InteractInk yet.`);
 }
 
 function profileMenuShare(ev, username) {

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- OTAKUCHAN — Fix: "new row violates row-level security policy for
+-- INTERACTINK — Fix: "new row violates row-level security policy for
 -- table posts" when deleting your own post.
 --
 -- Run this ENTIRE file, BY ITSELF, in a fresh Supabase SQL Editor

@@ -24,7 +24,7 @@ async function loadEditProfile() {
   }
 
   document.getElementById('ep-back').href = profileUrl(epProfile.username);
-  document.title = `Edit profile — Otakuchan`;
+  document.title = `Edit profile — InteractInk`;
 
   root.innerHTML = `
     <div class="ep-banner-wrap" id="ep-banner-wrap" style="${epProfile.banner_url ? `--banner-img:url('${esc(epProfile.banner_url)}')` : ''}">
