@@ -212,9 +212,32 @@ async function doSignUp(e) {
       return;
     }
 
-    // Email confirmation is ON — the account exists, but needs the
-    // code from their inbox before we get a session. Swap to the
-    // code-entry step.
+    // Supabase gotcha: if this email already has an unconfirmed
+    // account (e.g. someone signed up, never entered the code, and
+    // tried again), signUp() returns success with NO error and NO
+    // session — but it also does NOT send a new email, to avoid
+    // leaking whether an email is registered. Silently showing the
+    // code step here is exactly what makes it look like "the email
+    // never arrives": there's genuinely nothing new in their inbox.
+    // data.user.identities is an empty array in this specific case
+    // (a real new signup has one identity in it), so use that to
+    // tell the two situations apart and be honest about which one
+    // happened.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      pendingSignupEmail = email;
+      document.getElementById('su-form').style.display = 'none';
+      const emailSpan = document.getElementById('su-code-email');
+      if (emailSpan) emailSpan.textContent = email;
+      document.getElementById('su-code-step').style.display = 'block';
+      showErr(document.getElementById('su-code-err'),
+        'This email already has a pending, unverified account — no new email was just sent. Tap "Resend code" below to get a fresh one.');
+      document.getElementById('su-code')?.focus();
+      return;
+    }
+
+    // Genuine new signup — email confirmation is ON, and Supabase
+    // just sent the code for the first time. Swap to the code-entry
+    // step.
     pendingSignupEmail = email;
     document.getElementById('su-form').style.display = 'none';
     const emailSpan = document.getElementById('su-code-email');
