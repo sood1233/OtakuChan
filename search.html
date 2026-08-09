@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Search — Otakuchan</title>
 <base href="/">
-<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32">
-<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512">
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512" id="fav512">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <meta name="theme-color" content="#0EA5E9">
-<script>(function(){try{var t=localStorage.getItem('oc-theme');if(t&&t!=="light")document.documentElement.setAttribute('data-theme',t);var a=localStorage.getItem('oc-accent');if(a&&a!=="blue")document.documentElement.setAttribute('data-accent',a);}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem('oc-theme');if(t&&t!=="light"){document.documentElement.setAttribute('data-theme',t);var f32=document.getElementById('fav32'),f512=document.getElementById('fav512');if(f32)f32.href='img/favicon-dark-32.png';if(f512)f512.href='img/favicon-dark.png';}var a=localStorage.getItem('oc-accent');if(a&&a!=="blue")document.documentElement.setAttribute('data-accent',a);}catch(e){}})();</script>
 <link rel="preconnect" href="https://pyitivzoqleukuclajrf.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="css/style.css">
@@ -21,10 +21,8 @@
     <div class="sb-top">
       <a class="logo" href="/">
         <span class="badge">
-          <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#fff"/>
-            <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#0EA5E9"/>
-          </svg>
+          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
         </span>
         <span class="wordmark">Otaku<em>chan</em></span>
       </a>

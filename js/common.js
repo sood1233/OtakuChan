@@ -204,6 +204,20 @@ function applyTheme(theme) {
   if (theme && theme !== 'light') document.documentElement.setAttribute('data-theme', theme);
   else document.documentElement.removeAttribute('data-theme');
   try { localStorage.setItem(THEME_KEY, theme || 'light'); } catch (e) {}
+  updateFavicon(theme);
+}
+// Swaps the two <link rel="icon"> hrefs between the light mark (white
+// square, black &) and dark mark (black square, white &) so the tab
+// favicon always matches Default vs Dim/Lights out. The pre-paint
+// inline <script> in every page's <head> does the same thing for the
+// very first paint (before this file has even loaded); this is what
+// keeps it in sync on a live theme switch from Settings.
+function updateFavicon(theme) {
+  const dark = theme && theme !== 'light';
+  const f32 = document.getElementById('fav32');
+  const f512 = document.getElementById('fav512');
+  if (f32) f32.href = dark ? 'img/favicon-dark-32.png' : 'img/favicon-32.png';
+  if (f512) f512.href = dark ? 'img/favicon-dark.png' : 'img/favicon.png';
 }
 function getTheme() {
   try { return localStorage.getItem(THEME_KEY) || 'light'; } catch (e) { return 'light'; }
@@ -323,10 +337,8 @@ function renderMobileChrome() {
         <img class="avatar" src="${esc(avatar)}" alt="">
       </button>
       <a class="m-logo" href="index.html">
-        <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#0EA5E9"/>
-          <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#fff"/>
-        </svg>
+        <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="26" height="26">
+        <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="26" height="26">
       </a>
     </div>
 
