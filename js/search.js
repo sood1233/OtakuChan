@@ -59,7 +59,7 @@ async function searchPeople(root) {
   if (error) { root.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
   if (!data.length) { root.innerHTML = `<div id="feed-empty">No users found for &ldquo;${esc(searchQuery)}&rdquo;.</div>`; return; }
   root.innerHTML = data.map(profile => `
-    <a class="ulrow" style="padding:12px 16px;border-bottom:1px solid var(--line);border-radius:0;" href="profile.html?u=${encodeURIComponent(profile.username)}">
+    <a class="ulrow" style="padding:12px 16px;border-bottom:1px solid var(--line);border-radius:0;" href="${profileUrl(profile.username)}">
       <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="">
       <div class="ulrow-txt">
         <span class="ulrow-name">${esc(profile.display_name || profile.username)}</span>

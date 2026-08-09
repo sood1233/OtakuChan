@@ -1,4 +1,24 @@
 {
   "cleanUrls": false,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/home",               "destination": "/index.html" },
+    { "source": "/notifications",      "destination": "/notifications.html" },
+    { "source": "/bookmarks",          "destination": "/bookmarks.html" },
+    { "source": "/settings",           "destination": "/settings.html" },
+    { "source": "/search",             "destination": "/search.html" },
+    { "source": "/rules",              "destination": "/rules.html" },
+    { "source": "/login",              "destination": "/login.html" },
+    { "source": "/signup",             "destination": "/signup.html" },
+
+    { "source": "/messages",           "destination": "/chat.html" },
+    { "source": "/messages/:username", "destination": "/chat.html" },
+
+    { "source": "/i/status/:id",         "destination": "/thread.html" },
+    { "source": "/:username/status/:id", "destination": "/thread.html" },
+    { "source": "/:username/followers",  "destination": "/followlist.html" },
+    { "source": "/:username/following",  "destination": "/followlist.html" },
+
+    { "source": "/:username",          "destination": "/profile.html" }
+  ]
 }

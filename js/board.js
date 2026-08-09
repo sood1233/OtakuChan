@@ -248,7 +248,7 @@ async function loadTrending() {
 function trendListHtml(list) {
   if (!list || !list.length) return `<div class="no-t">Nothing trending yet.</div>`;
   return list.map(p => `
-    <a class="tcard" href="thread.html?id=${p.id}">
+    <a class="tcard" href="${postUrl(p)}">
       <div class="ph">${authorHtml(p.profile)}<span class="dt">${timeAgo(p.created_at)}</span></div>
       <div class="tsnip">${renderBody((p.body || '').slice(0, 140))}</div>
       <div class="tmeta">&hearts; ${fmtCount(p.like_count)} &nbsp; &#9673; ${fmtCount(p.reply_count)} &nbsp; &#128065; ${fmtCount(p.view_count)}</div>

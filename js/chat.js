@@ -1,8 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// CHAT PAGE — /chat.html (conversation list) or /chat.html?u=<username> (thread)
+// CHAT PAGE — /messages (conversation list) or /messages/<username> (thread)
+// Also reachable via the legacy chat.html?u=<username> form.
 // ─────────────────────────────────────────────────────────────
-const chatParams = new URLSearchParams(location.search);
-const chatWithUsername = chatParams.get('u');
+const chatWithUsername = (() => {
+  const m = location.pathname.match(/^\/messages\/([^/]+)\/?$/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('u');
+})();
 let chatOther = null;   // the other user's profile, once a thread is open
 let chatChannel = null;
 
@@ -61,7 +65,7 @@ async function loadConversationList(session, root) {
     const unread = !mine && !last.read;
     const uname = other?.username || 'unknown';
     return `
-    <a class="conv-row${unread ? ' unread' : ''}" href="chat.html?u=${encodeURIComponent(uname)}">
+    <a class="conv-row${unread ? ' unread' : ''}" href="${messagesUrl(uname)}">
       <img class="avatar" src="${esc(avatarUrl(other?.avatar_url))}" alt="">
       <div class="conv-txt">
         <div class="conv-top">
@@ -86,7 +90,7 @@ async function startChat() {
   if (!uname) return;
   const { data: profile, error } = await sb.from('profiles').select('username').ilike('username', uname).maybeSingle();
   if (error || !profile) { showErr(errEl, 'No user found with that username.'); return; }
-  location.href = `chat.html?u=${encodeURIComponent(profile.username)}`;
+  location.href = messagesUrl(profile.username);
 }
 
 // ── ONE-ON-ONE THREAD ──
@@ -96,7 +100,7 @@ async function loadThread(session, root) {
   if (other.id === session.user.id) { root.innerHTML = `<div class="errmsg">You can't message yourself.</div>`; return; }
   chatOther = other;
 
-  document.getElementById('chat-sec-bar').innerHTML = `<a class="back" href="chat.html" style="margin:0 10px 0 0;">&larr;</a> ${esc(other.display_name || other.username)}`;
+  document.getElementById('chat-sec-bar').innerHTML = `<a class="back" href="/messages" style="margin:0 10px 0 0;">&larr;</a> ${esc(other.display_name || other.username)}`;
 
   const { data: msgs, error } = await sb.from('messages').select('*')
     .or(`and(sender_id.eq.${session.user.id},recipient_id.eq.${other.id}),and(sender_id.eq.${other.id},recipient_id.eq.${session.user.id})`)
@@ -108,9 +112,9 @@ async function loadThread(session, root) {
   root.innerHTML = `
     <div class="chat-thread">
       <div class="chat-hdr">
-        <a href="profile.html?u=${encodeURIComponent(other.username)}"><img class="avatar" src="${esc(avatarUrl(other.avatar_url))}" alt=""></a>
+        <a href="${profileUrl(other.username)}"><img class="avatar" src="${esc(avatarUrl(other.avatar_url))}" alt=""></a>
         <div>
-          <a class="nm" href="profile.html?u=${encodeURIComponent(other.username)}">${esc(other.display_name || other.username)}</a>
+          <a class="nm" href="${profileUrl(other.username)}">${esc(other.display_name || other.username)}</a>
           <span class="pc-handle">@${esc(other.username)}</span>
         </div>
       </div>

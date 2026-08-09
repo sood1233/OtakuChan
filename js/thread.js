@@ -1,9 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// THREAD PAGE — /thread.html?id=<post_id>
-// Comments can reply to the post OR to another comment — both
-// directions work, same as Twitter replies.
+// THREAD PAGE — /<username>/status/<post_id>  (also reachable as
+// /i/status/<post_id> before we know the author, or the legacy
+// thread.html?id=<post_id> form — see currentStatusId() in
+// common.js). Comments can reply to the post OR to another comment —
+// both directions work, same as Twitter replies.
 // ─────────────────────────────────────────────────────────────
-const postId = new URLSearchParams(location.search).get('id');
+const postId = currentStatusId();
 
 const POST_SELECT   = '*, profile:profiles(username,display_name,avatar_url)';
 const REPLY_SELECT  = '*, profile:profiles(username,display_name,avatar_url)';
@@ -24,6 +26,13 @@ async function loadThread() {
   cachePost(p);
   await attachQuotedPosts([p]);
   document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — Otakuchan';
+  // Now that we know who posted it, upgrade a generic /i/status/<id>
+  // (or a legacy ?id= link) to the canonical /<username>/status/<id>
+  // address, same as x.com does — no reload, just a clean URL bar.
+  if (p.profile?.username) {
+    const canonical = postUrl(p);
+    if (location.pathname + location.search !== canonical) history.replaceState(null, '', canonical);
+  }
 
   const { data: replies } = await sb.from('replies').select(REPLY_SELECT)
     .eq('post_id', postId).eq('is_deleted', false)
@@ -36,7 +45,7 @@ async function loadThread() {
       <div class="op-detail-head">
         ${pcAvatarHtml(p.profile)}
         <div class="op-detail-names">
-          <a class="nm" href="profile.html?u=${encodeURIComponent(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>
+          <a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>
           <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
         </div>
         ${postMenuHtml(p.id, null, p.author_id)}
@@ -173,7 +182,7 @@ function replyHtml(r, depth) {
         <div class="ph">
           ${pcNameHtml(r.profile)}
           <span class="dt">${timeAgo(r.created_at)}</span>
-          ${postMenuHtml(postId, r.id)}
+          ${postMenuHtml(postId, r.id, r.author_id)}
         </div>
         <div class="pb">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type)}

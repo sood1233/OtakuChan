@@ -3,7 +3,7 @@
 // Rows are created server-side by triggers (see schema.sql) — this
 // page only ever reads + marks-read, never inserts.
 // ─────────────────────────────────────────────────────────────
-const NOTIF_SELECT = '*, actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url), post:posts(id,body,is_deleted)';
+const NOTIF_SELECT = '*, actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url), post:posts(id,body,is_deleted,profile:profiles(username))';
 
 const NOTIF_ICON = {
   like:    ICON.heart,
@@ -26,8 +26,8 @@ function notifText(n) {
 }
 
 function notifHref(n) {
-  if (n.type === 'follow') return `profile.html?u=${encodeURIComponent(n.actor?.username || '')}`;
-  if (n.post && !n.post.is_deleted) return `thread.html?id=${n.post.id}`;
+  if (n.type === 'follow') return n.actor?.username ? profileUrl(n.actor.username) : '#';
+  if (n.post && !n.post.is_deleted) return postUrlById(n.post.id, n.post.profile?.username || n.post.author?.username);
   return '#';
 }
 

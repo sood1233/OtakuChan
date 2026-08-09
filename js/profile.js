@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// PROFILE PAGE — /profile.html?u=<username>
-// Editing your own profile lives on its own page (editprofile.html).
-// Followers/following lists live on their own page (followlist.html).
+// PROFILE PAGE — /<username>  (also reachable via the legacy
+// profile.html?u=<username> form — see currentProfileUsername() in
+// common.js). Editing your own profile lives on its own page
+// (editprofile.html). Followers/following lists live on their own
+// page (followlist.html).
 // ─────────────────────────────────────────────────────────────
-const params = new URLSearchParams(location.search);
-const viewUsername = params.get('u');
+const viewUsername = currentProfileUsername();
 let viewedProfile = null;
 let isOwnProfile = false;
 
@@ -29,8 +30,13 @@ async function loadProfile() {
   viewedProfile = profile;
   isOwnProfile = session && session.user.id === profile.id;
   document.title = `@${profile.username} — Otakuchan`;
+  // Canonicalize casing (usernames are matched case-insensitively
+  // above via ilike) and upgrade a legacy ?u= link, same idea as
+  // thread.js's /i/status/ -> /<username>/status/ upgrade.
+  const canonical = profileUrl(profile.username);
+  if (location.pathname + location.search !== canonical) history.replaceState(null, '', canonical);
 
-  const flu = kind => `followlist.html?u=${encodeURIComponent(profile.username)}&tab=${kind}`;
+  const flu = kind => followListUrl(profile.username, kind);
 
   root.innerHTML = `
     <div class="profile-hdr" style="${profile.banner_url ? `--banner-img:url('${esc(profile.banner_url)}')` : ''}">
@@ -128,7 +134,7 @@ async function loadUserReplies(userId) {
     const post = postById.get(r.post_id);
     const parent = r.parent_reply_id ? parentById.get(r.parent_reply_id) : null;
     const replyingToProfile = parent ? parent.profile : post?.profile;
-    return replyCardHtml(r, replyingToProfile);
+    return replyCardHtml(r, replyingToProfile, post?.profile?.username);
   }).join('');
   repliesRendered = true;
 }
@@ -136,32 +142,36 @@ async function loadUserReplies(userId) {
 // Same "click the card, not an interactive bit inside it" behavior
 // as cardClick() in common.js, just landing on the reply's spot in
 // the thread instead of the top of it.
-function replyCardClick(ev, postId, replyId) {
+function replyCardClick(ev, postId, replyId, opUsername) {
   if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
-  location.href = `thread.html?id=${postId}#reply-${replyId}`;
+  location.href = postUrlById(postId, opUsername) + `#reply-${replyId}`;
 }
 
 // A reply rendered on the Replies tab — a normal post-card layout
 // plus the "Replying to @x" tag, linking into the thread at that
 // specific reply. Bookmark/repost are left off, same as a reply card
-// on the thread page itself (see replyHtml() in thread.js).
-function replyCardHtml(r, replyingToProfile) {
+// on the thread page itself (see replyHtml() in thread.js). `opUsername`
+// is the username of the post's original author (needed to build the
+// pretty /<username>/status/<id> link — the reply itself may be by
+// someone else).
+function replyCardHtml(r, replyingToProfile, opUsername = null) {
   cachePost(r);
   const uname = replyingToProfile?.username;
+  const threadHref = postUrlById(r.post_id, opUsername) + `#reply-${r.id}`;
   return `
-  <div class="pc" data-post-id="${r.id}" onclick="replyCardClick(event, '${r.post_id}', '${r.id}')">
+  <div class="pc" data-post-id="${r.id}" onclick="replyCardClick(event, '${r.post_id}', '${r.id}', ${opUsername ? `'${u_(opUsername)}'` : 'null'})">
     <div class="pc-row">
       ${pcAvatarHtml(r.profile)}
       <div class="pc-main">
-        ${uname ? `<div class="rc-reply-tag">Replying to <a href="profile.html?u=${encodeURIComponent(uname)}" onclick="event.stopPropagation()">@${esc(uname)}</a></div>` : ''}
+        ${uname ? `<div class="rc-reply-tag">Replying to <a href="${profileUrl(uname)}" onclick="event.stopPropagation()">@${esc(uname)}</a></div>` : ''}
         <div class="ph">
           ${pcNameHtml(r.profile)}
           <span class="dt">${timeAgo(r.created_at)}</span>
-          ${postMenuHtml(r.post_id, r.id)}
+          ${postMenuHtml(r.post_id, r.id, r.author_id)}
         </div>
         <div class="pb">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type)}
-        ${postActionsHtml(r, { replyHref: `thread.html?id=${r.post_id}#reply-${r.id}`, bookmarkable: false, repostable: false })}
+        ${postActionsHtml(r, { replyHref: threadHref, bookmarkable: false, repostable: false })}
       </div>
     </div>
   </div>`;

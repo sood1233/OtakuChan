@@ -1,9 +1,15 @@
 // ─────────────────────────────────────────────────────────────
-// FOLLOW LIST PAGE — /followlist.html?u=<username>&tab=followers|following
+// FOLLOW LIST PAGE — /<username>/followers or /<username>/following
+// Also reachable via the legacy followlist.html?u=<username>&tab=...
+// form — see below.
 // ─────────────────────────────────────────────────────────────
-const flParams = new URLSearchParams(location.search);
-const flUsername = flParams.get('u');
-let flTab = flParams.get('tab') === 'following' ? 'following' : 'followers';
+const { flUsername, flTab: flTabFromUrl } = (() => {
+  const m = location.pathname.match(/^\/([^/]+)\/(followers|following)\/?$/);
+  if (m) return { flUsername: decodeURIComponent(m[1]), flTab: m[2] };
+  const params = new URLSearchParams(location.search);
+  return { flUsername: params.get('u'), flTab: params.get('tab') === 'following' ? 'following' : 'followers' };
+})();
+let flTab = flTabFromUrl;
 let flProfile = null;
 let flMyFollowing = new Set(); // ids of people the *viewer* (logged-in user) follows
 
@@ -17,9 +23,7 @@ function flRenderTabs() {
 function flSetTab(tab) {
   if (tab === flTab) return;
   flTab = tab;
-  const url = new URL(location.href);
-  url.searchParams.set('tab', tab);
-  history.replaceState(null, '', url);
+  history.replaceState(null, '', followListUrl(flUsername, tab));
   flRenderTabs();
   flLoadList();
 }
@@ -30,7 +34,7 @@ function flRowHtml(profile, viewerId) {
   const following = flMyFollowing.has(profile.id);
   return `
   <div class="fl-row">
-    <a class="ulrow" style="flex:1;min-width:0;" href="profile.html?u=${encodeURIComponent(uname)}">
+    <a class="ulrow" style="flex:1;min-width:0;" href="${profileUrl(uname)}">
       <img class="avatar pfp-md" src="${esc(avatarUrl(profile?.avatar_url))}" alt="">
       <div class="ulrow-txt">
         <span class="ulrow-name">${esc(profile?.display_name || uname)}</span>
@@ -112,7 +116,9 @@ async function loadFollowList() {
   document.title = `People followed by @${profile.username} — Otakuchan`;
   document.getElementById('fl-name').textContent = profile.display_name || profile.username;
   document.getElementById('fl-handle').textContent = `@${profile.username}`;
-  document.getElementById('fl-back').href = `profile.html?u=${encodeURIComponent(profile.username)}`;
+  document.getElementById('fl-back').href = profileUrl(profile.username);
+  const canonical = followListUrl(profile.username, flTab);
+  if (location.pathname !== canonical) history.replaceState(null, '', canonical);
 
   flRenderTabs();
   await flLoadMyFollowing();

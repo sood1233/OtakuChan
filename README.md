@@ -66,18 +66,30 @@ This is a plain static site — no build step, no Node server required.
 - Hosted: drag the folder into Netlify/Vercel, or push to GitHub Pages.
 
 ## Pages
-- `index.html` — board feed, new-thread form (accounts only), trending sidebar, realtime new-post updates
-- `thread.html?id=<uuid>` — single thread with all replies, realtime new-reply updates
-- `signup.html` / `login.html` — create an account / sign in
-- `profile.html?u=<username>` — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
+- `/home` (`index.html`) — board feed, new-thread form (accounts only), trending sidebar, realtime new-post updates
+- `/<username>/status/<uuid>` (`thread.html`) — single thread with all replies, realtime new-reply updates. Also reachable as `/i/status/<uuid>` before the author is known (e.g. a raw copy-pasted id) — the address bar upgrades to the canonical `/<username>/status/<uuid>` automatically once the post loads, same as x.com.
+- `/login`, `/signup` (`login.html` / `signup.html`) — create an account / sign in
+- `/<username>` (`profile.html`) — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
 - `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
-- `followlist.html?u=<username>&tab=followers|following` — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
-- `search.html?q=<term>` — search posts (body) or people (username/display name), tabbed
-- `bookmarks.html` — posts you've bookmarked (private to you)
-- `notifications.html` — likes, replies, and new followers; marks itself read on view, live badge count in the sidebar
-- `chat.html` / `chat.html?u=<username>` — direct messages: conversation list, or a one-on-one thread with realtime delivery
-- `settings.html` — Notifications (toggle likes/replies/follows), Privacy (who can message you), Account (email/password), link to `editprofile.html`, log out
-- `rules.html` — rules, FAQ, DMCA contact info
+- `/<username>/followers`, `/<username>/following` (`followlist.html`) — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
+- `/search?q=<term>` (`search.html`) — search posts (body) or people (username/display name), tabbed
+- `/bookmarks` (`bookmarks.html`) — posts you've bookmarked (private to you)
+- `/notifications` (`notifications.html`) — likes, replies, and new followers; marks itself read on view, live badge count in the sidebar
+- `/messages`, `/messages/<username>` (`chat.html`) — direct messages: conversation list, or a one-on-one thread with realtime delivery
+- `/settings` (`settings.html`) — Notifications (toggle likes/replies/follows), Privacy (who can message you), Account (email/password), link to `editprofile.html`, log out
+- `/rules` (`rules.html`) — rules, FAQ, DMCA contact info
+
+All the pretty paths above are handled by the `rewrites` block in
+`vercel.json` — Vercel serves the real `.html` file behind the scenes
+while the address bar keeps the clean URL. Every internal link in the
+app is built through one of the helpers at the top of `js/common.js`
+(`profileUrl()`, `postUrl()`, `followListUrl()`, `messagesUrl()`), so
+the whole scheme lives in one place if it ever needs to change.
+Old-style links (`profile.html?u=marc`, `thread.html?id=<uuid>`) still
+work as a fallback — useful for local dev with plain `npx serve .`,
+which doesn't understand `vercel.json` rewrites. To test the pretty
+URLs locally, use `vercel dev` instead, or just deploy — Vercel
+Preview URLs get the rewrites too.
 
 The left sidebar nav (`#side-nav`, filled in by `renderSideNav()` in
 `js/common.js`) is shared across every page instead of being copy-pasted

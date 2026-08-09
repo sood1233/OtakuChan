@@ -2,6 +2,61 @@
 // COMMON HELPERS — shared by board.js and thread.js
 // ─────────────────────────────────────────────────────────────
 
+// ── PRETTY URLS — Twitter/X-style paths (see vercel.json for the
+// rewrites that map these back to the real .html files). Every link
+// in the app should be built with one of these instead of writing
+// "profile.html?u=..." / "thread.html?id=..." by hand, so the whole
+// site stays consistent and there's exactly one place to change the
+// scheme later.
+//
+//   profileUrl('marc')                 -> /marc
+//   postUrl(post)                      -> /marc/status/<id>  (or /i/status/<id>
+//                                          if we don't know the author's
+//                                          username at this call site —
+//                                          thread.js resolves and upgrades
+//                                          the address bar once it loads
+//                                          the post, same as x.com does)
+//   followListUrl('marc','followers')  -> /marc/followers
+//   messagesUrl('marc')                -> /messages/marc
+//
+// Reserved top-level names (home, notifications, messages, bookmarks,
+// settings, search, login, signup, rules) can never collide with a
+// username route because those are matched first in vercel.json.
+function u_(s) { return encodeURIComponent(s); }
+function profileUrl(username) { return `/${u_(username)}`; }
+function postUrl(post, replyId = null) {
+  const id = replyId || post?.id;
+  const base = post?.profile?.username ? `/${u_(post.profile.username)}/status/${u_(post.id)}` : `/i/status/${u_(post?.id ?? id)}`;
+  return replyId ? `${base}#reply-${u_(replyId)}` : base;
+}
+function postUrlById(id, username = null) {
+  return username ? `/${u_(username)}/status/${u_(id)}` : `/i/status/${u_(id)}`;
+}
+function followListUrl(username, tab) { return `/${u_(username)}/${tab === 'following' ? 'following' : 'followers'}`; }
+function messagesUrl(username = null) { return username ? `/messages/${u_(username)}` : '/messages'; }
+
+// Reads the post/reply id out of the current URL on thread.html,
+// whether it arrived as a pretty path (/marc/status/123 or
+// /i/status/123) or the legacy query form (thread.html?id=123 — kept
+// as a fallback for old bookmarked links and for local dev without
+// Vercel's rewrite engine, e.g. plain `npx serve`).
+function currentStatusId() {
+  const m = location.pathname.match(/\/status\/([^/]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('id');
+}
+
+// Reads the profile username out of the current URL on profile.html,
+// whether it arrived as a pretty path (/marc) or the legacy query
+// form (profile.html?u=marc).
+const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i']);
+function currentProfileUsername() {
+  const seg = location.pathname.split('/').filter(Boolean)[0];
+  if (seg && !RESERVED_TOP_LEVEL.has(seg.toLowerCase())) return decodeURIComponent(seg);
+  return new URLSearchParams(location.search).get('u');
+}
+
+
 // ── ICONS + tweet-style post card rendering ──
 const ICON = {
   reply:    '<svg viewBox="0 0 24 24"><path d="M12 3.5C7.03 3.5 3 6.96 3 11.2c0 2.35 1.24 4.46 3.2 5.88-.13.98-.55 2.5-1.6 3.9 1.72-.2 3.29-.98 4.4-1.76.94.3 1.96.46 3 .46 4.97 0 9-3.46 9-7.72s-4.03-8.46-9-8.46z"/></svg>',
@@ -69,35 +124,51 @@ function getAccent() {
 let unreadNotifCount = 0;
 let unreadChatCount = 0;
 
+// Maps the current URL (pretty or legacy .html) to one of the fixed
+// nav-item keys below, so highlighting "which tab is active" doesn't
+// break now that most pages live at a clean path instead of a
+// filename. Checked in order; first match wins.
+function currentNavKey() {
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  if (path === '/' || path === '/home' || path.endsWith('/index.html')) return 'home';
+  if (path === '/search' || path.endsWith('/search.html')) return 'search';
+  if (path === '/notifications' || path.endsWith('/notifications.html')) return 'notifications';
+  if (path === '/messages' || path.startsWith('/messages/') || path.endsWith('/chat.html')) return 'messages';
+  if (path === '/bookmarks' || path.endsWith('/bookmarks.html')) return 'bookmarks';
+  if (path === '/settings' || path.endsWith('/settings.html')) return 'settings';
+  if (path === '/rules' || path.endsWith('/rules.html')) return 'rules';
+  if (currentSession && currentProfile && path.toLowerCase() === profileUrl(currentProfile.username).toLowerCase()) return 'profile';
+  return null;
+}
+
 function renderSideNav() {
   const el = document.getElementById('side-nav');
   if (!el) return;
-  const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
+  const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : 'login.html';
   const notifBadge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
   const chatBadge = unreadChatCount > 0 ? `<span class="navbadge">${unreadChatCount > 20 ? '20+' : unreadChatCount}</span>` : '';
-  const here = location.pathname.split('/').pop() || 'index.html';
-  const item = (href, icon, label, extra = '') => {
-    const page = href.split('?')[0];
-    return `<a href="${href}"${page === here ? ' class="cur"' : ''}><span class="navicon">${icon}${extra}</span><span class="navlabel">${label}</span></a>`;
+  const here = currentNavKey();
+  const item = (href, icon, label, key, extra = '') => {
+    return `<a href="${href}"${key === here ? ' class="cur"' : ''}><span class="navicon">${icon}${extra}</span><span class="navlabel">${label}</span></a>`;
   };
-  const morePage = ['settings.html', 'rules.html'].includes(here);
+  const morePage = here === 'settings' || here === 'rules';
   const postBtn = currentSession
     ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">Post</button>`
     : `<a class="sidebar-post-btn" href="signup.html">Post</a>`;
   el.innerHTML =
-    item('index.html', NAV_ICON.home, 'Home') +
-    item('search.html', NAV_ICON.search, 'Explore') +
-    item('notifications.html', NAV_ICON.bell, 'Notifications', notifBadge) +
-    item('chat.html', NAV_ICON.chat, 'Chat', chatBadge) +
-    item('bookmarks.html', NAV_ICON.bookmark, 'Bookmarks') +
-    item(ownHref, NAV_ICON.user, 'Profile') +
+    item('/home', NAV_ICON.home, 'Home', 'home') +
+    item('/search', NAV_ICON.search, 'Explore', 'search') +
+    item('/notifications', NAV_ICON.bell, 'Notifications', 'notifications', notifBadge) +
+    item('/messages', NAV_ICON.chat, 'Chat', 'messages', chatBadge) +
+    item('/bookmarks', NAV_ICON.bookmark, 'Bookmarks', 'bookmarks') +
+    item(ownHref, NAV_ICON.user, 'Profile', 'profile') +
     `<div class="acct" id="more-wrap">
        <button class="navmore-btn"${morePage ? ' style="font-weight:800;"' : ''} onclick="toggleMoreMenu();return false;">
          <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">More</span>
        </button>
        <div class="acct-menu navmore-menu" id="more-menu">
-         <a href="settings.html">${NAV_ICON.gear}Settings</a>
-         <a href="rules.html">${NAV_ICON.doc}Rules</a>
+         <a href="/settings">${NAV_ICON.gear}Settings</a>
+         <a href="/rules">${NAV_ICON.doc}Rules</a>
        </div>
      </div>` +
     postBtn;
@@ -121,18 +192,18 @@ function mchrome() {
 
 function renderMobileChrome() {
   const el = mchrome();
-  const here = location.pathname.split('/').pop() || 'index.html';
-  const cur = href => href.split('?')[0] === here ? ' cur' : '';
+  const here = currentNavKey();
+  const cur = key => key === here ? ' cur' : '';
   const badge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
   const chatBadge = unreadChatCount > 0 ? `<span class="navbadge">${unreadChatCount > 20 ? '20+' : unreadChatCount}</span>` : '';
-  const ownHref = (currentSession && currentProfile) ? `profile.html?u=${encodeURIComponent(currentProfile.username)}` : 'login.html';
+  const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : 'login.html';
   const avatar = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
 
   // On the chat page the "Post" pill and the floating "+" FAB both
   // just detour to the board's composer, which reads as a broken/
   // unrelated button floating over chat's own message composer — so
   // skip them there in favor of chat's own send controls.
-  const onChatPage = here === 'chat.html';
+  const onChatPage = here === 'messages';
 
   const topPill = !currentSession ? `<a class="m-pill" href="login.html">Log in</a>`
     : onChatPage ? '' : `<button class="m-pill" onclick="mobileCompose();return false;">Post</button>`;
@@ -142,7 +213,7 @@ function renderMobileChrome() {
       <button class="m-avatar-btn" onclick="openMobileDrawer();return false;" aria-label="Open menu">
         <img class="avatar" src="${esc(avatar)}" alt="">
       </button>
-      <a class="m-logo" href="index.html">
+      <a class="m-logo" href="/home">
         <svg class="onigiri" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M12 2C15 2 21 13 21 17.5C21 20 17 21.5 12 21.5C7 21.5 3 20 3 17.5C3 13 9 2 12 2Z" fill="#0EA5E9"/>
           <rect x="9.3" y="15" width="5.4" height="6" rx="1.4" fill="#fff"/>
@@ -152,11 +223,11 @@ function renderMobileChrome() {
     </div>
 
     <div id="m-tabbar">
-      <a class="${cur('index.html')}" href="index.html">${NAV_ICON.home}</a>
-      <a class="${cur('search.html')}" href="search.html">${NAV_ICON.search}</a>
-      <a class="${cur('bookmarks.html')}" href="bookmarks.html">${NAV_ICON.bookmark}</a>
-      <a class="${cur('notifications.html')}" href="notifications.html">${NAV_ICON.bell}${badge}</a>
-      <a class="${cur('chat.html')}" href="chat.html">${NAV_ICON.chat}${chatBadge}</a>
+      <a class="${cur('home')}" href="/home">${NAV_ICON.home}</a>
+      <a class="${cur('search')}" href="/search">${NAV_ICON.search}</a>
+      <a class="${cur('bookmarks')}" href="/bookmarks">${NAV_ICON.bookmark}</a>
+      <a class="${cur('notifications')}" href="/notifications">${NAV_ICON.bell}${badge}</a>
+      <a class="${cur('messages')}" href="/messages">${NAV_ICON.chat}${chatBadge}</a>
     </div>
 
     ${currentSession && !onChatPage ? `<button id="m-fab" onclick="mobileCompose();return false;" aria-label="Post">${PLUS_ICON}</button>` : ''}
@@ -170,16 +241,16 @@ function renderMobileChrome() {
             <span class="m-drawer-handle">@${esc(currentProfile?.username || '')}</span>
           </a>
           <div class="m-drawer-stats">
-            <a href="followlist.html?u=${encodeURIComponent(currentProfile?.username || '')}&tab=following"><b>${fmtCount(currentProfile?.following_count)}</b> Following</a>
-            <a href="followlist.html?u=${encodeURIComponent(currentProfile?.username || '')}&tab=followers"><b>${fmtCount(currentProfile?.followers_count)}</b> Followers</a>
+            <a href="${currentProfile ? followListUrl(currentProfile.username, 'following') : '#'}"><b>${fmtCount(currentProfile?.following_count)}</b> Following</a>
+            <a href="${currentProfile ? followListUrl(currentProfile.username, 'followers') : '#'}"><b>${fmtCount(currentProfile?.followers_count)}</b> Followers</a>
           </div>
           <hr>
           <div class="m-drawer-menu">
             <a href="${ownHref}">${NAV_ICON.user}Profile</a>
-            <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
+            <a href="/bookmarks">${NAV_ICON.bookmark}Bookmarks</a>
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
-            <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
-            <a href="rules.html">${NAV_ICON.doc}Rules</a>
+            <a href="/settings">${NAV_ICON.gear}Settings and privacy</a>
+            <a href="/rules">${NAV_ICON.doc}Rules</a>
           </div>
           <hr>
           <button onclick="closeMobileDrawer();logOut();">Log out</button>
@@ -188,7 +259,7 @@ function renderMobileChrome() {
           <span class="m-drawer-name">Welcome to Otakuchan</span>
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
-            <a href="rules.html">${NAV_ICON.doc}Rules</a>
+            <a href="/rules">${NAV_ICON.doc}Rules</a>
           </div>
           <div class="m-drawer-cta">
             <a class="cta-primary" href="signup.html">Sign up</a>
@@ -372,7 +443,7 @@ async function submitGlobalCompose() {
       addPostToFeed(data, true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      location.href = `thread.html?id=${data.id}`;
+      location.href = postUrlById(data.id, currentProfile?.username);
     }
   } catch (e) {
     showErr(errEl, e.message || 'Failed to post.');
@@ -394,7 +465,7 @@ function wireSidebarSearch() {
   input.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const q = input.value.trim();
-    if (q) location.href = `search.html?q=${encodeURIComponent(q)}`;
+    if (q) location.href = `/search?q=${encodeURIComponent(q)}`;
   });
 }
 document.addEventListener('DOMContentLoaded', wireSidebarSearch);
@@ -429,17 +500,17 @@ async function renderWhoToFollow() {
 
   box.innerHTML = `<div class="t-lbl">Who to follow</div>` +
     suggestions.map(whoRowHtml).join('') +
-    `<a class="show-more" href="search.html">Show more</a>`;
+    `<a class="show-more" href="/search">Show more</a>`;
 }
 
 function whoRowHtml(profile) {
   const uname = profile.username || 'unknown';
   return `
     <div class="who-row">
-      <a href="profile.html?u=${encodeURIComponent(uname)}">
+      <a href="${profileUrl(uname)}">
         <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="">
       </a>
-      <a class="who-row-txt" href="profile.html?u=${encodeURIComponent(uname)}">
+      <a class="who-row-txt" href="${profileUrl(uname)}">
         <span class="who-row-name">${esc(profile.display_name || uname)}</span>
         <span class="who-row-handle">@${esc(uname)}</span>
       </a>
@@ -667,7 +738,7 @@ let quotingPostId = null;
 function quotedPostHtml(qp) {
   if (!qp || qp.is_deleted) return `<div class="qp-embed-gone">Original post is no longer available.</div>`;
   return `
-  <div class="qp-embed" onclick="event.stopPropagation();location.href='thread.html?id=${qp.id}'">
+  <div class="qp-embed" onclick="event.stopPropagation();location.href='${postUrl(qp)}'">
     <div class="ph">${pcNameHtml(qp.profile)}<span class="dt">${timeAgo(qp.created_at)}</span></div>
     <div class="pb">${renderBody((qp.body || '').slice(0, 280))}</div>
     ${renderMedia(qp.media_url, qp.media_type)}
@@ -749,7 +820,7 @@ async function submitQuote() {
       // Not on the main feed (profile/search/bookmarks/thread page) —
       // jump to the new quote post itself so posting it is never a
       // silent no-op.
-      location.href = `thread.html?id=${data.id}`;
+      location.href = postUrlById(data.id, currentProfile?.username);
     }
   } catch (e) {
     showErr(errEl, e.message || 'Failed to post quote.');
@@ -761,7 +832,7 @@ async function submitQuote() {
 // Copies a thread's permalink to the clipboard — the reference design's
 // share icon, wired to something real instead of a decorative no-op.
 function sharePost(id, btn) {
-  const url = `${location.origin}${location.pathname.replace(/[^/]*$/, '')}thread.html?id=${id}`;
+  const url = `${location.origin}${postUrlById(id, postCache?.[id]?.profile?.username)}`;
   const done = () => {
     if (!btn) return;
     const label = btn.querySelector('.act-label');
@@ -795,12 +866,12 @@ document.addEventListener('click', (e) => {
 // Avatar + name/handle building blocks used by the tweet-style post card.
 function pcAvatarHtml(profile, sizeClass = '') {
   const uname = profile?.username || 'unknown';
-  return `<a class="pc-avatar-lnk" href="profile.html?u=${encodeURIComponent(uname)}">` +
+  return `<a class="pc-avatar-lnk" href="${profileUrl(uname)}">` +
          `<img class="avatar pc-avatar ${sizeClass}" src="${esc(avatarUrl(profile?.avatar_url))}" alt=""></a>`;
 }
 function pcNameHtml(profile) {
   const uname = profile?.username || 'unknown';
-  return `<a class="nm" href="profile.html?u=${encodeURIComponent(uname)}">${esc(profile?.display_name || uname)}</a>` +
+  return `<a class="nm" href="${profileUrl(uname)}">${esc(profile?.display_name || uname)}</a>` +
          `<span class="pc-handle">@${esc(uname)}</span>`;
 }
 
@@ -848,18 +919,22 @@ function opDetailActionsHtml(p, replyOnclick) {
     </div>`;
 }
 
-// The "···" header menu (Report, and Delete for your own posts).
-// `replyId` set only for reply-card menus. `authorId` is the post's
-// author_id — used to show Delete only when it's the logged-in
-// user's own post.
+// The "···" header menu (Report, and Delete for your own posts/replies).
+// `replyId` set only for reply-card menus. `authorId` is the author_id
+// of whichever row this menu belongs to (the post, or the reply when
+// replyId is set) — used to show Delete only when it's the logged-in
+// user's own row. Ownership no longer excludes replies: a reply you
+// own gets a working Delete button too, deleting the reply itself
+// (not the parent post).
 function postMenuHtml(postId, replyId = null, authorId = null) {
   const target = replyId ? `'${postId}','${replyId}'` : `'${postId}'`;
-  const isOwner = !replyId && currentSession && authorId && currentSession.user.id === authorId;
+  const isOwner = currentSession && authorId && currentSession.user.id === authorId;
+  const deleteArgs = replyId ? `'${replyId}', event, true` : `'${postId}', event`;
   return `
     <div class="pc-menu-wrap" id="pmenu-${replyId || postId}">
       <button class="pc-menu-btn" onclick="togglePostMenu('${replyId || postId}', event)">${ICON.menu}</button>
       <div class="pc-menu-dd">
-        ${isOwner ? `<button class="pc-menu-danger" onclick="deletePost('${postId}', event)">Delete</button>` : ''}
+        ${isOwner ? `<button class="pc-menu-danger" onclick="deletePost(${deleteArgs})">Delete</button>` : ''}
         <button onclick="openReport(${target})">Report</button>
       </div>
     </div>`;
@@ -876,6 +951,7 @@ function postMenuHtml(postId, replyId = null, authorId = null) {
 // visually-quiet option.
 // ─────────────────────────────────────────────────────────────
 let pendingDeletePostId = null;
+let pendingDeleteIsReply = false;
 
 function dcModalEl() {
   let el = document.getElementById('dc-modal-bg');
@@ -900,15 +976,18 @@ function dcModalEl() {
   return el;
 }
 
-// Soft-deletes one of the current user's own posts (sets is_deleted =
-// true; RLS lets an author update their own post — see "users can
-// edit own posts" in schema.sql / supabase/fix_delete_policy.sql —
-// so no new policy is needed for this). Opens the confirmation modal
-// above instead of deleting immediately.
-function deletePost(postId, ev) {
-  if (ev) { ev.stopPropagation(); togglePostMenu(postId, ev); }
+// Soft-deletes one of the current user's own posts OR replies (sets
+// is_deleted = true; RLS lets an author update their own row — see
+// "users can edit own posts" / "users can edit own replies" in
+// schema.sql — so no new policy is needed for this). Opens the
+// confirmation modal above instead of deleting immediately.
+// `isReply` = true means `id` is a reply id and the replies table is
+// used instead of posts.
+function deletePost(id, ev, isReply = false) {
+  if (ev) { ev.stopPropagation(); togglePostMenu(id, ev); }
   if (!requireLogin()) return;
-  pendingDeletePostId = postId;
+  pendingDeletePostId = id;
+  pendingDeleteIsReply = isReply;
   const el = dcModalEl();
   el.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -918,6 +997,7 @@ function closeDeleteConfirm() {
   document.getElementById('dc-modal-bg')?.classList.remove('open');
   document.body.style.overflow = '';
   pendingDeletePostId = null;
+  pendingDeleteIsReply = false;
 }
 
 // Does the actual delete, called by the modal's red "Delete" button.
@@ -928,8 +1008,10 @@ function closeDeleteConfirm() {
 // On thread.html, where the post is the whole page, sends the user
 // back to the board instead.
 async function confirmDeletePost() {
-  const postId = pendingDeletePostId;
-  if (!postId || !requireLogin()) return;
+  const id = pendingDeletePostId;
+  const isReply = pendingDeleteIsReply;
+  const table = isReply ? 'replies' : 'posts';
+  if (!id || !requireLogin()) return;
   const btn = document.getElementById('dc-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   try {
@@ -950,33 +1032,41 @@ async function confirmDeletePost() {
     // real ownership mismatch (e.g. a stale card rendered before an
     // account switch) surfaces as a clear message instead of the raw
     // Postgres RLS error.
-    const { data: existing, error: fetchErr } = await sb.from('posts')
-      .select('author_id').eq('id', postId).maybeSingle();
+    const { data: existing, error: fetchErr } = await sb.from(table)
+      .select('author_id').eq('id', id).maybeSingle();
     if (fetchErr) throw fetchErr;
-    if (!existing) throw new Error('This post no longer exists.');
+    if (!existing) throw new Error(isReply ? 'This reply no longer exists.' : 'This post no longer exists.');
     if (existing.author_id !== session.user.id) {
-      throw new Error("This isn't your post, so it can't be deleted from here.");
+      throw new Error(isReply ? "This isn't your reply, so it can't be deleted from here."
+                               : "This isn't your post, so it can't be deleted from here.");
     }
 
     // Deliberately no .select() here: once is_deleted flips to true the
-    // row stops matching the "read non-deleted posts" RLS policy, so a
-    // RETURNING clause would come back empty even on a successful
+    // row stops matching the "read non-deleted posts/replies" RLS policy,
+    // so a RETURNING clause would come back empty even on a successful
     // delete and make this look like it failed. An empty error is the
     // correct success signal for this particular update.
-    const { error } = await sb.from('posts').update({ is_deleted: true }).eq('id', postId);
+    const { error } = await sb.from(table).update({ is_deleted: true }).eq('id', id);
     if (error) throw error;
     closeDeleteConfirm();
-    if (document.getElementById('op-post') && postId === (new URLSearchParams(location.search)).get('id')) {
-      location.href = 'index.html';
+    if (!isReply && document.getElementById('op-post') && id === currentStatusId()) {
+      location.href = '/home';
       return;
     }
-    document.querySelectorAll(`[data-post-id="${postId}"]`).forEach(el => el.remove());
+    // Reply cards use two different markup shapes depending on the page:
+    // profile.js's Replies tab sets data-post-id="<reply id>" on the card,
+    // while thread.js's in-thread comment tree uses id="reply-<reply id>"
+    // instead (see replyHtml() in thread.js) — cover both so the row
+    // actually disappears wherever it's shown.
+    document.querySelectorAll(`[data-post-id="${id}"]`).forEach(el => el.remove());
+    document.getElementById(`reply-${id}`)?.remove();
     // If we're looking at a profile page's post count, the only way a
     // Delete button can even show is on your own post, and the only
     // profile a Delete button can appear on is your own (other
     // people's posts never render Delete for you) — so this is always
-    // safe to decrement when it's present.
-    if (typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
+    // safe to decrement when it's present. Replies aren't counted in
+    // stat-posts, so skip the decrement for those.
+    if (!isReply && typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
   } catch (e) {
     // Full object (code/details/hint included) goes to the console so
     // it's inspectable via devtools if this ever needs debugging again
@@ -1002,7 +1092,7 @@ function repostBannerHtml(reposter) {
   const label = isYou ? 'You reposted' : `${name} reposted`;
   const inner = isYou
     ? `<span>${label}</span>`
-    : `<a href="profile.html?u=${encodeURIComponent(reposter.username)}" onclick="event.stopPropagation()">${label}</a>`;
+    : `<a href="${profileUrl(reposter.username)}" onclick="event.stopPropagation()">${label}</a>`;
   return `<div class="repost-banner">${ICON.repost}${inner}</div>`;
 }
 
@@ -1015,7 +1105,7 @@ function repostBannerHtml(reposter) {
 function postCardHtml(p, flash = false) {
   cachePost(p);
   return `
-  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" onclick="cardClick(event, '${p.id}')">
+  <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})">
     ${repostBannerHtml(p._repostedBy)}
     <div class="pc-row">
       ${pcAvatarHtml(p.profile)}
@@ -1038,9 +1128,9 @@ function postCardHtml(p, flash = false) {
 // Clicking anywhere on a post card opens its comments — unless the
 // click actually landed on a link, button, the "···" menu, or an
 // input, all of which handle themselves.
-function cardClick(ev, postId) {
+function cardClick(ev, postId, username = null) {
   if (ev.target.closest('a, button, input, textarea, .pc-menu-wrap')) return;
-  location.href = `thread.html?id=${postId}`;
+  location.href = postUrlById(postId, username);
 }
 
 // A random per-browser id used only to stop the same visitor
@@ -1067,7 +1157,7 @@ function avatarUrl(url) {
 // `profiles` (author_id -> profiles.*).
 function authorHtml(profile) {
   const uname = profile?.username || 'unknown';
-  return `<a class="pfl" href="profile.html?u=${encodeURIComponent(uname)}">` +
+  return `<a class="pfl" href="${profileUrl(uname)}">` +
          `<img class="avatar pfp-sm" src="${esc(avatarUrl(profile?.avatar_url))}" alt="">` +
          `${esc(profile?.display_name || uname)}</a>`;
 }
@@ -1114,9 +1204,9 @@ function linkifyText(escaped) {
         return `<a href="${clean}" target="_blank" rel="noopener noreferrer nofollow" class="body-link" onclick="event.stopPropagation()">${clean}</a>${rest}`;
       }
       if (mHandle) {
-        return `${mBefore}<a href="profile.html?u=${encodeURIComponent(mHandle)}" class="body-mention" onclick="event.stopPropagation()">@${mHandle}</a>`;
+        return `${mBefore}<a href="${profileUrl(mHandle)}" class="body-mention" onclick="event.stopPropagation()">@${mHandle}</a>`;
       }
-      return `${hBefore}<a href="search.html?q=${encodeURIComponent('#' + hTag)}" class="body-hashtag" onclick="event.stopPropagation()">#${hTag}</a>`;
+      return `${hBefore}<a href="/search?q=${encodeURIComponent('#' + hTag)}" class="body-hashtag" onclick="event.stopPropagation()">#${hTag}</a>`;
     }
   );
 }
@@ -1690,7 +1780,7 @@ function wireFilePreview(inputId, previewId, errElId) {
 function userRowHtml(profile) {
   const uname = profile?.username || 'unknown';
   return `
-  <a class="ulrow" href="profile.html?u=${encodeURIComponent(uname)}">
+  <a class="ulrow" href="${profileUrl(uname)}">
     <img class="avatar pfp-md" src="${esc(avatarUrl(profile?.avatar_url))}" alt="">
     <div class="ulrow-txt">
       <span class="ulrow-name">${esc(profile?.display_name || uname)}</span>

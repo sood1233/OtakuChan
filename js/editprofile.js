@@ -23,7 +23,7 @@ async function loadEditProfile() {
     return;
   }
 
-  document.getElementById('ep-back').href = `profile.html?u=${encodeURIComponent(epProfile.username)}`;
+  document.getElementById('ep-back').href = profileUrl(epProfile.username);
   document.title = `Edit profile — Otakuchan`;
 
   root.innerHTML = `
@@ -51,7 +51,7 @@ async function loadEditProfile() {
 
       <div class="edit-row">
         <input type="submit" class="pf-btn" value="Save" onclick="saveEditProfile();return false;">
-        <a class="profile-edit-btn" href="profile.html?u=${encodeURIComponent(epProfile.username)}">Cancel</a>
+        <a class="profile-edit-btn" href="${profileUrl(epProfile.username)}">Cancel</a>
         <span id="ep-st" style="font-size:11px;color:var(--muted);"></span>
       </div>
     </div>
@@ -103,7 +103,7 @@ async function saveEditProfile() {
     const { error } = await sb.from('profiles').update(updates).eq('id', epProfile.id);
     if (error) throw error;
     stEl.textContent = '';
-    location.href = `profile.html?u=${encodeURIComponent(epProfile.username)}`;
+    location.href = profileUrl(epProfile.username);
   } catch (e) {
     showErr(errEl, e.message || 'Could not save changes.');
     stEl.textContent = '';

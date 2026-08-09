@@ -69,7 +69,7 @@ async function renderAuthArea() {
         <span class="acct-dots">${NAV_ICON.dots}</span>
       </button>
       <div class="acct-menu" id="acct-menu">
-        <a href="profile.html?u=${encodeURIComponent(uname)}">My Profile</a>
+        <a href="${profileUrl(uname)}">My Profile</a>
         <a href="editprofile.html">Edit Profile</a>
         <button onclick="logOut()">Log out</button>
       </div>
@@ -186,7 +186,7 @@ async function doSignUp(e) {
 
     if (data.session) {
       // Email confirmation is off — user is logged in immediately.
-      location.href = 'index.html';
+      location.href = '/home';
     } else {
       document.getElementById('su-form').style.display = 'none';
       document.getElementById('su-ok').style.display = 'block';
@@ -212,7 +212,7 @@ async function doLogIn(e) {
   try {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    location.href = 'index.html';
+    location.href = '/home';
   } catch (err) {
     showErr(errEl, err.message === 'Invalid login credentials'
       ? 'Incorrect email or password.'
@@ -224,7 +224,7 @@ async function doLogIn(e) {
 // ── LOG OUT ──
 async function logOut() {
   await sb.auth.signOut();
-  location.href = 'index.html';
+  location.href = '/home';
 }
 
 // Uploads to avatars/<uid>/<random>.<ext> — the storage RLS policy
