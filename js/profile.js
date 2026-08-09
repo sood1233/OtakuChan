@@ -391,9 +391,7 @@ function bumpStat(elId, delta) {
 // plain queries can't do that.
 async function loadUserPosts(userId) {
   const el = document.getElementById('profile-posts');
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
 
   const [ownRes, repostRowsRes] = await Promise.all([
     sb.from('posts').select(POST_SELECT)

@@ -74,7 +74,7 @@ async function loadConversationList(session, root) {
     const uname = other?.username || 'unknown';
     return `
     <a class="conv-row${unread ? ' unread' : ''}" href="${messagesUrl(uname)}">
-      <img class="avatar" src="${esc(avatarUrl(other?.avatar_url))}" alt="">
+      <img class="avatar" src="${esc(avatarUrl(other?.avatar_url))}" alt="" loading="lazy" decoding="async">
       <div class="conv-txt">
         <div class="conv-top">
           <span class="conv-name">${esc(other?.display_name || uname)}</span>
@@ -120,7 +120,7 @@ async function loadThread(session, root) {
   root.innerHTML = `
     <div class="chat-thread">
       <div class="chat-hdr">
-        <a href="${profileUrl(other.username)}"><img class="avatar" src="${esc(avatarUrl(other.avatar_url))}" alt=""></a>
+        <a href="${profileUrl(other.username)}"><img class="avatar" src="${esc(avatarUrl(other.avatar_url))}" alt="" loading="lazy" decoding="async"></a>
         <div>
           <a class="nm" href="${profileUrl(other.username)}">${esc(other.display_name || other.username)}</a>
           <span class="pc-handle">@${esc(other.username)}</span>

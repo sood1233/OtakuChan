@@ -11,9 +11,7 @@ async function loadFeed() {
   feedEl.innerHTML = skeletonFeedHtml();
   pendingPosts = [];
   hidePendingPill();
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false);
 
@@ -253,7 +251,7 @@ function trendListHtml(list) {
     return `
     <a class="tcard" href="${postUrl(p)}">
       <div class="tcard-row">
-        <img class="avatar tcard-avatar" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="">
+        <img class="avatar tcard-avatar" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="" loading="lazy" decoding="async">
         <div class="tcard-body">
           <div class="tcard-head">
             <span class="tcard-name">${esc(p.profile?.display_name || uname)}</span>

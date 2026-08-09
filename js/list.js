@@ -99,9 +99,7 @@ function renderTabContent() {
 async function loadListFeed() {
   const el = document.getElementById('list-content');
   el.innerHTML = skeletonFeedHtml();
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
 
   if (!listMembers.length) {
     el.innerHTML = `<div id="feed-empty">No one's on this List yet. Add people from their profile's &ldquo;&middot;&middot;&middot;&rdquo; menu.</div>`;
@@ -128,7 +126,7 @@ function renderMembers() {
   }
   el.innerHTML = `<div class="comm-list">` + listMembers.map(m => `
     <a class="who-row comm-row" href="${profileUrl(m.username)}">
-      <img class="avatar" src="${esc(avatarUrl(m.avatar_url))}" alt="">
+      <img class="avatar" src="${esc(avatarUrl(m.avatar_url))}" alt="" loading="lazy" decoding="async">
       <span class="who-row-txt">
         <span class="who-row-name">${esc(m.display_name || m.username)}</span>
         <span class="who-row-handle">@${esc(m.username)}</span>

@@ -831,7 +831,7 @@ function whoRowHtml(profile) {
   return `
     <div class="who-row">
       <a href="${profileUrl(uname)}">
-        <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="">
+        <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="" loading="lazy" decoding="async">
       </a>
       <a class="who-row-txt" href="${profileUrl(uname)}">
         <span class="who-row-name">${esc(profile.display_name || uname)}</span>
@@ -978,6 +978,17 @@ async function ensureOwnedCommunitiesLoaded() {
   if (!session) { ownedCommunities = new Set(); return; }
   const { data } = await sb.from('communities').select('id').eq('created_by', session.user.id);
   ownedCommunities = new Set((data || []).map(c => c.id));
+}
+
+// Every page about to render a list of posts needs all three of the
+// above ("did I bookmark/repost this", "which communities do I own")
+// before it can render action buttons in the right state. They're
+// fully independent fetches, so running them one after another (the
+// old pattern at every call site) means paying for three network
+// round-trips back to back. Promise.all runs them concurrently instead
+// — same three fetches, same end state, just not serialized.
+async function ensureFeedPrereqsLoaded() {
+  await Promise.all([ensureBookmarksLoaded(), ensureRepostsLoaded(), ensureOwnedCommunitiesLoaded()]);
 }
 
 // Every post rendered as a card is stashed here by id, so the Quote
@@ -1210,7 +1221,7 @@ document.addEventListener('click', (e) => {
 function pcAvatarHtml(profile, sizeClass = '') {
   const uname = profile?.username || 'unknown';
   return `<a class="pc-avatar-lnk" href="${profileUrl(uname)}">` +
-         `<img class="avatar pc-avatar ${sizeClass}" src="${esc(avatarUrl(profile?.avatar_url))}" alt=""></a>`;
+         `<img class="avatar pc-avatar ${sizeClass}" src="${esc(avatarUrl(profile?.avatar_url))}" alt="" loading="lazy" decoding="async"></a>`;
 }
 function pcNameHtml(profile) {
   const uname = profile?.username || 'unknown';
@@ -2083,7 +2094,7 @@ function avatarUrl(url) {
 function authorHtml(profile) {
   const uname = profile?.username || 'unknown';
   return `<a class="pfl" href="${profileUrl(uname)}">` +
-         `<img class="avatar pfp-sm" src="${esc(avatarUrl(profile?.avatar_url))}" alt="">` +
+         `<img class="avatar pfp-sm" src="${esc(avatarUrl(profile?.avatar_url))}" alt="" loading="lazy" decoding="async">` +
          `${esc(profile?.display_name || uname)}</a>`;
 }
 
@@ -3066,7 +3077,7 @@ function userRowHtml(profile) {
   const uname = profile?.username || 'unknown';
   return `
   <a class="ulrow" href="${profileUrl(uname)}">
-    <img class="avatar pfp-md" src="${esc(avatarUrl(profile?.avatar_url))}" alt="">
+    <img class="avatar pfp-md" src="${esc(avatarUrl(profile?.avatar_url))}" alt="" loading="lazy" decoding="async">
     <div class="ulrow-txt">
       <span class="ulrow-name">${esc(profile?.display_name || uname)}</span>
       <span class="ulrow-handle">@${esc(uname)}</span>

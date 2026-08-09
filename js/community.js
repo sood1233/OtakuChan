@@ -158,9 +158,7 @@ function switchCommunityTab(tab) {
 async function loadCommunityFeed() {
   const feedEl = document.getElementById('feed-posts');
   feedEl.innerHTML = skeletonFeedHtml();
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false).eq('community_id', community.id);
   query = communityTab === 'trending'

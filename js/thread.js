@@ -42,9 +42,7 @@ async function loadThread() {
   if (!postId) { wrap.innerHTML = `<div class="errmsg">No post specified.</div>`; return; }
   wrap.innerHTML = skeletonThreadHtml();
 
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
   const { data: p, error } = await sb.from('posts').select(POST_SELECT).eq('id', postId).eq('is_deleted', false).single();
   if (error || !p) {
     wrap.innerHTML = `<div class="errmsg">Post not found or has been removed.</div>`;

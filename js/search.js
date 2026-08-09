@@ -49,9 +49,7 @@ async function runSearch() {
 }
 
 async function searchPosts(root) {
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('is_deleted', false)
     .ilike('body', `%${searchQuery}%`)
@@ -74,7 +72,7 @@ async function searchPeople(root) {
   if (!data.length) { root.innerHTML = `<div id="feed-empty">No users found for &ldquo;${esc(searchQuery)}&rdquo;.</div>`; return; }
   root.innerHTML = data.map(profile => `
     <a class="ulrow" style="padding:12px 16px;border-bottom:1px solid var(--line);border-radius:0;" href="${profileUrl(profile.username)}">
-      <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="">
+      <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="" loading="lazy" decoding="async">
       <div class="ulrow-txt">
         <span class="ulrow-name">${esc(profile.display_name || profile.username)}</span>
         <span class="ulrow-handle">@${esc(profile.username)}</span>
@@ -169,7 +167,7 @@ function explorePostHtml(p) {
     <a class="expl-post" href="${postUrl(p)}">
       <div class="expl-post-title">${esc(title)}</div>
       <div class="expl-post-meta">
-        <img class="avatar" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="">
+        <img class="avatar" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="" loading="lazy" decoding="async">
         <span>${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</span>
         <span class="dot"></span>
         <span>${timeAgo(p.created_at)}</span>
@@ -231,9 +229,7 @@ async function renderCategoryTab(root, category) {
     root.innerHTML = `<div id="feed-empty">No ${esc(category)} communities yet — <a href="communities.html">start one</a>?</div>`;
     return;
   }
-  await ensureBookmarksLoaded();
-  await ensureRepostsLoaded();
-  await ensureOwnedCommunitiesLoaded();
+  await ensureFeedPrereqsLoaded();
   const { data, error } = await sb.from('posts').select(POST_SELECT)
     .eq('is_deleted', false)
     .in('community_id', ids)
