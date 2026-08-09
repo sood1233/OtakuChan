@@ -865,28 +865,86 @@ function postMenuHtml(postId, replyId = null, authorId = null) {
     </div>`;
 }
 
+// ─────────────────────────────────────────────────────────────
+// DELETE CONFIRMATION MODAL — tapping "Delete" in a post's "···"
+// menu no longer fires the browser's plain confirm() popup; it opens
+// this modal instead (same lazy-build-into-<body> pattern as
+// gcModalEl()/gifModalEl(), so it works from any page with no
+// per-page HTML needed). Matches the real "delete post?" dialog
+// pattern: a clear warning, a filled red destructive action on top,
+// a plain Cancel underneath — destructive action is never the
+// visually-quiet option.
+// ─────────────────────────────────────────────────────────────
+let pendingDeletePostId = null;
+
+function dcModalEl() {
+  let el = document.getElementById('dc-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'dc-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeDeleteConfirm(); });
+  el.innerHTML = `
+    <div class="modal dc-modal">
+      <h2 class="dc-title">Delete post?</h2>
+      <p class="dc-desc">This can't be undone. It will be removed from your profile, the timeline of anyone who follows you, and search results.</p>
+      <div class="dc-actions">
+        <button type="button" class="dc-btn dc-btn-delete" id="dc-confirm-btn" onclick="confirmDeletePost()">Delete</button>
+        <button type="button" class="dc-btn dc-btn-cancel" onclick="closeDeleteConfirm()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeDeleteConfirm();
+  });
+  return el;
+}
+
 // Soft-deletes one of the current user's own posts (sets is_deleted =
-// true; RLS already lets an author update their own post — see
-// "users can edit own posts" in schema.sql — so no new policy is
-// needed for this). Removes the card from whichever page it's on —
-// using data-post-id + querySelectorAll rather than the (non-unique,
-// once reposts can duplicate a post onto the same page) "post-<id>"
-// element id, so every copy of the post disappears, not just the
-// first one found. On thread.html, where the post is the whole page,
-// sends the user back to the board instead.
-async function deletePost(postId, ev) {
+// true; RLS lets an author update their own post — see "users can
+// edit own posts" in schema.sql / supabase/fix_delete_policy.sql —
+// so no new policy is needed for this). Opens the confirmation modal
+// above instead of deleting immediately.
+function deletePost(postId, ev) {
   if (ev) { ev.stopPropagation(); togglePostMenu(postId, ev); }
   if (!requireLogin()) return;
-  if (!confirm('Delete this post? This can\'t be undone.')) return;
+  pendingDeletePostId = postId;
+  const el = dcModalEl();
+  el.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDeleteConfirm() {
+  document.getElementById('dc-modal-bg')?.classList.remove('open');
+  document.body.style.overflow = '';
+  pendingDeletePostId = null;
+}
+
+// Does the actual delete, called by the modal's red "Delete" button.
+// Removes the card from whichever page it's on — using data-post-id +
+// querySelectorAll rather than the (non-unique, once reposts can
+// duplicate a post onto the same page) "post-<id>" element id, so
+// every copy of the post disappears, not just the first one found.
+// On thread.html, where the post is the whole page, sends the user
+// back to the board instead.
+async function confirmDeletePost() {
+  const postId = pendingDeletePostId;
+  if (!postId || !requireLogin()) return;
+  const btn = document.getElementById('dc-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   try {
     // Deliberately no .select() here: once is_deleted flips to true the
     // row stops matching the "read non-deleted posts" RLS policy, so a
     // RETURNING clause would come back empty even on a successful
     // delete and make this look like it failed. An empty error is the
-    // correct success signal for this particular update.
-    const { error } = await sb.from('posts').update({ is_deleted: true })
-      .eq('id', postId).eq('author_id', currentSession.user.id);
+    // correct success signal for this particular update. Filtering by
+    // id alone and letting RLS enforce ownership (rather than also
+    // adding .eq('author_id', ...) client-side) means a stale/refreshed
+    // session can never turn a real ownership match into a spurious
+    // RLS error here.
+    const { error } = await sb.from('posts').update({ is_deleted: true }).eq('id', postId);
     if (error) throw error;
+    closeDeleteConfirm();
     if (document.getElementById('op-post') && postId === (new URLSearchParams(location.search)).get('id')) {
       location.href = 'index.html';
       return;
@@ -899,7 +957,10 @@ async function deletePost(postId, ev) {
     // safe to decrement when it's present.
     if (typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
   } catch (e) {
+    closeDeleteConfirm();
     alert(e.message || 'Could not delete that post.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
   }
 }
 

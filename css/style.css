@@ -724,6 +724,18 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .modal-close { position:absolute; top:12px; right:14px; cursor:pointer; font-size:16px; color:var(--muted); text-decoration:none; line-height:1; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
 .modal-close:hover { background:var(--hover-bg); color:var(--ink); }
 
+/* ── delete-post confirmation modal ── */
+.dc-modal { width:300px; padding:20px 20px 16px; text-align:center; }
+.dc-title { font-size:17px; font-weight:800; color:var(--ink); margin:4px 0 8px; }
+.dc-desc { font-size:14px; line-height:1.4; color:var(--muted); margin:0 0 18px; }
+.dc-actions { display:flex; flex-direction:column; gap:10px; }
+.dc-btn { width:100%; padding:11px 14px; border-radius:999px; font-size:15px; font-weight:800; cursor:pointer; border:1px solid transparent; transition:background .12s ease, opacity .12s ease; }
+.dc-btn-delete { background:var(--like); color:#fff; }
+.dc-btn-delete:hover { background:#E11D48; }
+.dc-btn-delete:disabled { opacity:.6; cursor:default; }
+.dc-btn-cancel { background:transparent; color:var(--ink); border-color:var(--div); }
+.dc-btn-cancel:hover { background:var(--hover-bg); }
+
 #ftr { border-top:none; text-align:left; font-size:13px; color:var(--muted); padding:16px; margin-top:0; }
 #ftr a { font-size:13px; font-weight:700; color:var(--maroon); }
 
