@@ -2005,6 +2005,18 @@ function pinBannerHtml(pinned) {
   return `<div class="repost-banner">${ICON_PIN}<span>Pinned</span></div>`;
 }
 
+// "Scheduled for ..." tag — only ever shown to the post's own author,
+// since RLS is what's actually stopping anyone else from seeing the
+// row at all before scheduled_at passes. This just makes it visually
+// obvious (rather than looking like a normal live post) on the rare
+// screens where an author can legitimately see their own pre-publish
+// post directly, e.g. its own thread URL.
+const ICON_CLOCK_SM = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3.5 2"/></svg>';
+function scheduledBannerHtml(scheduledAt) {
+  if (!scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) return '';
+  return `<div class="repost-banner">${ICON_CLOCK_SM}<span>Scheduled for ${esc(new Date(scheduledAt).toLocaleString())}</span></div>`;
+}
+
 // Full tweet-style post card — used by the main feed and profile page.
 // The whole card is clickable (opens the post's comments), matching
 // Twitter — but clicks on an actual link/button/menu inside it are
@@ -2044,6 +2056,7 @@ function postCardHtml(p, flash = false) {
   <div class="pc${flash ? ' flash' : ''}" id="post-${p.id}" data-post-id="${p.id}" data-view="post:${p.id}" onclick="cardClick(event, '${p.id}', ${p.profile?.username ? `'${u_(p.profile.username)}'` : 'null'})" onpointerover="prefetchHref('${postUrl(p)}')" ontouchstart="prefetchHref('${postUrl(p)}')">
     ${repostBannerHtml(p._repostedBy)}
     ${pinBannerHtml(p._pinned)}
+    ${scheduledBannerHtml(p.scheduled_at)}
     <div class="pc-row">
       ${pcAvatarHtml(p.profile)}
       <div class="pc-main">

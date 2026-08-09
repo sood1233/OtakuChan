@@ -77,6 +77,15 @@ create table if not exists public.posts (
 
 -- Safe on a pre-existing table too.
 alter table public.posts add column if not exists view_count integer not null default 0;
+-- BUGFIX: this column and its RLS gate below used to live only in
+-- supabase/gifs_polls_scheduling.sql. Re-running this schema.sql file
+-- after that one silently reverted the "read non-deleted posts"
+-- policy back to a version with no scheduled_at check at all — which
+-- made every scheduled post publicly visible immediately, defeating
+-- scheduling entirely. Declaring it here too means that can't happen
+-- again no matter what order the files get run in.
+alter table public.posts add column if not exists scheduled_at timestamptz;
+create index if not exists posts_scheduled_at_idx on public.posts (scheduled_at);
 
 create table if not exists public.replies (
   id           uuid primary key default gen_random_uuid(),
@@ -305,7 +314,10 @@ create policy "users can update own profile" on public.profiles
 -- posts
 drop policy if exists "read non-deleted posts" on public.posts;
 create policy "read non-deleted posts" on public.posts
-  for select using (is_deleted = false);
+  for select using (
+    is_deleted = false
+    and (scheduled_at is null or scheduled_at <= now() or author_id = auth.uid())
+  );
 
 drop policy if exists "logged in users can post" on public.posts;
 create policy "logged in users can post" on public.posts

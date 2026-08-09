@@ -84,7 +84,11 @@ async function loadFeed() {
   }
 
   const { data, error } = combined ? { data: combined, error: null }
-    : await query.order('created_at', { ascending: false }).limit(100);
+    : await sb.rpc('get_for_you_feed', {
+        viewer: currentSession?.user?.id || null,
+        limit_n: 100,
+        offset_n: 0
+      }).select(POST_SELECT);
 
   if (error) {
     feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(error.message)}</div>`;
@@ -276,6 +280,12 @@ function subscribeRealtime() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async payload => {
       const p = payload.new;
       if (p.is_deleted) return;
+      // BUGFIX: Realtime's postgres_changes broadcast goes out to every
+      // subscribed client the instant a row is inserted, regardless of
+      // RLS — so without this check, a post scheduled for later would
+      // still pop up as a "Show 1 post" pill for everyone right away,
+      // fully readable once clicked, well before its scheduled time.
+      if (p.scheduled_at && new Date(p.scheduled_at).getTime() > Date.now()) return;
       if (document.getElementById(`post-${p.id}`)) return;
       if (activeTab !== 'foryou') return;
       p.profile = await getProfile(p.author_id);

@@ -81,6 +81,7 @@ async function loadProfile() {
       <div class="xtabs">
         <button class="xtab active" id="ptab-posts" onclick="switchProfileTab('posts');return false;">Posts</button>
         <button class="xtab" id="ptab-replies" onclick="switchProfileTab('replies');return false;">Replies</button>
+        ${isOwnProfile ? `<button class="xtab" id="ptab-scheduled" onclick="switchProfileTab('scheduled');return false;">Scheduled</button>` : ''}
       </div>
     </div>
     <div id="profile-posts">${skeletonFeedHtml(3)}</div>
@@ -251,19 +252,91 @@ async function loadFollowedBy(profileId) {
 let profileTab = 'posts';
 let postsHtmlCache = null;
 let repliesHtmlCache = null;
+let scheduledHtmlCache = null;
 
 function switchProfileTab(tab) {
   if (tab === profileTab) return;
   profileTab = tab;
   document.getElementById('ptab-posts').classList.toggle('active', tab === 'posts');
   document.getElementById('ptab-replies').classList.toggle('active', tab === 'replies');
+  document.getElementById('ptab-scheduled')?.classList.toggle('active', tab === 'scheduled');
   const el = document.getElementById('profile-posts');
   if (tab === 'posts') {
     if (postsHtmlCache !== null) el.innerHTML = postsHtmlCache;
     else loadUserPosts(viewedProfile.id);
-  } else {
+  } else if (tab === 'replies') {
     if (repliesHtmlCache !== null) el.innerHTML = repliesHtmlCache;
     else loadUserReplies(viewedProfile.id);
+  } else {
+    // Always refetch scheduled posts (never cached) — they can flip
+    // over to "published" or get cancelled from this same screen, so
+    // a stale cache would show wrong state the next time you tab back.
+    loadScheduledPosts(viewedProfile.id);
+  }
+}
+
+// ── SCHEDULED POSTS — own-profile-only tab. A scheduled post is a
+// normal posts row with scheduled_at in the future; RLS lets its
+// author read it early (see supabase/gifs_polls_scheduling.sql), but
+// it's deliberately excluded from loadUserPosts()'s normal timeline
+// query below so it doesn't look like it silently posted already.
+// This tab is the only place you can see and manage it before then.
+async function loadScheduledPosts(userId) {
+  const el = document.getElementById('profile-posts');
+  el.innerHTML = `<span class="spinner">Loading scheduled posts&hellip;</span>`;
+
+  const { data, error } = await sb.from('posts').select(POST_SELECT)
+    .eq('author_id', userId).eq('is_deleted', false)
+    .gt('scheduled_at', new Date().toISOString())
+    .order('scheduled_at', { ascending: true }).limit(50);
+
+  if (error) {
+    el.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`;
+    return;
+  }
+  if (!data.length) {
+    el.innerHTML = `<div class="empty-note">Nothing scheduled. Posts you schedule for later show up here until they go live.</div>`;
+    return;
+  }
+
+  el.innerHTML = data.map(p => `
+    <div class="sched-item" id="sched-${p.id}">
+      <div class="sched-item-when">Scheduled for ${new Date(p.scheduled_at).toLocaleString()}</div>
+      <div class="sched-item-body">${esc(p.body)}</div>
+      <div class="sched-item-actions">
+        <button class="cx-poll-add" onclick="postScheduledNow('${p.id}')">Post now</button>
+        <button class="cx-sched-remove-btn" onclick="cancelScheduledPost('${p.id}')">Cancel</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Clears scheduled_at so the post publishes immediately (it's already
+// a normal row — RLS's public read policy just starts matching it the
+// instant scheduled_at is null or in the past).
+async function postScheduledNow(postId) {
+  try {
+    const { error } = await sb.from('posts').update({ scheduled_at: null }).eq('id', postId);
+    if (error) throw error;
+    toast('Posted.', 'success');
+    postsHtmlCache = null; // next visit to Posts should include it
+    loadScheduledPosts(viewedProfile.id);
+  } catch (e) {
+    toast(e.message || 'Could not post it now.', 'error');
+  }
+}
+
+// Deletes a scheduled post outright (same as canceling — it never
+// went live, so there's nothing to "unpublish", just remove the row).
+async function cancelScheduledPost(postId) {
+  if (!confirm('Cancel this scheduled post? This can\'t be undone.')) return;
+  try {
+    const { error } = await sb.from('posts').update({ is_deleted: true }).eq('id', postId);
+    if (error) throw error;
+    document.getElementById(`sched-${postId}`)?.remove();
+    toast('Scheduled post cancelled.', 'success');
+  } catch (e) {
+    toast(e.message || 'Could not cancel it.', 'error');
   }
 }
 
@@ -413,9 +486,17 @@ async function loadUserPosts(userId) {
   const el = document.getElementById('profile-posts');
   await ensureFeedPrereqsLoaded();
 
+  const nowIso = new Date().toISOString();
   const [ownRes, repostRowsRes] = await Promise.all([
     sb.from('posts').select(POST_SELECT)
       .eq('author_id', userId).eq('is_deleted', false)
+      // Exclude posts scheduled for the future — RLS lets the author
+      // read their own scheduled rows early (so the Scheduled tab
+      // above can show them), but that means without this filter a
+      // scheduled post would show up on your own profile immediately,
+      // looking exactly like it already went live. Everyone else
+      // never sees it here at all; RLS blocks it for them outright.
+      .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso}`)
       .order('created_at', { ascending: false }).limit(50),
     sb.from('reposts').select('post_id, created_at')
       .eq('user_id', userId)
