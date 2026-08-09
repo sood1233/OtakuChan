@@ -305,8 +305,8 @@ function renderSideNav() {
   };
   const morePage = here === 'settings' || here === 'rules';
   const postBtn = currentSession
-    ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">Post</button>`
-    : `<a class="sidebar-post-btn" href="signup.html">Post</a>`;
+    ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>Post</span></button>`
+    : `<a class="sidebar-post-btn" href="signup.html">${ICON_COMPOSE}<span>Post</span></a>`;
   el.innerHTML =
     item('/home', NAV_ICON.home, 'Home', 'home') +
     item('/search', NAV_ICON.search, 'Explore', 'search') +
@@ -337,6 +337,7 @@ function toggleMoreMenu() { document.getElementById('more-wrap')?.classList.togg
 // auth.js alongside renderSideNav() any time session/profile/unread
 // state changes, so the avatar, counts, and badge never go stale. ──
 const PLUS_ICON = '<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>';
+const ICON_COMPOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
 function mchrome() {
   let el = document.getElementById('m-chrome');
@@ -2271,6 +2272,16 @@ if ('MutationObserver' in window) {
 }
 
 // ── FOLLOW / UNFOLLOW ──
+// @marpe is auto-followed on signup and can't be unfollowed (enforced
+// both here in the UI and, as the real guardrail, by the "users can
+// unfollow" RLS policy in supabase/pin_follow_marpe.sql). Keep this
+// username check in one place so every follow button agrees.
+const PROTECTED_FOLLOW_USERNAME = 'marpe';
+function isProtectedFollowUsername(username) {
+  return !!username && username.toLowerCase() === PROTECTED_FOLLOW_USERNAME;
+}
+const ICON_LOCK_SM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;margin-right:4px;vertical-align:-1px;"><rect x="5.5" y="10.5" width="13" height="9" rx="1.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
+
 async function isFollowing(followeeId) {
   if (!currentSession) return false;
   const { data } = await sb.from('follows').select('follower_id')

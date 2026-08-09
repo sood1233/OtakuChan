@@ -351,12 +351,20 @@ let followBusy = false;
 function setFollowBtnState(following) {
   const btn = document.getElementById('follow-btn');
   if (!btn) return;
+  if (isProtectedFollowUsername(viewedProfile?.username)) {
+    btn.innerHTML = `${ICON_LOCK_SM}Following`;
+    btn.classList.add('following', 'locked');
+    btn.disabled = true;
+    btn.title = "You can't unfollow this account.";
+    return;
+  }
   btn.textContent = following ? 'Following' : 'Follow';
   btn.classList.toggle('following', following);
 }
 
 async function toggleFollow() {
   if (!requireLogin() || followBusy || !viewedProfile) return;
+  if (isProtectedFollowUsername(viewedProfile.username)) return;
   const btn = document.getElementById('follow-btn');
   const following = btn.classList.contains('following');
   followBusy = true;

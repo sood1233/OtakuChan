@@ -32,6 +32,10 @@ function flRowHtml(profile, viewerId) {
   const uname = profile?.username || 'unknown';
   const showBtn = currentSession && profile.id !== viewerId;
   const following = flMyFollowing.has(profile.id);
+  const locked = showBtn && following && isProtectedFollowUsername(uname);
+  const btnHtml = locked
+    ? `<button class="follow-btn following locked" disabled title="You can't unfollow this account.">${ICON_LOCK_SM}Following</button>`
+    : `<button class="follow-btn${following ? ' following' : ''}" onclick="flToggleFollow('${profile.id}', this)">${following ? 'Following' : 'Follow'}</button>`;
   return `
   <div class="fl-row">
     <a class="ulrow" style="flex:1;min-width:0;" href="${profileUrl(uname)}">
@@ -41,7 +45,7 @@ function flRowHtml(profile, viewerId) {
         <span class="ulrow-handle">@${esc(uname)}</span>
       </div>
     </a>
-    ${showBtn ? `<button class="follow-btn${following ? ' following' : ''}" onclick="flToggleFollow('${profile.id}', this)">${following ? 'Following' : 'Follow'}</button>` : ''}
+    ${showBtn ? btnHtml : ''}
   </div>`;
 }
 
