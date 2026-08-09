@@ -155,7 +155,7 @@ function opBlockHtml(p) {
       </div>
       <div class="op-detail-body">${renderBody(p.body)}</div>
       ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
-      ${renderMedia(p.media_url, p.media_type)}
+      ${renderMedia(p.media_url, p.media_type, '', p)}
       ${pollHtml(p)}
       <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
       <div class="op-detail-divider"></div>
@@ -182,7 +182,7 @@ function ancestorRowHtml(r) {
       <div class="pc-main">
         <div class="ph">${pcNameHtml(r.profile)}<span class="dt">${timeAgo(r.created_at)}</span></div>
         <div class="pb">${renderBody(r.body)}</div>
-        ${renderMedia(r.media_url, r.media_type)}
+        ${renderMedia(r.media_url, r.media_type, '', r)}
       </div>
     </div>
   </div>`;
@@ -242,7 +242,7 @@ function renderConversation() {
         ${postMenuHtml(postId, focused.id, focused.author_id)}
       </div>
       <div class="op-detail-body">${renderBody(focused.body)}</div>
-      ${renderMedia(focused.media_url, focused.media_type)}
+      ${renderMedia(focused.media_url, focused.media_type, '', focused)}
       <div class="op-detail-meta">${fullDateTime(focused.created_at)}</div>
       <div class="op-detail-divider"></div>
       ${postActionsHtml(focused, {
@@ -332,7 +332,7 @@ function replyHtml(r, depth) {
           ${postMenuHtml(postId, r.id, r.author_id)}
         </div>
         <div class="pb">${renderBody(r.body)}</div>
-        ${renderMedia(r.media_url, r.media_type)}
+        ${renderMedia(r.media_url, r.media_type, '', r)}
         ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false, repostable: false })}
       </div>
     </div>

@@ -858,7 +858,7 @@ function quotedPostHtml(qp) {
   <div class="qp-embed" onclick="event.stopPropagation();location.href='${postUrl(qp)}'">
     <div class="ph">${pcNameHtml(qp.profile)}<span class="dt">${timeAgo(qp.created_at)}</span></div>
     <div class="pb">${renderBody((qp.body || '').slice(0, 280))}</div>
-    ${renderMedia(qp.media_url, qp.media_type)}
+    ${renderMedia(qp.media_url, qp.media_type, '', qp)}
   </div>`;
 }
 
@@ -1263,7 +1263,7 @@ function postCardHtml(p, flash = false) {
         </div>
         <div class="pb">${renderBody(p.body)}</div>
         ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
-        ${renderMedia(p.media_url, p.media_type)}
+        ${renderMedia(p.media_url, p.media_type, '', p)}
         ${pollHtml(p)}
         ${postActionsHtml(p)}
       </div>
@@ -1542,12 +1542,272 @@ async function uploadMedia(file) {
   return { media_url: data.publicUrl, media_type: type };
 }
 
-function renderMedia(url, type, extraClass = '') {
+// `owner` is the full post/reply row this media belongs to (already
+// carries its own .profile join) — stashed in _mediaRegistry so the
+// lightbox can build its post-detail side panel / mobile action bar
+// without a refetch. Passing null still opens the lightbox, just
+// without that panel (e.g. contexts that don't have the full row).
+function renderMedia(url, type, extraClass = '', owner = null) {
   if (!url) return '';
+  const idx = registerLbMedia(url, type, owner);
   if (type === 'video') {
-    return `<div class="pm"><video src="${esc(url)}" controls preload="metadata"></video></div>`;
+    return `<div class="pm"><video src="${esc(url)}" controls preload="metadata" onclick="lbVideoClick(event, ${idx})"></video></div>`;
   }
-  return `<div class="pm"><img src="${esc(url)}" class="${extraClass}" onclick="this.classList.toggle('exp')" loading="lazy"></div>`;
+  return `<div class="pm"><img src="${esc(url)}" class="${extraClass}" onclick="openLightbox(${idx})" loading="lazy"></div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// MEDIA LIGHTBOX — full-screen photo/video viewer opened by
+// clicking any post's media, matching X's "click a photo" modal:
+// desktop docks the media next to a post-detail side panel, mobile
+// goes edge-to-edge with a slim bottom action bar. Both images and
+// videos support scroll-wheel/pinch/double-click zoom and
+// drag-to-pan once zoomed in.
+// ─────────────────────────────────────────────────────────────
+const _lbRegistry = [];
+function registerLbMedia(url, type, owner) {
+  _lbRegistry.push({ url, type, owner });
+  return _lbRegistry.length - 1;
+}
+
+// Videos keep their native <video controls> — clicking the bottom
+// ~44px (the native control bar) plays/seeks as normal; clicking
+// anywhere else on the video opens the lightbox, same as a photo.
+function lbVideoClick(ev, idx) {
+  const rect = ev.currentTarget.getBoundingClientRect();
+  if (ev.clientY > rect.bottom - 44) return;
+  openLightbox(idx);
+}
+
+const lbState = { scale: 1, x: 0, y: 0, dragging: false, dragStartX: 0, dragStartY: 0, dragOrigX: 0, dragOrigY: 0, pointers: new Map(), pinchDist: 0 };
+let lbGesturesWired = false;
+
+function lbEl() {
+  let el = document.getElementById('lb-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'lb-bg';
+  el.className = 'lb-bg';
+  el.innerHTML = `
+    <div class="lb-topbar">
+      <button type="button" class="lb-icon-btn lb-close" onclick="closeLightbox()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+      <button type="button" class="lb-icon-btn lb-panel-toggle" id="lb-panel-toggle" onclick="toggleLbPanel()" aria-label="Toggle post details">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+    </div>
+    <div class="lb-body">
+      <div class="lb-stage" id="lb-stage">
+        <div class="lb-media-wrap" id="lb-media-wrap"></div>
+      </div>
+      <aside class="lb-sidebar" id="lb-sidebar"></aside>
+    </div>
+    <div class="lb-mobile-bar" id="lb-mobile-bar"></div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { if (e.target === el || e.target.id === 'lb-stage') closeLightbox(); });
+  wireLightboxGestures();
+  return el;
+}
+
+function openLightbox(idx) {
+  const item = _lbRegistry[idx];
+  if (!item || !item.url) return;
+  const el = lbEl();
+  el.classList.remove('panel-collapsed');
+  lbResetZoomState();
+  const wrap = document.getElementById('lb-media-wrap');
+  wrap.innerHTML = item.type === 'video'
+    ? `<video src="${esc(item.url)}" controls autoplay playsinline></video>`
+    : `<img src="${esc(item.url)}" alt="">`;
+  renderLbSidebar(item.owner);
+  renderLbMobileBar(item.owner);
+  el.classList.add('open');
+  lockScroll();
+  document.addEventListener('keydown', lbKeyHandler);
+}
+
+function closeLightbox() {
+  const el = document.getElementById('lb-bg');
+  if (!el || !el.classList.contains('open')) return;
+  document.getElementById('lb-media-wrap')?.querySelector('video')?.pause();
+  el.classList.remove('open');
+  unlockScroll();
+  document.removeEventListener('keydown', lbKeyHandler);
+  setTimeout(() => { document.getElementById('lb-media-wrap').innerHTML = ''; }, 0);
+}
+
+function toggleLbPanel() {
+  document.getElementById('lb-bg')?.classList.toggle('panel-collapsed');
+}
+
+function lbKeyHandler(e) {
+  if (e.key === 'Escape') closeLightbox();
+  else if (e.key === '+' || e.key === '=') lbSetZoom(lbState.scale * 1.25, innerWidth / 2, innerHeight / 2);
+  else if (e.key === '-') lbSetZoom(lbState.scale * 0.8, innerWidth / 2, innerHeight / 2);
+  else if (e.key === '0') lbResetZoomState();
+}
+
+// A reply row carries post_id (which post it's replying under); a
+// top-level post never does — same test thread.js relies on elsewhere.
+function lbIsReply(owner) { return !!owner?.post_id; }
+
+// Reply permalinks are "<post>#reply-<id>" (no dedicated URL of their
+// own), and we may not know the OP's username from the reply row
+// alone — postUrlById() falls back to the generic /i/status/ form,
+// same one thread.js upgrades to the canonical address once loaded.
+function lbOwnerHref(owner) {
+  if (!owner) return '#';
+  return lbIsReply(owner) ? `${postUrlById(owner.post_id)}#reply-${u_(owner.id)}` : postUrl(owner);
+}
+
+// Post-detail side panel (desktop) — a trimmed-down echo of thread.js's
+// opBlockHtml(): same header/body/meta/action-row markup and CSS
+// classes so it looks native to the app, minus the media (already
+// filling the stage) and the reply thread (this is a quick preview,
+// not the full conversation — "View full conversation" links out to it).
+function renderLbSidebar(owner) {
+  const sidebar = document.getElementById('lb-sidebar');
+  const toggleBtn = document.getElementById('lb-panel-toggle');
+  if (!sidebar) return;
+  if (!owner) {
+    sidebar.innerHTML = '';
+    sidebar.hidden = true;
+    if (toggleBtn) toggleBtn.hidden = true;
+    return;
+  }
+  sidebar.hidden = false;
+  if (toggleBtn) toggleBtn.hidden = false;
+  const isReply = lbIsReply(owner);
+  const href = lbOwnerHref(owner);
+  const uname = owner.profile?.username || 'unknown';
+  const actions = isReply
+    ? postActionsHtml(owner, { replyOnclick: `location.href='${href}'`, bookmarkable: false, repostable: false })
+    : opDetailActionsHtml(owner, `location.href='${href}'`);
+  sidebar.innerHTML = `
+    <div class="lb-sb-head">
+      ${pcAvatarHtml(owner.profile)}
+      <div class="op-detail-names">
+        <a class="nm" href="${profileUrl(uname)}">${esc(owner.profile?.display_name || uname)}</a>
+        <span class="pc-handle">@${esc(uname)}</span>
+      </div>
+      ${postMenuHtml(isReply ? owner.post_id : owner.id, isReply ? owner.id : null, owner.author_id)}
+    </div>
+    <div class="op-detail-body">${renderBody(owner.body || '')}</div>
+    <div class="op-detail-meta">${fullDateTime(owner.created_at)} &middot; <b>${fmtCount(owner.view_count)}</b> Views</div>
+    <div class="op-detail-divider"></div>
+    ${actions}
+    <div class="op-detail-divider"></div>
+    <a class="lb-sb-replybox" href="${href}">
+      <img class="avatar pfp-sm" src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">
+      <span>Post your reply</span>
+    </a>
+    <a class="lb-sb-viewall" href="${href}">View full conversation &rsaquo;</a>`;
+}
+
+// Slim overlay action row for mobile — same compact .acts markup/
+// classes the feed cards use (so like/repost/bookmark/share all
+// actually work here too), just recolored for a dark background.
+function renderLbMobileBar(owner) {
+  const bar = document.getElementById('lb-mobile-bar');
+  if (!bar) return;
+  if (!owner) { bar.innerHTML = ''; bar.hidden = true; return; }
+  bar.hidden = false;
+  const isReply = lbIsReply(owner);
+  bar.innerHTML = postActionsHtml(owner, { replyHref: lbOwnerHref(owner), bookmarkable: !isReply, repostable: !isReply });
+}
+
+// ── ZOOM / PAN ──
+function lbApplyTransform() {
+  const wrap = document.getElementById('lb-media-wrap');
+  if (wrap) wrap.style.transform = `translate(${lbState.x}px,${lbState.y}px) scale(${lbState.scale})`;
+}
+function lbResetZoomState() {
+  lbState.scale = 1; lbState.x = 0; lbState.y = 0;
+  lbState.dragging = false; lbState.pointers.clear(); lbState.pinchDist = 0;
+  lbApplyTransform();
+  document.getElementById('lb-media-wrap')?.classList.remove('dragging');
+}
+function lbSetZoom(newScale, cx, cy) {
+  const stage = document.getElementById('lb-stage');
+  if (!stage) return;
+  newScale = Math.min(4, Math.max(1, newScale));
+  const rect = stage.getBoundingClientRect();
+  const originX = cx - (rect.left + rect.width / 2);
+  const originY = cy - (rect.top + rect.height / 2);
+  const k = newScale / lbState.scale;
+  lbState.x = originX - (originX - lbState.x) * k;
+  lbState.y = originY - (originY - lbState.y) * k;
+  lbState.scale = newScale;
+  if (lbState.scale <= 1.001) { lbState.scale = 1; lbState.x = 0; lbState.y = 0; }
+  lbApplyTransform();
+}
+
+// Wired once (the stage/wrap elements are built once by lbEl() and
+// reused for every open — only the media inside lb-media-wrap is
+// swapped per-open), covering: wheel-to-zoom, double-click-to-zoom,
+// and pointer-based pan + pinch-zoom (one pointer pans once zoomed
+// in, two pointers pinch-zoom from any zoom level, mouse or touch).
+function wireLightboxGestures() {
+  if (lbGesturesWired) return;
+  lbGesturesWired = true;
+  const stage = document.getElementById('lb-stage');
+  const wrap = document.getElementById('lb-media-wrap');
+  if (!stage || !wrap) return;
+
+  stage.addEventListener('wheel', e => {
+    if (!e.target.closest('img,video')) return;
+    e.preventDefault();
+    lbSetZoom(lbState.scale * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+  }, { passive: false });
+
+  stage.addEventListener('dblclick', e => {
+    if (!e.target.closest('img,video')) return;
+    if (lbState.scale > 1) lbResetZoomState();
+    else lbSetZoom(2.5, e.clientX, e.clientY);
+  });
+
+  wrap.addEventListener('pointerdown', e => {
+    if (!e.target.closest('img,video')) return;
+    lbState.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { wrap.setPointerCapture(e.pointerId); } catch {}
+    if (lbState.pointers.size === 2) {
+      lbState.dragging = false;
+      wrap.classList.remove('dragging');
+      const pts = [...lbState.pointers.values()];
+      lbState.pinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    } else if (lbState.scale > 1) {
+      lbState.dragging = true;
+      lbState.dragStartX = e.clientX; lbState.dragStartY = e.clientY;
+      lbState.dragOrigX = lbState.x; lbState.dragOrigY = lbState.y;
+      wrap.classList.add('dragging');
+    }
+  });
+
+  wrap.addEventListener('pointermove', e => {
+    if (!lbState.pointers.has(e.pointerId)) return;
+    lbState.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (lbState.pointers.size === 2) {
+      const pts = [...lbState.pointers.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const cx = (pts[0].x + pts[1].x) / 2, cy = (pts[0].y + pts[1].y) / 2;
+      if (lbState.pinchDist) lbSetZoom(lbState.scale * (dist / lbState.pinchDist), cx, cy);
+      lbState.pinchDist = dist;
+    } else if (lbState.dragging) {
+      lbState.x = lbState.dragOrigX + (e.clientX - lbState.dragStartX);
+      lbState.y = lbState.dragOrigY + (e.clientY - lbState.dragStartY);
+      lbApplyTransform();
+    }
+  });
+
+  function releasePointer(e) {
+    lbState.pointers.delete(e.pointerId);
+    if (lbState.pointers.size < 2) lbState.pinchDist = 0;
+    if (lbState.pointers.size === 0) { lbState.dragging = false; wrap.classList.remove('dragging'); }
+  }
+  wrap.addEventListener('pointerup', releasePointer);
+  wrap.addEventListener('pointercancel', releasePointer);
+  wrap.addEventListener('pointerleave', e => { if (lbState.pointers.size <= 1) releasePointer(e); });
 }
 
 // ─────────────────────────────────────────────────────────────

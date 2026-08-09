@@ -170,7 +170,7 @@ function replyCardHtml(r, replyingToProfile, opUsername = null) {
           ${postMenuHtml(r.post_id, r.id, r.author_id)}
         </div>
         <div class="pb">${renderBody(r.body)}</div>
-        ${renderMedia(r.media_url, r.media_type)}
+        ${renderMedia(r.media_url, r.media_type, '', r)}
         ${postActionsHtml(r, { replyHref: threadHref, bookmarkable: false, repostable: false })}
       </div>
     </div>
