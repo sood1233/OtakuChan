@@ -797,13 +797,39 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .t-block { margin-bottom:2px; }
 .t-block:last-child { margin-bottom:0; }
 .t-lbl { font-weight:800; font-size:15px; color:var(--ink); background:none; padding:10px 16px 6px; border-radius:0; text-transform:none; letter-spacing:0; margin-bottom:0; }
-.tcard { background:none; border:none; border-radius:0; padding:8px 16px; margin-bottom:0; cursor:pointer; text-decoration:none; display:block; color:var(--ink); box-shadow:none; transition:background-color .12s ease; }
-.tcard:hover { background:rgba(15,20,25,.03); text-decoration:none; box-shadow:none; }
 .tbadge { display:none; }
-.tcard .ph { font-size:13px; margin-bottom:2px; }
-.tsnip { font-size:13px; line-height:1.35; max-height:36px; overflow:hidden; color:var(--muted); word-wrap:break-word; }
-.tmeta { font-size:12px; color:var(--maroon); font-weight:700; margin-top:3px; }
-.no-t { font-size:13px; color:var(--muted); font-style:normal; padding:8px 16px; }
+.no-t { font-size:13px; color:var(--muted); font-style:normal; padding:4px 16px 12px; }
+
+.tcard {
+  background:none; border:none; border-radius:0; padding:10px 16px; margin-bottom:0;
+  cursor:pointer; text-decoration:none; display:block; color:var(--ink); box-shadow:none;
+  border-top:1px solid var(--line); transition:background-color .12s ease;
+}
+.tcard:first-of-type { border-top:none; }
+.tcard:hover { background:rgba(15,20,25,.03); text-decoration:none; box-shadow:none; }
+
+/* Avatar + text sit in a row, same as a real post card, so the
+   snippet/stats below line up under the name instead of under the
+   avatar — this is what was misaligned before. */
+.tcard-row { display:flex; gap:10px; align-items:flex-start; }
+.tcard-avatar { flex:none; width:34px; height:34px; }
+.tcard-body { flex:1; min-width:0; }
+
+.tcard-head { display:flex; align-items:baseline; gap:4px; flex-wrap:wrap; font-size:13px; line-height:1.3; }
+.tcard-name { font-weight:800; color:var(--ink); }
+.tcard-handle { color:var(--muted); font-weight:400; }
+.tcard-handle::after { content:"\00b7"; margin-left:4px; color:var(--muted); }
+.tcard-dt { color:var(--muted); font-weight:400; white-space:nowrap; }
+
+.tsnip {
+  font-size:13px; line-height:1.35; color:var(--muted); margin-top:2px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-wrap:break-word;
+}
+.tsnip:empty { display:none; margin:0; }
+
+.tmeta { display:flex; align-items:center; gap:14px; margin-top:6px; }
+.tmeta-item { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--muted); }
+.tmeta-item svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 
 /* ── EXPLORE PAGE (search.html with no query) ── */
 .expl-hdr { font-weight:800; font-size:20px; color:var(--ink); padding:16px 16px 12px; }
@@ -889,6 +915,23 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 .dc-btn-delete:disabled { opacity:.6; cursor:default; }
 .dc-btn-cancel { background:transparent; color:var(--ink); border-color:var(--div); }
 .dc-btn-cancel:hover { background:var(--hover-bg); }
+.dc-btn-primary { background:var(--maroon); color:#fff; }
+.dc-btn-primary:hover { background:var(--maroon-hover, var(--maroon)); filter:brightness(.92); }
+
+/* ── TOAST — replaces alert() for routine confirmations ── */
+.oc-toast {
+  position:fixed; left:50%; bottom:28px; transform:translate(-50%, 16px);
+  display:flex; align-items:center; gap:10px; max-width:min(92vw, 420px);
+  background:var(--ink); color:var(--bg); font-size:14px; font-weight:600; line-height:1.35;
+  padding:12px 18px; border-radius:999px; box-shadow:var(--shadow-pop);
+  opacity:0; pointer-events:none; z-index:999; transition:opacity .18s ease, transform .18s ease;
+}
+.oc-toast.show { opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+.oc-toast svg { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.oc-toast-error { background:var(--like); color:#fff; }
+@media (max-width: 600px) {
+  .oc-toast { bottom:calc(64px + env(safe-area-inset-bottom, 0px)); font-size:13px; padding:11px 16px; }
+}
 
 #ftr { border-top:none; text-align:left; font-size:13px; color:var(--muted); padding:16px; margin-top:0; }
 #ftr a { font-size:13px; font-weight:700; color:var(--maroon); }

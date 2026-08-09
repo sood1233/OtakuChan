@@ -1292,8 +1292,9 @@ async function togglePin(postId, ev) {
       viewedProfile.pinned_post_id = newValue;
       if (typeof loadUserPosts === 'function') loadUserPosts(currentProfile.id);
     }
+    toast(nowPinned ? 'Unpinned from your profile.' : 'Pinned to your profile.');
   } catch (e) {
-    alert(e.message || 'Could not update pinned post.');
+    toast(e.message || 'Could not update pinned post.', 'error');
   }
 }
 
@@ -2752,6 +2753,74 @@ function userRowHtml(profile) {
   </a>`;
 }
 
+// ── TOAST — small, non-blocking confirmation popup (bottom-center),
+// used for routine "did the thing" feedback (muted, blocked, link
+// copied, report sent, etc.) so those don't have to interrupt the
+// person with a native alert() box. Auto-dismisses on its own; a new
+// toast simply replaces whatever's currently showing.
+let _toastTimer = null;
+function toastEl() {
+  let el = document.getElementById('oc-toast');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'oc-toast';
+  el.className = 'oc-toast';
+  document.body.appendChild(el);
+  return el;
+}
+function toast(message, type = 'default') {
+  const el = toastEl();
+  el.innerHTML = `${type === 'error' ? ICON_TOAST_ERR : ICON_TOAST_OK}<span>${esc(message)}</span>`;
+  el.className = `oc-toast oc-toast-${type} show`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3400);
+}
+const ICON_TOAST_OK  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>';
+const ICON_TOAST_ERR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.8" fill="currentColor" stroke="none"/></svg>';
+
+// ── CONFIRM MODAL — a generic, promise-based replacement for
+// window.confirm() styled to match the rest of the app (same shape as
+// the delete-post confirmation modal). await ocConfirm({...}) resolves
+// true/false depending which button was pressed.
+let _ocConfirmResolve = null;
+function ocConfirmEl() {
+  let el = document.getElementById('oc-confirm-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'oc-confirm-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) resolveOcConfirm(false); });
+  el.innerHTML = `
+    <div class="modal dc-modal">
+      <h2 class="dc-title" id="oc-confirm-title"></h2>
+      <p class="dc-desc" id="oc-confirm-desc"></p>
+      <div class="dc-actions">
+        <button type="button" class="dc-btn" id="oc-confirm-btn"></button>
+        <button type="button" class="dc-btn dc-btn-cancel" onclick="resolveOcConfirm(false)">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && el.classList.contains('open')) resolveOcConfirm(false); });
+  return el;
+}
+function ocConfirm({ title = 'Are you sure?', desc = '', confirmLabel = 'Confirm', danger = true } = {}) {
+  const el = ocConfirmEl();
+  document.getElementById('oc-confirm-title').textContent = title;
+  document.getElementById('oc-confirm-desc').textContent = desc;
+  const btn = document.getElementById('oc-confirm-btn');
+  btn.textContent = confirmLabel;
+  btn.className = `dc-btn ${danger ? 'dc-btn-delete' : 'dc-btn-primary'}`;
+  btn.onclick = () => resolveOcConfirm(true);
+  el.classList.add('open');
+  lockScroll();
+  return new Promise(resolve => { _ocConfirmResolve = resolve; });
+}
+function resolveOcConfirm(result) {
+  const el = document.getElementById('oc-confirm-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
+  if (_ocConfirmResolve) { _ocConfirmResolve(result); _ocConfirmResolve = null; }
+}
+
 // ── REPORT MODAL (shared across board + thread pages) ──
 let reportTarget = null; // { postId, replyId } or { userId }
 
@@ -2785,8 +2854,8 @@ async function submitReport() {
       details
     });
     closeReport();
-    alert('Report submitted. Moderators will review it.');
+    toast('Report submitted. Moderators will review it.');
   } catch (e) {
-    alert('Could not submit report: ' + e.message);
+    toast('Could not submit report: ' + e.message, 'error');
   }
 }

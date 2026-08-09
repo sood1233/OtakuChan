@@ -248,12 +248,28 @@ async function loadTrending() {
 
 function trendListHtml(list) {
   if (!list || !list.length) return `<div class="no-t">Nothing trending yet.</div>`;
-  return list.map(p => `
+  return list.map(p => {
+    const uname = p.profile?.username || 'unknown';
+    return `
     <a class="tcard" href="${postUrl(p)}">
-      <div class="ph">${authorHtml(p.profile)}<span class="dt">${timeAgo(p.created_at)}</span></div>
-      <div class="tsnip">${renderBody((p.body || '').slice(0, 140))}</div>
-      <div class="tmeta">&hearts; ${fmtCount(p.like_count)} &nbsp; &#9673; ${fmtCount(p.reply_count)} &nbsp; &#128065; ${fmtCount(p.view_count)}</div>
-    </a>`).join('');
+      <div class="tcard-row">
+        <img class="avatar tcard-avatar" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="">
+        <div class="tcard-body">
+          <div class="tcard-head">
+            <span class="tcard-name">${esc(p.profile?.display_name || uname)}</span>
+            <span class="tcard-handle">@${esc(uname)}</span>
+            <span class="tcard-dt">${timeAgo(p.created_at)}</span>
+          </div>
+          <div class="tsnip">${renderBody((p.body || '').slice(0, 140))}</div>
+          <div class="tmeta">
+            <span class="tmeta-item">${ICON.heart}${fmtCount(p.like_count)}</span>
+            <span class="tmeta-item">${ICON.reply}${fmtCount(p.reply_count)}</span>
+            <span class="tmeta-item">${ICON.views}${fmtCount(p.view_count)}</span>
+          </div>
+        </div>
+      </div>
+    </a>`;
+  }).join('');
 }
 
 // ── REALTIME: new posts appear live, queued behind the pill above ──

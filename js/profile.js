@@ -121,7 +121,7 @@ function closeProfileMenu(ev) {
 
 function profileMenuStub(ev, feature) {
   closeProfileMenu(ev);
-  alert(`${feature} aren't available on Otakuchan yet — this is a placeholder for now.`);
+  toast(`${feature} aren't available on Otakuchan yet.`);
 }
 
 function profileMenuShare(ev, username) {
@@ -130,7 +130,7 @@ function profileMenuShare(ev, username) {
   if (navigator.share) {
     navigator.share({ url }).catch(() => {});
   } else if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
+    navigator.clipboard.writeText(url).then(() => toast('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
   } else {
     prompt('Copy link:', url);
   }
@@ -140,7 +140,7 @@ function profileMenuCopyLink(ev, username) {
   closeProfileMenu(ev);
   const url = `${location.origin}${profileUrl(decodeURIComponent(username))}`;
   if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
+    navigator.clipboard.writeText(url).then(() => toast('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
   } else {
     prompt('Copy link:', url);
   }
@@ -152,27 +152,38 @@ async function profileMenuMute(ev, userId) {
   const btn = document.getElementById('pm-mute-btn');
   try {
     const muted = btn && btn.textContent === 'Unmute';
-    if (muted) { await unmuteUser(userId); if (btn) btn.textContent = 'Mute'; alert(`Unmuted @${viewedProfile.username}.`); }
-    else { await muteUser(userId); if (btn) btn.textContent = 'Unmute'; alert(`Muted @${viewedProfile.username}. You won't see their posts in your feeds.`); }
-  } catch (e) { alert(e.message || 'Could not update mute status.'); }
+    if (muted) { await unmuteUser(userId); if (btn) btn.textContent = 'Mute'; toast(`Unmuted @${viewedProfile.username}.`); }
+    else { await muteUser(userId); if (btn) btn.textContent = 'Unmute'; toast(`Muted @${viewedProfile.username}. You won't see their posts in your feeds.`); }
+  } catch (e) { toast(e.message || 'Could not update mute status.', 'error'); }
 }
 
 async function profileMenuBlock(ev, userId, username) {
   closeProfileMenu(ev);
   if (!requireLogin()) return;
   const btn = document.getElementById('pm-block-btn');
+  const uname = decodeURIComponent(username);
   const currentlyBlocked = btn && btn.textContent.startsWith('Unblock');
-  if (!currentlyBlocked && !confirm(`Block @${decodeURIComponent(username)}? They won't be able to follow or message you, and you'll stop following each other.`)) return;
+  if (!currentlyBlocked) {
+    const ok = await ocConfirm({
+      title: `Block @${uname}?`,
+      desc: `They won't be able to follow or message you, and you'll stop following each other.`,
+      confirmLabel: 'Block',
+      danger: true
+    });
+    if (!ok) return;
+  }
   try {
     if (currentlyBlocked) {
       await unblockUser(userId);
-      if (btn) btn.textContent = `Block @${decodeURIComponent(username)}`;
+      if (btn) btn.textContent = `Block @${uname}`;
+      toast(`Unblocked @${uname}.`);
     } else {
       await blockUser(userId);
-      if (btn) btn.textContent = `Unblock @${decodeURIComponent(username)}`;
+      if (btn) btn.textContent = `Unblock @${uname}`;
       setFollowBtnState(false);
+      toast(`Blocked @${uname}.`);
     }
-  } catch (e) { alert(e.message || 'Could not update block status.'); }
+  } catch (e) { toast(e.message || 'Could not update block status.', 'error'); }
 }
 
 function profileMenuReport(ev, userId) {
@@ -349,7 +360,7 @@ async function toggleFollow() {
       bumpStat('stat-followers', 1);
     }
   } catch (e) {
-    alert(e.message || 'Could not update follow status.');
+    toast(e.message || 'Could not update follow status.', 'error');
   } finally {
     followBusy = false;
     btn.disabled = false;

@@ -151,7 +151,7 @@ function refreshPostGates() {
 
 function requireLogin() {
   if (!currentSession) {
-    alert('You need an account to do that. Log in or sign up first.');
+    toast('You need an account to do that. Log in or sign up first.', 'error');
     return false;
   }
   return true;
