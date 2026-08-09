@@ -3,7 +3,7 @@
 // Rows are created server-side by triggers (see schema.sql) — this
 // page only ever reads + marks-read, never inserts.
 // ─────────────────────────────────────────────────────────────
-const NOTIF_SELECT = '*, actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url), post:posts(id,body,is_deleted,profile:profiles(username))';
+const NOTIF_SELECT = '*, actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url), post:posts(id,body,is_deleted,profile:profiles!posts_author_id_fkey(username))';
 
 const NOTIF_ICON = {
   like:    ICON.heart,

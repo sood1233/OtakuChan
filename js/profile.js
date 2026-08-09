@@ -9,7 +9,7 @@ const viewUsername = currentProfileUsername();
 let viewedProfile = null;
 let isOwnProfile = false;
 
-const POST_SELECT = '*, profile:profiles(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
 
 async function loadProfile() {
   const root = document.getElementById('profile-root');
@@ -280,7 +280,7 @@ async function loadUserReplies(userId) {
   const postIds = [...new Set(replies.map(r => r.post_id))];
   const parentIds = [...new Set(replies.filter(r => r.parent_reply_id).map(r => r.parent_reply_id))];
   const [postsRes, parentsRes] = await Promise.all([
-    sb.from('posts').select('id,author_id,profile:profiles(username,display_name,avatar_url)').in('id', postIds),
+    sb.from('posts').select('id,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)').in('id', postIds),
     parentIds.length
       ? sb.from('replies').select('id,profile:profiles(username,display_name,avatar_url)').in('id', parentIds)
       : Promise.resolve({ data: [] })

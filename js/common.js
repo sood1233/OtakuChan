@@ -576,7 +576,7 @@ async function submitGlobalCompose() {
       poll_options: poll?.poll_options || null,
       poll_ends_at: poll?.poll_ends_at || null,
       scheduled_at
-    }).select('*, profile:profiles(username,display_name,avatar_url)').single();
+    }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)').single();
     if (error) throw error;
 
     bodyEl.value = ''; bodyEl.style.height = '';
@@ -1105,7 +1105,7 @@ async function attachQuotedPosts(posts) {
   if (!ids.length) return;
   try {
     const { data } = await sb.from('posts')
-      .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles(username,display_name,avatar_url)')
+      .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)')
       .in('id', ids);
     const byId = Object.fromEntries((data || []).map(qp => [qp.id, qp]));
     list.forEach(p => { if (p?.quote_of) p.quoted = byId[p.quote_of] || null; });
@@ -1148,7 +1148,7 @@ async function submitQuote() {
       author_id: currentSession.user.id,
       body,
       quote_of: quotingPostId
-    }).select('*, profile:profiles(username,display_name,avatar_url)').single();
+    }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)').single();
     if (error) throw error;
     // We already have the quoted post in postCache (it's whatever card
     // the Quote button was clicked from) — reuse it directly instead of

@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // BOARD PAGE — /index.html
 // ─────────────────────────────────────────────────────────────
-const POST_SELECT = '*, profile:profiles(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
 
 let activeTab = 'foryou'; // 'foryou' | 'following'
 let pendingPosts = [];    // realtime posts held back until "Show N posts" is clicked

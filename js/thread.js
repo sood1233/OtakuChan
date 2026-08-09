@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 const postId = currentStatusId();
 
-const POST_SELECT   = '*, profile:profiles(username,display_name,avatar_url)';
+const POST_SELECT   = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
 const REPLY_SELECT  = '*, profile:profiles(username,display_name,avatar_url)';
 
 let allReplies = []; // flat list, kept around so inline "reply to this comment" forms can insert without a refetch

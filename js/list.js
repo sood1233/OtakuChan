@@ -9,7 +9,7 @@
 // (openAddToListModal() in common.js), not from this page — same
 // division as Twitter, where "Add to Lists" lives on the profile.
 // ─────────────────────────────────────────────────────────────
-const POST_SELECT = '*, profile:profiles(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
 
 const listId = currentListId();
 let list = null;       // the loaded list row

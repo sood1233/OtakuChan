@@ -15,7 +15,7 @@ async function loadBookmarks() {
   await ensureOwnedCommunitiesLoaded();
 
   const { data, error } = await sb.from('bookmarks')
-    .select('post:posts(*, profile:profiles(username,display_name,avatar_url))')
+    .select('post:posts(*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url))')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
     .limit(100);
