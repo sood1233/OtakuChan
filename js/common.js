@@ -2728,7 +2728,7 @@ function renderLbSidebar(owner) {
     <div class="lb-sb-head">
       ${pcAvatarHtml(owner.profile)}
       <div class="op-detail-names">
-        <a class="nm" href="${profileUrl(uname)}">${esc(owner.profile?.display_name || uname)}</a>
+        <span class="op-name-line"><a class="nm" href="${profileUrl(uname)}">${esc(owner.profile?.display_name || uname)}</a>${vBadge(owner.profile)}</span>
         <span class="pc-handle">@${esc(uname)}</span>
       </div>
       ${postMenuHtml(isReply ? owner.post_id : owner.id, isReply ? owner.id : null, owner.author_id, isReply ? null : owner.community_id)}

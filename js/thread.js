@@ -166,7 +166,7 @@ function opBlockHtml(p) {
       <div class="op-detail-head">
         ${pcAvatarHtml(p.profile)}
         <div class="op-detail-names">
-          <a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>${vBadge(p.profile)}
+          <span class="op-name-line"><a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>${vBadge(p.profile)}</span>
           <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
         </div>
         ${postMenuHtml(p.id, null, p.author_id, p.community_id)}
@@ -254,7 +254,7 @@ function renderConversation() {
       <div class="op-detail-head">
         ${pcAvatarHtml(focused.profile)}
         <div class="op-detail-names">
-          <a class="nm" href="${profileUrl(focused.profile?.username || 'unknown')}">${esc(focused.profile?.display_name || focused.profile?.username || 'unknown')}</a>${vBadge(focused.profile)}
+          <span class="op-name-line"><a class="nm" href="${profileUrl(focused.profile?.username || 'unknown')}">${esc(focused.profile?.display_name || focused.profile?.username || 'unknown')}</a>${vBadge(focused.profile)}</span>
           <span class="pc-handle">@${esc(focused.profile?.username || 'unknown')}</span>
         </div>
         ${postMenuHtml(postId, focused.id, focused.author_id)}

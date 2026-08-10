@@ -616,7 +616,7 @@ select {
    lists). Sits inline right after the name text — see vBadge() in
    js/common.js, which is the single place this <img> gets built. */
 .verified-badge { width:16px; height:16px; margin-left:2px; vertical-align:-3px; flex:none; display:inline-block; }
-.op-detail-names .verified-badge { width:17px; height:17px; vertical-align:-3px; }
+.op-detail-names .verified-badge { width:17px; height:17px; margin-left:0; flex:none; }
 .uname-row .verified-badge { width:21px; height:21px; margin-left:3px; vertical-align:-4px; }
 .ph .nm:hover { text-decoration:underline; }
 .ph .pc-handle { color:var(--muted); font-weight:400; margin-right:5px; white-space:nowrap; }
@@ -769,7 +769,8 @@ body.oc-sheet-open { overflow:hidden; }
 .op-detail-head { display:flex; align-items:flex-start; gap:12px; }
 .op-detail-head .pc-avatar { width:48px; height:48px; }
 .op-detail-names { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.3; padding-top:1px; }
-.op-detail-names .nm { color:var(--ink); font-weight:800; font-size:16px; text-decoration:none; }
+.op-detail-names .op-name-line { display:flex; align-items:center; gap:3px; min-width:0; }
+.op-detail-names .nm { color:var(--ink); font-weight:800; font-size:16px; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .op-detail-names .nm:hover { text-decoration:underline; }
 .op-detail-names .pc-handle { color:var(--muted); font-size:15px; }
 .op-detail-body { font-size:21px; line-height:1.35; word-wrap:break-word; white-space:pre-wrap; color:var(--ink); margin-top:14px; }
@@ -1697,7 +1698,7 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 .lb-sb-head .pc-avatar { width:40px; height:40px; }
 .lb-sb-head .op-detail-names { padding-top:2px; }
 .lb-sb-head .op-detail-names .nm { font-size:15px; }
-.lb-sb-head .op-detail-names .verified-badge { width:16px; height:16px; vertical-align:-3px; }
+.lb-sb-head .op-detail-names .verified-badge { width:16px; height:16px; margin-left:0; flex:none; }
 .lb-sb-head .op-detail-names .pc-handle { font-size:14px; }
 .lb-sidebar .op-detail-body { padding:0 16px; margin-top:12px; font-size:17px; }
 .lb-sidebar .op-detail-meta { padding:0 16px 12px; margin-top:12px; }
