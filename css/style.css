@@ -594,7 +594,7 @@ select {
 }
 .repost-banner svg {
   width:15px; height:15px; flex:none; fill:none; stroke:currentColor;
-  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
 }
 .repost-banner a { color:var(--muted); text-decoration:none; }
 .repost-banner a:hover { text-decoration:underline; }
@@ -695,7 +695,7 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
    Mobile (≤640px): becomes a full-width bottom sheet with its own
    backdrop, since a 180px popover is a fiddly tap target on a phone. */
 .rp-menu-wrap { position:relative; flex:none; }
-.act.repost svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.act.repost svg { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .act.repost:hover { background:var(--green-tint,rgba(0,186,124,.10)); color:var(--green); }
 .act.repost.reposted { color:var(--green); animation:oc-pop .28s ease; }
 .rp-menu-dd {
@@ -717,6 +717,9 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 }
 .rp-menu-dd button svg { width:18px; height:18px; flex:none; }
 .rp-menu-dd button:hover { background:var(--hover-bg); }
+.rp-menu-dd button.rp-do svg, .rp-menu-dd button.rp-undo svg {
+  fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+}
 .rp-menu-dd button.rp-undo { color:var(--green); }
 .rp-menu-dd button.rp-undo:hover { background:rgba(0,186,124,.08); }
 .rp-menu-dd button.rp-quote:hover { background:var(--maroon-tint); color:var(--maroon); }
