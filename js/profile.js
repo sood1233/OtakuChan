@@ -71,8 +71,8 @@ async function loadProfile() {
                 <button class="pc-menu-btn profile-icon-btn" onclick="togglePostMenu('profile-${profile.id}', event)">${ICON.menu}</button>
                 <div class="pc-menu-dd" id="profile-menu-dd">${profileMenuItemsHtml(profile)}</div>
               </div>` : ''}
-            ${!isOwnProfile && session ? `<button class="follow-btn" id="follow-btn" onclick="toggleFollow()">Follow</button>` : ''}
-            ${!isOwnProfile && !session ? `<a class="follow-btn" href="login.html">Follow</a>` : ''}
+            ${!isOwnProfile && session ? `<button class="follow-btn" id="follow-btn" onclick="toggleFollow()">${t('action.follow')}</button>` : ''}
+            ${!isOwnProfile && !session ? `<a class="follow-btn" href="login.html">${t('action.follow')}</a>` : ''}
             ${isOwnProfile ? `<a class="profile-edit-btn" href="editprofile.html">Edit Profile</a>` : ''}
           </div>
         </div>
@@ -440,13 +440,13 @@ function setFollowBtnState(following) {
   const btn = document.getElementById('follow-btn');
   if (!btn) return;
   if (isProtectedFollowUsername(viewedProfile?.username)) {
-    btn.innerHTML = `${ICON_LOCK_SM}Following`;
+    btn.innerHTML = `${ICON_LOCK_SM}${t('action.following')}`;
     btn.classList.add('following', 'locked');
     btn.disabled = true;
     btn.title = "You can't unfollow this account.";
     return;
   }
-  btn.textContent = following ? 'Following' : 'Follow';
+  btn.textContent = following ? t('action.following') : t('action.follow');
   btn.classList.toggle('following', following);
 }
 

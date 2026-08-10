@@ -412,24 +412,24 @@ function renderSideNav() {
   };
   const morePage = here === 'settings' || here === 'rules';
   const postBtn = currentSession
-    ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>Post</span></button>`
-    : `<a class="sidebar-post-btn" href="signup.html">${ICON_COMPOSE}<span>Post</span></a>`;
+    ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>${t('nav.post')}</span></button>`
+    : `<a class="sidebar-post-btn" href="signup.html">${ICON_COMPOSE}<span>${t('nav.post')}</span></a>`;
   el.innerHTML =
-    item('/home', NAV_ICON.home, 'Home', 'home') +
-    item('/search', NAV_ICON.search, 'Explore', 'search') +
-    item('/notifications', NAV_ICON.bell, 'Notifications', 'notifications', notifBadge) +
-    item('/messages', NAV_ICON.chat, 'Chat', 'messages', chatBadge) +
-    item('/bookmarks', NAV_ICON.bookmark, 'Bookmarks', 'bookmarks') +
-    item('/lists', NAV_ICON.list, 'Lists', 'lists') +
-    item('/communities', NAV_ICON.people, 'Communities', 'communities') +
-    item(ownHref, NAV_ICON.user, 'Profile', 'profile') +
+    item('/home', NAV_ICON.home, t('nav.home'), 'home') +
+    item('/search', NAV_ICON.search, t('nav.explore'), 'search') +
+    item('/notifications', NAV_ICON.bell, t('nav.notifications'), 'notifications', notifBadge) +
+    item('/messages', NAV_ICON.chat, t('nav.chat'), 'messages', chatBadge) +
+    item('/bookmarks', NAV_ICON.bookmark, t('nav.bookmarks'), 'bookmarks') +
+    item('/lists', NAV_ICON.list, t('nav.lists'), 'lists') +
+    item('/communities', NAV_ICON.people, t('nav.communities'), 'communities') +
+    item(ownHref, NAV_ICON.user, t('nav.profile'), 'profile') +
     `<div class="acct" id="more-wrap">
        <button class="navmore-btn"${morePage ? ' style="font-weight:800;"' : ''} onclick="toggleMoreMenu();return false;">
-         <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">More</span>
+         <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">${t('nav.more')}</span>
        </button>
        <div class="acct-menu navmore-menu" id="more-menu">
-         <a href="settings.html">${NAV_ICON.gear}Settings</a>
-         <a href="rules.html">${NAV_ICON.doc}Rules</a>
+         <a href="settings.html">${NAV_ICON.gear}${t('nav.settings')}</a>
+         <a href="rules.html">${NAV_ICON.doc}${t('nav.rules')}</a>
        </div>
      </div>` +
     postBtn;
@@ -559,7 +559,7 @@ function gcModalEl() {
       <div class="pf-row gc-row">
         <span class="pf-avatar" id="gc-avatar"></span>
         <div class="pf-col">
-          <textarea id="gc-body" maxlength="500" placeholder="What's happening?"></textarea>
+          <textarea id="gc-body" maxlength="500" placeholder="${t('compose.placeholder')}"></textarea>
           <div id="gc-fp" class="fp"></div>
           <div class="cx-poll" id="gc-poll-box" hidden>
             <div class="cx-poll-opts" id="gc-poll-opts">
@@ -748,7 +748,7 @@ function rpcModalEl() {
       <div class="pf-row gc-row">
         <span class="pf-avatar" id="rpc-avatar"></span>
         <div class="pf-col">
-          <textarea id="rpc-body" maxlength="4000" placeholder="Post your reply"></textarea>
+          <textarea id="rpc-body" maxlength="4000" placeholder="${t('compose.reply')}"></textarea>
           <div id="rpc-fp" class="fp"></div>
         </div>
       </div>
@@ -945,7 +945,7 @@ function whoRowHtml(profile) {
         <span class="who-row-name">${esc(profile.display_name || uname)}${vBadge(profile)}</span>
         <span class="who-row-handle">@${esc(uname)}</span>
       </a>
-      <button class="who-follow-btn" onclick="whoToggleFollow('${profile.id}', this)">Follow</button>
+      <button class="who-follow-btn" onclick="whoToggleFollow('${profile.id}', this)">${t('action.follow')}</button>
     </div>`;
 }
 
@@ -1462,7 +1462,7 @@ function postMenuHtml(postId, replyId = null, authorId = null, communityId = nul
       <div class="pc-menu-dd">
         ${canPin ? `<button onclick="togglePin('${postId}', event)">${isPinned ? 'Unpin from profile' : 'Pin to your profile'}</button>` : ''}
         ${isOwner ? `<button class="pc-menu-danger" onclick="deletePost(${deleteArgs})">Delete</button>` : ''}
-        <button onclick="openReport(${target})">Report</button>
+        <button onclick="openReport(${target})">${t('action.report')}</button>
       </div>
     </div>`;
 }
@@ -2355,11 +2355,11 @@ function linkifyText(escaped) {
 
 function timeAgo(iso) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString();
+  if (diff < 60) return t('time.now');
+  if (diff < 3600) return `${Math.floor(diff / 60)}${t('time.m')}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('time.h')}`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}${t('time.d')}`;
+  return new Date(iso).toLocaleDateString(getLang());
 }
 
 // "9:00 PM · Aug 8, 2026" — the full timestamp shown on a post's own
@@ -2740,7 +2740,7 @@ function renderLbSidebar(owner) {
     <div class="op-detail-divider"></div>
     <a class="lb-sb-replybox" href="${href}">
       <img class="avatar pfp-sm" src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">
-      <span>Post your reply</span>
+      <span>${t('compose.reply')}</span>
     </a>
     <a class="lb-sb-viewall" href="${href}">View full conversation &rsaquo;</a>`;
 }
@@ -3403,7 +3403,7 @@ async function submitReport() {
       details
     });
     closeReport();
-    toast('Report submitted. Moderators will review it.');
+    toast(t('toast.reportSubmitted'));
   } catch (e) {
     toast('Could not submit report: ' + e.message, 'error');
   }

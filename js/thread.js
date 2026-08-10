@@ -137,7 +137,7 @@ function replyComposerHtml() {
       <span class="pf-avatar" id="rf-avatar"></span>
       <div class="rfm-col">
         <div class="errmsg" id="rf-err" style="display:none;"></div>
-        <textarea id="rf-body" placeholder="Post your reply" rows="1"></textarea>
+        <textarea id="rf-body" placeholder="${t('compose.reply')}" rows="1"></textarea>
         <div id="rf-fp" class="fp"></div>
         <div class="rfm-row">
           <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('rf-file').click();return false;">
@@ -357,7 +357,7 @@ function replyHtml(r, depth) {
   </div>
   <div class="rc-inline-compose" id="rf-inline-${r.id}" data-requires-auth style="display:none;">
     <div class="rc-parent-tag">Replying to ${pcNameHtml(r.profile)}</div>
-    <textarea id="rf-inline-body-${r.id}" placeholder="Post your reply"></textarea>
+    <textarea id="rf-inline-body-${r.id}" placeholder="${t('compose.reply')}"></textarea>
     <input type="file" id="rf-inline-file-${r.id}" accept="image/*,video/*">
     <div id="rf-inline-fp-${r.id}" class="fp"></div>
     <div class="rfm-row">

@@ -53,20 +53,20 @@
         </span>
         <span class="wordmark">Interact<em>Ink</em></span>
       </a>
-      <b>Log In</b>
-      <p class="auth-sub">Good to see you again.</p>
+      <b data-i18n="auth.logIn">Log In</b>
+      <p class="auth-sub" data-i18n="auth.logInSub">Good to see you again.</p>
       <div class="auth-body">
         <div class="errmsg" id="li-err" style="display:none;"></div>
         <form id="li-form" onsubmit="doLogIn(event)">
           <div class="auth-field">
-            <label for="li-email">Email</label>
+            <label for="li-email" data-i18n="auth.email">Email</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></span>
               <input type="email" id="li-email" required autocomplete="email" placeholder="you@example.com">
             </div>
           </div>
           <div class="auth-field">
-            <label for="li-password">Password</label>
+            <label for="li-password" data-i18n="auth.password">Password</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
               <input type="password" id="li-password" required autocomplete="current-password" placeholder="••••••••">
@@ -76,10 +76,10 @@
               </button>
             </div>
           </div>
-          <input type="submit" id="li-btn" class="auth-submit" value="Log In">
+          <input type="submit" id="li-btn" class="auth-submit" value="Log In" data-i18n-value="auth.logIn">
         </form>
-        <div class="auth-switch">No account yet? <a href="signup.html">Sign up</a></div>
-        <div class="auth-legal">By continuing you agree to InteractInk's <a href="rules.html">rules</a>.</div>
+        <div class="auth-switch"><span data-i18n="auth.noAccount">No account yet?</span> <a href="signup.html" data-i18n="nav.signUp">Sign up</a></div>
+        <div class="auth-legal" data-i18n="auth.legal">By continuing you agree to InteractInk's <a href="rules.html">rules</a>.</div>
       </div>
     </div>
   </div>
@@ -88,6 +88,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
 </body>

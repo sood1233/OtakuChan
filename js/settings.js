@@ -51,14 +51,14 @@ async function loadSettings() {
 
   root.innerHTML = `
     <div class="settings-section">
-      <h2>Profile</h2>
-      <p class="sub">Banner, avatar, display name, and bio.</p>
-      <a class="profile-edit-btn" href="editprofile.html">Edit Profile</a>
+      <h2>${t('settings.profile')}</h2>
+      <p class="sub">${t('settings.profileSub')}</p>
+      <a class="profile-edit-btn" href="editprofile.html">${t('settings.editProfile')}</a>
     </div>
 
     <div class="settings-section">
-      <h2>Appearance</h2>
-      <p class="sub">Pick how InteractInk looks on this device.</p>
+      <h2>${t('settings.appearance')}</h2>
+      <p class="sub">${t('settings.appearanceSub')}</p>
       <div class="theme-picker" id="theme-picker">
         ${themeSwatchHtml('auto', 'Match device', !getStoredTheme())}
         ${themeSwatchHtml('light', 'Default', curTheme === 'light' && !!getStoredTheme())}
@@ -73,7 +73,16 @@ async function loadSettings() {
     </div>
 
     <div class="settings-section">
-      <h2>Notifications</h2>
+      <h2>${t('settings.language')}</h2>
+      <p class="sub">${t('settings.languageSub')}</p>
+      <div class="settings-row">
+        <div><div class="lbl">${t('settings.language')}</div></div>
+        ${langSelectHtml('set-lang')}
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>${t('settings.notifications')}</h2>
       <p class="sub">Choose what shows up on your Notifications page.</p>
       ${toggleRowHtml('notify_likes', 'Likes', 'When someone likes your post', s.notify_likes)}
       ${toggleRowHtml('notify_replies', 'Replies', 'When someone replies to your post', s.notify_replies)}
@@ -82,7 +91,7 @@ async function loadSettings() {
     </div>
 
     <div class="settings-section">
-      <h2>Privacy</h2>
+      <h2>${t('settings.privacy')}</h2>
       <div class="settings-row">
         <div>
           <div class="lbl">Who can message you</div>
@@ -97,7 +106,7 @@ async function loadSettings() {
     </div>
 
     <div class="settings-section">
-      <h2>Account</h2>
+      <h2>${t('settings.account')}</h2>
       <div class="errmsg" id="set-uname-err" style="display:none;"></div>
       <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 4px;">Username</label>
       <input type="text" id="set-uname" value="${esc(uname)}" maxlength="20">
@@ -121,7 +130,7 @@ async function loadSettings() {
     </div>
 
     <div class="settings-section">
-      <h2>Password</h2>
+      <h2>${t('settings.password')}</h2>
       <div class="errmsg" id="set-pw-err" style="display:none;"></div>
       <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 4px;">New password</label>
       <input type="password" id="set-pw" minlength="8" autocomplete="new-password">
@@ -133,8 +142,8 @@ async function loadSettings() {
     </div>
 
     <div class="settings-section">
-      <h2>Session</h2>
-      <button class="pf-btn" style="background:var(--like);" onclick="logOut()">Log out</button>
+      <h2>${t('settings.session')}</h2>
+      <button class="pf-btn" style="background:var(--like);" onclick="logOut()">${t('nav.logOut')}</button>
     </div>
   `;
 }

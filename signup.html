@@ -53,13 +53,13 @@
         </span>
         <span class="wordmark">Interact<em>Ink</em></span>
       </a>
-      <b>Sign Up</b>
-      <p class="auth-sub">Create your account — it only takes a minute.</p>
+      <b data-i18n="auth.signUp">Sign Up</b>
+      <p class="auth-sub" data-i18n="auth.signUpSub">Create your account — it only takes a minute.</p>
       <div class="auth-body">
         <div class="errmsg" id="su-err" style="display:none;"></div>
         <form id="su-form" onsubmit="doSignUp(event)">
           <div class="auth-field">
-            <label for="su-username">Username</label>
+            <label for="su-username" data-i18n="auth.username">Username</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>
               <input type="text" id="su-username" required maxlength="20" autocomplete="username" placeholder="yourname">
@@ -67,14 +67,14 @@
             <span class="auth-hint">3–20 characters: letters, numbers, underscore.</span>
           </div>
           <div class="auth-field">
-            <label for="su-email">Email</label>
+            <label for="su-email" data-i18n="auth.email">Email</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></span>
               <input type="email" id="su-email" required autocomplete="email" placeholder="you@example.com">
             </div>
           </div>
           <div class="auth-field">
-            <label for="su-password">Password</label>
+            <label for="su-password" data-i18n="auth.password">Password</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
               <input type="password" id="su-password" required minlength="8" autocomplete="new-password" placeholder="••••••••">
@@ -85,13 +85,13 @@
             </div>
             <span class="auth-hint">At least 8 characters.</span>
           </div>
-          <input type="submit" id="su-btn" class="auth-submit" value="Sign Up">
+          <input type="submit" id="su-btn" class="auth-submit" value="Sign Up" data-i18n-value="auth.signUp">
         </form>
 
 
 
-        <div class="auth-switch" id="su-switch">Already have an account? <a href="login.html">Log in</a></div>
-        <div class="auth-legal" id="su-legal">By signing up you agree to InteractInk's <a href="rules.html">rules</a>.</div>
+        <div class="auth-switch" id="su-switch"><span data-i18n="auth.haveAccount">Already have an account?</span> <a href="login.html" data-i18n="nav.logIn">Log in</a></div>
+        <div class="auth-legal" id="su-legal" data-i18n="auth.legal">By signing up you agree to InteractInk's <a href="rules.html">rules</a>.</div>
       </div>
     </div>
   </div>
@@ -100,6 +100,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
 </body>

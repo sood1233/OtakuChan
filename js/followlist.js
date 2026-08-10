@@ -34,8 +34,8 @@ function flRowHtml(profile, viewerId) {
   const following = flMyFollowing.has(profile.id);
   const locked = showBtn && following && isProtectedFollowUsername(uname);
   const btnHtml = locked
-    ? `<button class="follow-btn following locked" disabled title="You can't unfollow this account." aria-label="You can't unfollow this account.">${ICON_LOCK_SM}Following</button>`
-    : `<button class="follow-btn${following ? ' following' : ''}" onclick="flToggleFollow('${profile.id}', this)">${following ? 'Following' : 'Follow'}</button>`;
+    ? `<button class="follow-btn following locked" disabled title="You can't unfollow this account." aria-label="You can't unfollow this account.">${ICON_LOCK_SM}${t('action.following')}</button>`
+    : `<button class="follow-btn${following ? ' following' : ''}" onclick="flToggleFollow('${profile.id}', this)">${following ? t('action.following') : t('action.follow')}</button>`;
   return `
   <div class="fl-row">
     <a class="ulrow" style="flex:1;min-width:0;" href="${profileUrl(uname)}">
@@ -81,13 +81,13 @@ async function flToggleFollow(userId, btn) {
       if (error) throw error;
       flMyFollowing.delete(userId);
       btn.classList.remove('following');
-      btn.textContent = 'Follow';
+      btn.textContent = t('action.follow');
     } else {
       const { error } = await followUser(userId);
       if (error) throw error;
       flMyFollowing.add(userId);
       btn.classList.add('following');
-      btn.textContent = 'Following';
+      btn.textContent = t('action.following');
     }
   } catch (e) {
     alert(e.message || 'Could not update follow status.');
