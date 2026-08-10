@@ -969,7 +969,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderWhoToFollow();
 });
 
-let liked = new Set(JSON.parse(localStorage.getItem('oc_liked') || '[]'));
+// ── LIKES ── (private per-user; fetched fresh from the DB whenever a
+// page renders a list of posts — same pattern as bookmarked/reposted
+// below. This used to be cached in localStorage under 'oc_liked', but
+// that key isn't scoped to a user: a browser that had ever liked
+// posts would show those same posts as "liked" for a brand-new
+// account too, since the Set was seeded from whatever was left in
+// localStorage rather than from the signed-in user's own likes. That
+// also broke the first tap on such a post — toggleLike() trusted the
+// stale "liked" state and fired a delete against a like row that
+// never existed for this user, so nothing changed until a second tap.)
+let liked = new Set();
+
+async function ensureLikesLoaded() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { liked = new Set(); return; }
+  const { data } = await sb.from('likes').select('post_id').eq('user_id', session.user.id);
+  liked = new Set((data || []).map(l => l.post_id));
+}
 
 function setLikeUiState(btn, isLiked, delta) {
   btn.classList.toggle('liked', isLiked);
@@ -989,7 +1006,6 @@ async function toggleLike(postId, btn) {
   const wasLiked = liked.has(postId);
   if (wasLiked) { liked.delete(postId); setLikeUiState(btn, false, -1); }
   else { liked.add(postId); setLikeUiState(btn, true, 1); }
-  localStorage.setItem('oc_liked', JSON.stringify([...liked]));
   try {
     if (wasLiked) {
       const { error } = await sb.from('likes').delete()
@@ -1003,7 +1019,6 @@ async function toggleLike(postId, btn) {
     // Roll back the optimistic update.
     if (wasLiked) { liked.add(postId); setLikeUiState(btn, true, 1); }
     else { liked.delete(postId); setLikeUiState(btn, false, -1); }
-    localStorage.setItem('oc_liked', JSON.stringify([...liked]));
     alert(e.message || 'Could not update like.');
   }
 }
@@ -1088,15 +1103,15 @@ async function ensureOwnedCommunitiesLoaded() {
   ownedCommunities = new Set((data || []).map(c => c.id));
 }
 
-// Every page about to render a list of posts needs all three of the
-// above ("did I bookmark/repost this", "which communities do I own")
-// before it can render action buttons in the right state. They're
-// fully independent fetches, so running them one after another (the
-// old pattern at every call site) means paying for three network
+// Every page about to render a list of posts needs all four of the
+// above ("did I like/bookmark/repost this", "which communities do I
+// own") before it can render action buttons in the right state.
+// They're fully independent fetches, so running them one after another
+// (the old pattern at every call site) means paying for four network
 // round-trips back to back. Promise.all runs them concurrently instead
-// — same three fetches, same end state, just not serialized.
+// — same four fetches, same end state, just not serialized.
 async function ensureFeedPrereqsLoaded() {
-  await Promise.all([ensureBookmarksLoaded(), ensureRepostsLoaded(), ensureOwnedCommunitiesLoaded()]);
+  await Promise.all([ensureLikesLoaded(), ensureBookmarksLoaded(), ensureRepostsLoaded(), ensureOwnedCommunitiesLoaded()]);
 }
 
 // Every post rendered as a card is stashed here by id, so the Quote
