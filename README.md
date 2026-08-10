@@ -44,41 +44,34 @@ all of them.
 
 ## 3. Configure email auth
 Project Settings → Authentication → Providers → Email is on by
-default, which is all this app needs. Sign up works like this: enter
-username/email/password → a 6-digit code screen appears on the *same
-page* → type the code (it auto-submits at 6 digits) → you're verified
-and logged in immediately. No link to click, no second tab, no
-redirect, no dashboard "allowed redirect URL" list to get right —
-verifying the email and being logged in happen in that one call.
+default, which is all this app needs — but there's one toggle to
+flip:
 
-**One dashboard step actually matters here, and it's easy to miss:**
-Supabase's default "Confirm signup" email template only contains a
-magic-link button — it does **not** show a 6-digit code unless the
-template is edited to include one. If you skip this, users land on
-the code screen but their email never actually contains a code to
-type, which looks exactly like "verification doesn't work."
+**Turn OFF "Confirm email"** (Authentication → Providers → Email →
+uncheck "Confirm email"). With it off, `signUp()` creates the account
+and returns a real, logged-in session in the same call — no
+verification step, no email sent, nothing to click or type. Sign up
+is: username/email/password → submit → you're in.
 
-Fix it once: **Authentication → Email Templates → Confirm signup**,
-and make sure the body includes `{{ .Token }}` somewhere visible, e.g.:
+This is intentional, not a shortcut taken to dodge a bug: Supabase's
+built-in mailer (what handles auth emails before you set up your own
+SMTP provider) is capped at only a handful of emails per hour — fine
+for occasional testing, but it collapses immediately under real
+traffic (a burst of signups, e.g. 100 people in an hour, will start
+failing outright). Removing the email step removes that ceiling
+completely — there's no external service in the loop at all, so there
+is no rate limit to hit, no matter how many people sign up. Email is
+still collected (used as the login identifier and for password reset)
+but never verified.
 
-```html
-<h2>Confirm your signup</h2>
-<p>Your verification code is:</p>
-<h1 style="letter-spacing:4px;">{{ .Token }}</h1>
-<p>Enter this code on the sign up page to finish creating your account.</p>
-```
-
-You can leave the existing `{{ .ConfirmationURL }}` button in there
-too if you want a fallback, but the code is what this app's UI
-actually asks people to enter — without `{{ .Token }}` in the
-template, the app has nothing wrong with it, the email itself is just
-missing the one thing the person needs.
-
-Also worth checking:
-- **Authentication → Providers → Email → "Confirm email"**: if this
-  is ON (default), new users verify via the code above. If you turn
-  it OFF, new users are logged in immediately after signing up and
-  never see the code screen at all.
+If you want confirmed-real emails later at some point, the trade-off
+is real infrastructure to support it: custom SMTP (Resend/SendGrid/
+Postmark all have workable free tiers) plus raised rate limits in
+Authentication → Rate Limits, and ideally CAPTCHA (Supabase supports
+hCaptcha/Turnstile on signup) to keep bots from farming accounts once
+there's no email step gatekeeping them. None of that is set up here —
+worth doing before a real public launch, but out of scope for what
+was asked.
 
 ## 4. Get your API keys
 Project Settings → API:
@@ -103,7 +96,7 @@ This is a plain static site — no build step, no Node server required.
 ## Pages
 - `/home` (`index.html`) — board feed, new-thread form (accounts only), trending sidebar, realtime new-post updates
 - `/<username>/status/<uuid>` (`thread.html`) — single thread with all replies, realtime new-reply updates. Also reachable as `/i/status/<uuid>` before the author is known (e.g. a raw copy-pasted id) — the address bar upgrades to the canonical `/<username>/status/<uuid>` automatically once the post loads, same as x.com.
-- `/login`, `/signup` (`login.html` / `signup.html`) — create an account / sign in (a 6-digit emailed code verifies and logs in on the same page)
+- `/login`, `/signup` (`login.html` / `signup.html`) — create an account / sign in (instant — no email verification step)
 - `/<username>` (`profile.html`) — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
 - `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
 - `/<username>/followers`, `/<username>/following` (`followlist.html`) — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
