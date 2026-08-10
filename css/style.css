@@ -123,6 +123,18 @@ html[data-theme="dim"][data-accent="orange"],html[data-theme="dark"][data-accent
 
 * { margin:0; padding:0; box-sizing:border-box; }
 
+/* ── KILL THE MOBILE TAP-HIGHLIGHT FLASH — Safari/Chrome on mobile
+   paint their own translucent blue/gray rectangle over whatever you
+   tap (any <a>, <button>, or anything with a click handler) unless
+   this is explicitly turned off. Set on every element (not just
+   buttons/links) since taps can land on a span/div inside them too
+   and still trigger the browser's default. This is purely a "don't
+   paint the OS highlight" switch — it doesn't touch our own
+   :active/oc-bounce feedback below, which is what should show
+   instead. ── */
+html { -webkit-tap-highlight-color:transparent; }
+*, *::before, *::after { -webkit-tap-highlight-color:transparent; }
+
 /* ── SUBTLE MOTION — a couple of small, reusable keyframes used across
    the app for "this just appeared" (feed rows/cards) and "this was
    just toggled on" (like/bookmark/repost) feedback. Kept short and
@@ -144,6 +156,27 @@ html[data-theme="dim"][data-accent="orange"],html[data-theme="dark"][data-accent
    above like every other animation in this file. ── */
 @keyframes oc-btn-bounce { 0% { transform:scale(1); } 40% { transform:scale(.96); } 70% { transform:scale(1.02); } 100% { transform:scale(1); } }
 .oc-bounce { animation:oc-btn-bounce .22s ease-out; }
+
+/* ── INSTANT PRESS-DOWN — fires the moment a finger/cursor goes down,
+   before the click (and the oc-bounce release animation above) even
+   fires, so there's zero-latency feedback that a tap registered.
+   Selector intentionally matches the delegated bounce listener in
+   common.js (button/role=button/inputs/accent swatches/real links),
+   minus the inline @mention, #hashtag, and URL links inside post
+   bodies — those stay plain text links, not "buttons", so they don't
+   flex mid-sentence. touch-action:manipulation on the same set drops
+   the ~300ms tap delay/double-tap-zoom mobile browsers otherwise add,
+   so taps feel immediate. Any control with its own bespoke :active
+   rule elsewhere in this file (higher specificity, e.g. .act:active,
+   .sidebar-post-btn:active) keeps using that instead of this default. ── */
+button, [role="button"], input[type="submit"], input[type="button"], .accent-swatch,
+a[href]:not(.body-link):not(.body-mention):not(.body-hashtag) {
+  touch-action:manipulation;
+}
+button:not(:disabled):active, [role="button"]:active, input[type="submit"]:active, input[type="button"]:active, .accent-swatch:active,
+a[href]:not(.body-link):not(.body-mention):not(.body-hashtag):active {
+  transform:scale(.96);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

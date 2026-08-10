@@ -3435,11 +3435,20 @@ function closeReport() {
 // ── BUTTON PRESS BOUNCE — delegated so it also covers buttons the app
 // renders later (post actions, follow buttons, modals, etc.), not just
 // the ones present at page load. Re-triggers the .oc-bounce keyframe
-// (defined in style.css) on every press of a button-like control; kept
-// to real "button" controls (not plain links) so it stays subtle and
-// doesn't fire on ordinary navigation. ──
+// (defined in style.css) on every press of a button-like control OR
+// a real link — nav items, the logo, back arrows, modal-close, trend
+// cards, author names, etc. all get the same bounce now, since on
+// mobile those are just as much "buttons" to the person tapping them.
+// Excluded: the inline @mention/#hashtag/URL links linkifyText() puts
+// inside post bodies (.body-link/.body-mention/.body-hashtag) — those
+// read as plain text, not controls, so they keep the tap-highlight
+// fix from style.css without the scale bounce. Whole-card click-through
+// wrappers (.pc, .rc, .qp-embed, the mobile drawer backdrop, etc.) are
+// plain <div>s, so this selector naturally skips them too — bouncing
+// an entire feed card would look broken, not tactile. ──
+const OC_BOUNCE_SELECTOR = 'button, [role="button"], .accent-swatch, input[type="submit"], input[type="button"], img[onclick], a[href]:not(.body-link):not(.body-mention):not(.body-hashtag)';
 document.addEventListener('click', (e) => {
-  const el = e.target.closest('button, [role="button"], .accent-swatch, input[type="submit"], input[type="button"]');
+  const el = e.target.closest(OC_BOUNCE_SELECTOR);
   if (!el || el.disabled) return;
   el.classList.remove('oc-bounce');
   // Force reflow so re-adding the class restarts the animation on rapid repeat clicks.
