@@ -1732,3 +1732,132 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
   .lb-mobile-bar { display:flex; }
   .lb-media-wrap img, .lb-media-wrap video { max-width:100vw; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   TTV — custom video player (replaces native <video controls>)
+   Self-contained skin that sits on top of the video, dark scrim +
+   white icons regardless of light/dim/dark site theme, same as
+   X's own player. Sky accent (var(--maroon)) for the played bar to
+   match the rest of the app instead of hardcoding Twitter blue.
+   ═══════════════════════════════════════════════════════════════ */
+.ttv {
+  position:relative; display:block; width:max-content; max-width:100%;
+  border-radius:16px; overflow:hidden; background:#000; outline:none;
+  line-height:0; -webkit-tap-highlight-color:transparent;
+}
+.ttv:focus-visible { box-shadow:0 0 0 2px var(--maroon); }
+.ttv-video { display:block; max-width:100%; max-height:380px; width:auto; height:auto; background:#000; }
+.rc .ttv-video, .qp-embed .ttv-video { max-height:280px; }
+.lb-media-wrap .ttv { width:auto; max-width:none; border-radius:0; }
+.lb-media-wrap .ttv-video { max-height:calc(100vh - 40px); max-width:calc(100vw - 40px); }
+
+.ttv-overlay {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; background:transparent;
+}
+.ttv-spinner {
+  width:32px; height:32px; border-radius:50%;
+  border:3px solid rgba(255,255,255,.35); border-top-color:#fff;
+  animation:ttv-spin .8s linear infinite;
+}
+.ttv-spinner[hidden] { display:none; }
+@keyframes ttv-spin { to { transform:rotate(360deg); } }
+
+.ttv-big-play {
+  width:64px; height:64px; border-radius:50%; border:none; cursor:pointer;
+  background:rgba(15,20,25,.6); color:#fff; display:flex; align-items:center; justify-content:center;
+  transition:background .15s, transform .15s;
+}
+.ttv-big-play:hover { background:rgba(15,20,25,.78); transform:scale(1.05); }
+.ttv-big-play svg { width:28px; height:28px; margin-left:3px; }
+.ttv.ttv-playing .ttv-big-play { display:none; }
+.ttv.ttv-buffering .ttv-big-play { display:none; }
+
+/* bottom gradient control bar — fades out while playing + idle */
+.ttv-controls {
+  position:absolute; left:0; right:0; bottom:0; z-index:2;
+  padding:20px 10px 8px;
+  background:linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,0));
+  opacity:1; transition:opacity .18s ease;
+}
+.ttv.ttv-playing.ttv-idle .ttv-controls { opacity:0; }
+.ttv.ttv-playing.ttv-idle { cursor:none; }
+.ttv.ttv-menu-open .ttv-controls { opacity:1; }
+
+.ttv-progress {
+  position:relative; height:14px; margin:0 2px 2px; cursor:pointer; touch-action:none;
+}
+.ttv-progress-track {
+  position:absolute; left:0; right:0; top:50%; transform:translateY(-50%);
+  height:3px; border-radius:3px; background:rgba(255,255,255,.3);
+  transition:height .1s;
+}
+.ttv-progress:hover .ttv-progress-track, .ttv-progress.ttv-dragging .ttv-progress-track { height:5px; }
+.ttv-progress-buffered {
+  position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:3px;
+  background:rgba(255,255,255,.45);
+}
+.ttv-progress-played {
+  position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:3px;
+  background:var(--maroon);
+}
+.ttv-progress-handle {
+  position:absolute; top:50%; left:0%; width:12px; height:12px; border-radius:50%;
+  background:var(--maroon); transform:translate(-50%,-50%) scale(0);
+  transition:transform .1s; box-shadow:0 0 0 1px rgba(0,0,0,.2);
+}
+.ttv-progress:hover .ttv-progress-handle, .ttv-progress.ttv-dragging .ttv-progress-handle { transform:translate(-50%,-50%) scale(1); }
+.ttv-progress-preview {
+  position:absolute; bottom:16px; transform:translateX(-50%);
+  background:rgba(15,20,25,.9); color:#fff; font-size:12px; font-weight:700;
+  padding:3px 6px; border-radius:4px; white-space:nowrap; pointer-events:none;
+  opacity:0; transition:opacity .1s;
+}
+.ttv-progress:hover .ttv-progress-preview, .ttv-progress.ttv-dragging .ttv-progress-preview { opacity:1; }
+
+.ttv-row { display:flex; align-items:center; gap:2px; height:32px; }
+.ttv-btn {
+  flex:none; width:32px; height:32px; border-radius:50%; border:none; cursor:pointer;
+  background:transparent; color:#fff; display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.ttv-btn:hover { background:rgba(255,255,255,.15); }
+.ttv-btn svg { width:18px; height:18px; }
+.ttv-btn.ttv-play svg { width:17px; height:17px; }
+.ttv-time {
+  color:#fff; font-size:12.5px; font-weight:600; padding:0 6px; user-select:none;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.ttv-spacer { flex:1; }
+.ttv-speed { width:auto; padding:0 8px; font-size:12.5px; font-weight:700; border-radius:15px; }
+.ttv-vol-wrap { display:flex; align-items:center; }
+.ttv-vol-slider {
+  width:0; opacity:0; overflow:hidden; transition:width .15s, opacity .15s, margin .15s;
+  -webkit-appearance:none; appearance:none; height:3px; border-radius:3px; background:rgba(255,255,255,.35);
+  cursor:pointer; vertical-align:middle;
+}
+.ttv-vol-wrap:hover .ttv-vol-slider, .ttv-vol-wrap:focus-within .ttv-vol-slider { width:60px; opacity:1; margin-left:2px; }
+.ttv-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:#fff; cursor:pointer;
+}
+.ttv-vol-slider::-moz-range-thumb { width:11px; height:11px; border-radius:50%; background:#fff; border:none; cursor:pointer; }
+.ttv-vol-slider::-moz-range-track { height:3px; border-radius:3px; background:rgba(255,255,255,.35); }
+
+.ttv-menu {
+  display:none; position:absolute; right:8px; bottom:44px; z-index:6;
+  background:rgba(21,24,28,.96); backdrop-filter:blur(6px); border-radius:12px;
+  min-width:120px; padding:6px; box-shadow:0 4px 18px rgba(0,0,0,.4);
+}
+.ttv.ttv-menu-open .ttv-menu { display:block; }
+.ttv-menu-opt {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  width:100%; background:none; border:none; color:#fff; font-size:13px; font-weight:600;
+  padding:7px 10px; border-radius:8px; cursor:pointer; text-align:left; font-family:inherit;
+}
+.ttv-menu-opt:hover { background:rgba(255,255,255,.12); }
+.ttv-menu-opt .ck { width:14px; height:14px; opacity:0; }
+.ttv-menu-opt.active .ck { opacity:1; }
+
+@media (max-width:700px) {
+  .ttv-vol-wrap { display:none; } /* no hover on touch — mute toggle only */
+}

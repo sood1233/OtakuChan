@@ -2637,7 +2637,7 @@ function renderMedia(url, type, extraClass = '', owner = null) {
   if (!url) return '';
   const idx = registerLbMedia(url, type, owner);
   if (type === 'video') {
-    return `<div class="pm"><video src="${esc(url)}" controls preload="metadata" onclick="lbVideoClick(event, ${idx})"></video></div>`;
+    return `<div class="pm">${ttvHtml(url)}</div>`;
   }
   return `<div class="pm"><img src="${esc(url)}" class="${extraClass}" alt="" onclick="openLightbox(${idx})" loading="lazy" decoding="async"></div>`;
 }
@@ -2656,14 +2656,11 @@ function registerLbMedia(url, type, owner) {
   return _lbRegistry.length - 1;
 }
 
-// Videos keep their native <video controls> — clicking the bottom
-// ~44px (the native control bar) plays/seeks as normal; clicking
-// anywhere else on the video opens the lightbox, same as a photo.
-function lbVideoClick(ev, idx) {
-  const rect = ev.currentTarget.getBoundingClientRect();
-  if (ev.clientY > rect.bottom - 44) return;
-  openLightbox(idx);
-}
+// Videos get the full TTV player (see js/video-player.js) both in
+// the feed and here in the lightbox, so there's no separate
+// "clicking the video opens the lightbox" path anymore — the video
+// itself is a complete player, same as tapping a video on X plays
+// it in place rather than jumping to a detail view.
 
 const lbState = { scale: 1, x: 0, y: 0, dragging: false, dragStartX: 0, dragStartY: 0, dragOrigX: 0, dragOrigY: 0, pointers: new Map(), pinchDist: 0 };
 let lbGesturesWired = false;
@@ -2704,7 +2701,7 @@ function openLightbox(idx) {
   lbResetZoomState();
   const wrap = document.getElementById('lb-media-wrap');
   wrap.innerHTML = item.type === 'video'
-    ? `<video src="${esc(item.url)}" controls autoplay playsinline></video>`
+    ? ttvHtml(item.url, { videoAttrs: 'autoplay' })
     : `<img src="${esc(item.url)}" alt="">`;
   renderLbSidebar(item.owner);
   renderLbMobileBar(item.owner);
