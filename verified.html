@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Email Verified — InteractInk</title>
+<meta name="robots" content="noindex">
+<base href="/">
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512" id="fav512">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="theme-color" content="#0EA5E9">
+<script>(function(){try{var t=localStorage.getItem('oc-theme');if(t&&t!=="light"){document.documentElement.setAttribute('data-theme',t);}var a=localStorage.getItem('oc-accent');if(a&&a!=="blue")document.documentElement.setAttribute('data-accent',a);}catch(e){}})();</script>
+<link rel="preconnect" href="https://pyitivzoqleukuclajrf.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="xshell">
+  <div class="auth-wrap">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <a class="auth-card-logo" href="/">
+        <span class="badge">
+          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="28" height="28">
+          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="28" height="28">
+        </span>
+        <span class="wordmark">Interact<em>Ink</em></span>
+      </a>
+
+      <!-- Swapped between by verify.js below, depending on what
+           Supabase's redirect told us. Only one is ever visible. -->
+      <div id="vf-checking">
+        <b>Verifying…</b>
+        <p class="auth-sub">One second.</p>
+        <span class="spinner">Confirming your email&hellip;</span>
+      </div>
+
+      <div id="vf-success" style="display:none;">
+        <b>Email verified ✓</b>
+        <p class="auth-sub">
+          Your account is all set — you're already logged in. If you had InteractInk
+          open in another tab, that tab will pick this up and continue on its own too.
+        </p>
+        <a class="auth-submit" style="display:block;text-align:center;text-decoration:none;" href="index.html">Continue to InteractInk</a>
+      </div>
+
+      <div id="vf-error" style="display:none;">
+        <b>Couldn't verify that link</b>
+        <p class="auth-sub" id="vf-error-msg">This verification link is invalid or has expired.</p>
+        <a class="auth-submit" style="display:block;text-align:center;text-decoration:none;" href="signup.html">Back to sign up</a>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script>
+  // supabase-js reads the tokens straight out of this page's URL
+  // (detectSessionInUrl: true, set in supabase-config.js) and turns
+  // them into a real, logged-in session — that's the entire "account
+  // creation" step, no extra call needed. We just reflect whatever
+  // happened back to the person and send them on to index.html.
+  (async function () {
+    const checking = document.getElementById('vf-checking');
+    const success  = document.getElementById('vf-success');
+    const errorBox = document.getElementById('vf-error');
+    const errorMsg = document.getElementById('vf-error-msg');
+
+    // Supabase appends error/error_description instead of tokens when
+    // the link is expired, already used, or otherwise invalid.
+    const params = new URLSearchParams(location.search || location.hash.replace(/^#/, '?'));
+    const err = params.get('error') || params.get('error_code');
+    const errDesc = params.get('error_description');
+
+    if (err) {
+      checking.style.display = 'none';
+      errorBox.style.display = 'block';
+      errorMsg.textContent = errDesc
+        ? decodeURIComponent(errDesc.replace(/\+/g, ' '))
+        : 'This verification link is invalid or has expired. Request a new one from the sign up page.';
+      return;
+    }
+
+    // Give the client a moment to finish parsing the URL and writing
+    // the session, then confirm it actually landed.
+    const { data: { session } } = await sb.auth.getSession();
+    checking.style.display = 'none';
+
+    if (session) {
+      success.style.display = 'block';
+      // Auto-continue after a couple seconds; the button above covers
+      // anyone who'd rather click through immediately.
+      setTimeout(() => { location.href = 'index.html'; }, 2500);
+    } else {
+      errorBox.style.display = 'block';
+      errorMsg.textContent = 'This verification link is invalid or has expired. Request a new one from the sign up page.';
+    }
+  })();
+</script>
+</body>
+</html>

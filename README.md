@@ -35,15 +35,27 @@ password — there is no anonymous posting.
 
 ## 3. Configure email auth
 Project Settings → Authentication → Providers → Email is on by
-default, which is all this app needs. Two things worth checking:
-- **Authentication → URL Configuration**: set your Site URL to
-  wherever you deploy this (e.g. `https://yoursite.com`) so
-  confirmation email links point to the right place.
+default, which is all this app needs. Sign up works like this: enter
+username/email/password → a "check your email" screen appears →
+click the link in the email → a **`verified.html`** page confirms it
+and is *already logged in* → if the original sign-up tab is still
+open in the same browser, it notices automatically and jumps straight
+to the home feed too. Either way, there's no separate log-in step —
+verifying the email and being logged in happen at the same moment.
+For this to work, two dashboard settings matter:
+- **Authentication → URL Configuration → Site URL**: set this to
+  wherever you deploy the app (e.g. `https://yoursite.com`).
+- **Authentication → URL Configuration → Redirect URLs**: add
+  `https://yoursite.com/verified.html` (and, for local testing,
+  something like `http://localhost:3000/verified.html`) to the allow
+  list. Supabase refuses to redirect confirmation links anywhere not
+  on this list, so skipping this step is the most common reason
+  "verified.html never loads / the link just goes to a blank Supabase
+  page."
 - **Authentication → Providers → Email → "Confirm email"**: if this
-  is ON (default), new users must click a confirmation link before
-  they can log in — `signup.html` already shows the right message
-  for that. If you turn it OFF, new users are logged in immediately
-  after signing up.
+  is ON (default), new users verify via the link above. If you turn
+  it OFF, new users are logged in immediately after signing up and
+  never see the "check your email" screen at all.
 
 ## 4. Get your API keys
 Project Settings → API:
@@ -69,6 +81,7 @@ This is a plain static site — no build step, no Node server required.
 - `/home` (`index.html`) — board feed, new-thread form (accounts only), trending sidebar, realtime new-post updates
 - `/<username>/status/<uuid>` (`thread.html`) — single thread with all replies, realtime new-reply updates. Also reachable as `/i/status/<uuid>` before the author is known (e.g. a raw copy-pasted id) — the address bar upgrades to the canonical `/<username>/status/<uuid>` automatically once the post loads, same as x.com.
 - `/login`, `/signup` (`login.html` / `signup.html`) — create an account / sign in
+- `verified.html` — where the email's verification link lands; confirms the email, is already logged in, and hands off to `/home`
 - `/<username>` (`profile.html`) — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
 - `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
 - `/<username>/followers`, `/<username>/following` (`followlist.html`) — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
