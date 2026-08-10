@@ -1752,10 +1752,10 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 .lb-media-wrap .ttv-video { max-height:calc(100vh - 40px); max-width:calc(100vw - 40px); }
 
 .ttv-overlay {
-  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  cursor:pointer; background:transparent;
+  position:absolute; inset:0; cursor:pointer; background:transparent;
 }
 .ttv-spinner {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
   width:32px; height:32px; border-radius:50%;
   border:3px solid rgba(255,255,255,.35); border-top-color:#fff;
   animation:ttv-spin .8s linear infinite;
@@ -1763,12 +1763,17 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 .ttv-spinner[hidden] { display:none; }
 @keyframes ttv-spin { to { transform:rotate(360deg); } }
 
+/* Centered with an absolute + transform (viewport/box-relative,
+   independent of the video's own size or flex behavior) rather than
+   flexbox — this is what makes it stay dead-centered on the player
+   in every context, including fullscreen. */
 .ttv-big-play {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
   width:64px; height:64px; border-radius:50%; border:none; cursor:pointer;
   background:rgba(15,20,25,.6); color:#fff; display:flex; align-items:center; justify-content:center;
   transition:background .15s, transform .15s;
 }
-.ttv-big-play:hover { background:rgba(15,20,25,.78); transform:scale(1.05); }
+.ttv-big-play:hover { background:rgba(15,20,25,.78); transform:translate(-50%,-50%) scale(1.05); }
 .ttv-big-play svg { width:28px; height:28px; margin-left:3px; }
 .ttv.ttv-playing .ttv-big-play { display:none; }
 .ttv.ttv-buffering .ttv-big-play { display:none; }
@@ -1872,15 +1877,15 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
    bars instead of stretching) keeps the video and the button locked
    to the same center point. */
 .ttv:fullscreen, .ttv:-webkit-full-screen {
-  width:100%; height:100%; max-width:none; border-radius:0;
+  width:100% !important; height:100% !important; max-width:none !important; border-radius:0 !important;
   display:flex; align-items:center; justify-content:center;
 }
 .ttv:fullscreen .ttv-video, .ttv:-webkit-full-screen .ttv-video {
-  max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;
+  max-width:100% !important; max-height:100% !important; width:auto !important; height:auto !important; object-fit:contain;
 }
 .ttv:fullscreen .ttv-big-play, .ttv:-webkit-full-screen .ttv-big-play {
-  width:80px; height:80px;
+  width:80px !important; height:80px !important;
 }
 .ttv:fullscreen .ttv-big-play svg, .ttv:-webkit-full-screen .ttv-big-play svg {
-  width:34px; height:34px;
+  width:34px !important; height:34px !important;
 }
