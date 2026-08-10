@@ -15,7 +15,6 @@
 // ─────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
-  renderAuthArea();
   await authReady;
 
   if (!currentSession) {
@@ -23,13 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Fast client-side bounce for the obvious case (not logged in as
-  // @marpe at all) — purely a UX nicety, so a non-admin isn't left
-  // staring at "Checking access..." while an RPC round-trips. This is
-  // NOT the real gate: is_admin() below (and every admin_*() RPC) is
-  // re-checked server-side regardless, because a client-side check
-  // like this one can always be edited out of the page's own JS.
-  if ((currentProfile?.username || '').toLowerCase() !== 'marpe') {
+  // Fetch our own copy of the profile instead of trusting the global
+  // currentProfile here — currentProfile is still being fetched
+  // asynchronously at the moment authReady resolves (see auth.js:
+  // resolveAuthReady() fires right after getSession(), BEFORE the
+  // getProfile() call below it), so reading it this early can read a
+  // stale/empty value and wrongly bounce @marpe out. Querying it
+  // directly can't race.
+  const { data: profile } = await sb.from('profiles').select('username').eq('id', currentSession.user.id).single();
+
+  if ((profile?.username || '').toLowerCase() !== 'marpe') {
     location.href = '/';
     return;
   }
