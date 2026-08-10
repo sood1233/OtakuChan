@@ -23,6 +23,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // Fast client-side bounce for the obvious case (not logged in as
+  // @marpe at all) — purely a UX nicety, so a non-admin isn't left
+  // staring at "Checking access..." while an RPC round-trips. This is
+  // NOT the real gate: is_admin() below (and every admin_*() RPC) is
+  // re-checked server-side regardless, because a client-side check
+  // like this one can always be edited out of the page's own JS.
+  if ((currentProfile?.username || '').toLowerCase() !== 'marpe') {
+    location.href = '/';
+    return;
+  }
+
   const { data: isAdmin, error } = await sb.rpc('is_admin');
   if (error || !isAdmin) {
     // Not the admin account — don't even hint the page exists.

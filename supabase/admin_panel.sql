@@ -1,42 +1,30 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- INTERACTINK — Admin panel (verify / ban / delete)
+-- Locked to ONE account: the profile whose username is "marpe".
 -- Run in: Supabase Dashboard → SQL Editor → New query → paste WHOLE
--- file → Run. Safe to re-run any time (drop/create + IF NOT EXISTS
--- throughout, same pattern as the rest of supabase/*.sql).
+-- file → Run. Safe to re-run any time.
 --
 -- Run this AFTER schema.sql / MASTER_SCHEMA.sql has already been run
--- at least once (it needs public.profiles and public.posts to exist).
+-- at least once (it needs public.profiles and public.posts to exist),
+-- and AFTER the @marpe account already exists (sign up on the site
+-- first if it doesn't yet — the seed step at the bottom needs to find
+-- that row).
 --
--- WHAT THIS SETS UP
---   • public.admins        — allow-list of who can use admin.html.
---     Nobody can read or write this table from the client, not even
---     an admin — it's only ever touched here, in the SQL editor, with
---     your own Supabase login. That's what makes "only I have
---     access" actually true at the database level, not just because
---     the page happens to check something client-side (client-side
---     checks are trivially bypassed — anyone can open devtools and
---     call the API directly. RLS is what can't be bypassed).
---   • profiles.verified    — powers the checkmark badge (vBadge() in
---     js/common.js already reads this on every profile it renders).
---   • profiles.banned      — blocks posting/replying at the RLS
---     level (not just hidden client-side) and js/auth.js signs the
---     person out the moment their session loads a banned profile.
---   • admin_verify_user() / admin_ban_user() / admin_delete_post()
---     — the only way any of the above three columns/actions change.
---     Each is `security definer` (runs with elevated privilege) but
---     its very first line re-checks is_admin() itself, so calling it
---     as anyone other than the one account in public.admins just
---     raises an exception — granting EXECUTE to "authenticated" is
---     safe for that reason.
---
--- ── ONE-TIME SETUP YOU NEED TO DO ──
--- Near the bottom of this file there's a line like:
---   insert into public.admins (user_id) select id from auth.users
---   where email = 'YOU@EXAMPLE.COM';
--- Replace that email with the email you log into InteractInk with,
--- BEFORE running this file. That's what makes that one account (and
--- only that account) the admin. You can run that insert again later
--- for a second email if you ever want a second admin.
+-- WHY THIS IS "ONLY ME" AND NOT JUST A UI CHECK
+--   is_admin() below does two things, not one:
+--     1. checks auth.uid() is a row in public.admins (a table no
+--        client can ever read or write — RLS on, zero policies, only
+--        touchable from the SQL editor / a service_role key)
+--     2. re-checks that same account's username is still exactly
+--        "marpe"
+--   Both have to be true. So even if someone somehow got a second row
+--   into public.admins (they can't, from the client — but even if a
+--   future edit to this file did it by accident), they still couldn't
+--   pass unless their username were also literally "marpe" — and
+--   usernames are unique (see MASTER_SCHEMA.sql), so only one account
+--   on the whole site can ever satisfy that.
+--   admin.html's own gate calls is_admin() the same way — it never
+--   trusts anything about "who you are" that came from the browser.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── 1. profiles: verified + banned ──
@@ -45,10 +33,9 @@ alter table public.profiles add column if not exists verified boolean not null d
 alter table public.profiles add column if not exists banned   boolean not null default false;
 alter table public.profiles add column if not exists banned_at timestamptz;
 
--- ── 2. admins allow-list — RLS on, zero policies. That means: no row
--- is selectable/insertable/updatable by anon or authenticated, full
--- stop. The only way in or out is the SQL editor / a service_role
--- key, neither of which the website's frontend ever has.
+-- ── 2. admins allow-list — RLS on, zero policies. No row is
+-- selectable/insertable/updatable by anon or authenticated, full
+-- stop. Only touchable from the SQL editor / a service_role key.
 
 create table if not exists public.admins (
   user_id    uuid primary key references auth.users(id) on delete cascade,
@@ -56,9 +43,9 @@ create table if not exists public.admins (
 );
 alter table public.admins enable row level security;
 
--- ── 3. is_admin() — the one function allowed to read the admins
--- table (security definer bypasses RLS for its own query only). Every
--- admin_*() action below starts by calling this.
+-- ── 3. is_admin() — true only for the account that is BOTH listed
+-- in public.admins AND currently has username = 'marpe'. Every
+-- admin_*() action below calls this first.
 
 create or replace function public.is_admin()
 returns boolean
@@ -67,13 +54,20 @@ security definer
 set search_path = public
 stable
 as $$
-  select exists (select 1 from public.admins where user_id = auth.uid());
+  select exists (
+    select 1
+    from public.admins a
+    join public.profiles p on p.id = a.user_id
+    where a.user_id = auth.uid()
+      and lower(p.username) = 'marpe'
+  );
 $$;
 
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to authenticated;
 
--- ── 4. admin_verify_user() — toggles the checkmark badge. ──
+-- ── 4. admin_verify_user() — toggles the checkmark badge on ANY
+-- account (this is how @marpe verifies other users). ──
 
 create or replace function public.admin_verify_user(target_user_id uuid, make_verified boolean)
 returns void
@@ -125,8 +119,8 @@ $$;
 revoke all on function public.admin_ban_user(uuid, boolean) from public;
 grant execute on function public.admin_ban_user(uuid, boolean) to authenticated;
 
--- ── 6. admin_delete_post() — same soft-delete the owner's own
--- delete_own_post() does (sets is_deleted = true), just without the
+-- ── 6. admin_delete_post() — soft-deletes ANY post (is_deleted =
+-- true), same as the owner's own delete_own_post(), just without the
 -- "has to be your own post" check — gated by is_admin() instead.
 
 create or replace function public.admin_delete_post(post_id uuid)
@@ -150,8 +144,7 @@ revoke all on function public.admin_delete_post(uuid) from public;
 grant execute on function public.admin_delete_post(uuid) to authenticated;
 
 -- ── 7. Banned accounts can't post or reply — enforced at the RLS
--- level (not just hidden in the UI), by widening the existing insert
--- policies from schema.sql to also require the author isn't banned.
+-- level (not just hidden in the UI). ──
 
 drop policy if exists "logged in users can post" on public.posts;
 create policy "logged in users can post" on public.posts
@@ -170,18 +163,17 @@ create policy "logged in users can reply" on public.replies
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
--- ── 8. SEED THE ADMIN ──
--- This is the ONLY account that will ever pass is_admin(). Make sure
--- you've created this login first (sign up on the site, or add it
--- via Supabase Dashboard → Authentication → Users), THEN run this
--- whole file. If the account doesn't exist yet, this insert quietly
--- matches zero rows — re-run just this file again after creating it.
+-- ── 8. SEED @marpe AS THE ADMIN ──
+-- Looks the account up by username, not email, since that's how you
+-- actually identified "only me" — no email to mistype or keep in
+-- sync. If @marpe hasn't signed up yet, this matches zero rows;
+-- re-run just this file once the account exists.
 -- ═══════════════════════════════════════════════════════════════════
 
 insert into public.admins (user_id)
-select id from auth.users where email = 'mohad10alli@gmail.com'
+select id from public.profiles where lower(username) = 'marpe'
 on conflict (user_id) do nothing;
 
--- Sanity check — run this separately after, to confirm it worked:
--- select u.email, a.created_at as admin_since
--- from public.admins a join auth.users u on u.id = a.user_id;
+-- Sanity check — run separately after, to confirm it worked:
+-- select p.username, a.created_at as admin_since
+-- from public.admins a join public.profiles p on p.id = a.user_id;

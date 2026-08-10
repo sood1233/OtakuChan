@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin — InteractInk</title>
-<!-- Belt-and-suspenders against crawling, on top of the vercel.json
-     X-Robots-Tag header and the /admin Disallow in api/robots.js:
-     noarchive/nosnippet/noimageindex too, and no og:/twitter: tags at
-     all so there's nothing worth putting in a preview card either. -->
+<!-- Locked to the @marpe account only — see supabase/admin_panel.sql.
+     This page has no real security of its own (it's just HTML/JS
+     sitting in the browser); the actual lock is is_admin() in the
+     database, which js/admin.js calls before showing anything below. -->
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
 <meta name="googlebot" content="noindex, nofollow">
 <base href="/">
