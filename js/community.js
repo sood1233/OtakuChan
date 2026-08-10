@@ -25,6 +25,13 @@ async function loadCommunity() {
   community = data;
   document.title = `${community.name} — InteractInk`;
   setPageDescription(community.description || `${community.name} — a community on InteractInk.`);
+  setCanonical(communityUrl(community.slug));
+  if (community.banner_url || community.avatar_url) setPageImage(community.banner_url || community.avatar_url);
+  setJsonLd({
+    '@context': 'https://schema.org', '@type': 'WebPage',
+    name: community.name, description: community.description || undefined,
+    url: location.origin + communityUrl(community.slug),
+  });
 
   if (currentSession) {
     const { data: mem } = await sb.from('community_members').select('user_id')

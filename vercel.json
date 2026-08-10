@@ -2,6 +2,9 @@
   "cleanUrls": false,
   "trailingSlash": false,
   "rewrites": [
+    { "source": "/robots.txt",   "destination": "/api/robots" },
+    { "source": "/sitemap.xml",  "destination": "/api/sitemap" },
+
     { "source": "/home",               "destination": "/index.html" },
     { "source": "/notifications",      "destination": "/notifications.html" },
     { "source": "/bookmarks",          "destination": "/bookmarks.html" },
@@ -20,10 +23,27 @@
     { "source": "/messages",           "destination": "/chat.html" },
     { "source": "/messages/:username", "destination": "/chat.html" },
 
-    { "source": "/i/status/:id",         "destination": "/thread.html" },
-    { "source": "/:username/status/:id", "destination": "/thread.html" },
     { "source": "/:username/followers",  "destination": "/followlist.html" },
     { "source": "/:username/following",  "destination": "/followlist.html" },
+
+    {
+      "source": "/i/status/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
+      "destination": "/api/prerender?type=thread&id=:id"
+    },
+    {
+      "source": "/:username/status/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
+      "destination": "/api/prerender?type=thread&username=:username&id=:id"
+    },
+    {
+      "source": "/:username",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
+      "destination": "/api/prerender?type=profile&username=:username"
+    },
+
+    { "source": "/i/status/:id",         "destination": "/thread.html" },
+    { "source": "/:username/status/:id", "destination": "/thread.html" },
 
     { "source": "/:username",          "destination": "/profile.html" }
   ]

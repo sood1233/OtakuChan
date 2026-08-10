@@ -60,10 +60,12 @@ async function loadSettings() {
       <h2>Appearance</h2>
       <p class="sub">Pick how InteractInk looks on this device.</p>
       <div class="theme-picker" id="theme-picker">
-        ${themeSwatchHtml('light', 'Default', curTheme === 'light')}
-        ${themeSwatchHtml('dim', 'Dim', curTheme === 'dim')}
-        ${themeSwatchHtml('dark', 'Lights out', curTheme === 'dark')}
+        ${themeSwatchHtml('auto', 'Match device', !getStoredTheme())}
+        ${themeSwatchHtml('light', 'Default', curTheme === 'light' && !!getStoredTheme())}
+        ${themeSwatchHtml('dim', 'Dim', curTheme === 'dim' && !!getStoredTheme())}
+        ${themeSwatchHtml('dark', 'Lights out', curTheme === 'dark' && !!getStoredTheme())}
       </div>
+      <p class="pf-note" style="margin-top:8px;">"Match device" follows your phone or browser's light/dark setting automatically.</p>
       <p class="sub" style="margin-top:16px;">Pick an accent color for buttons and links.</p>
       <div class="accent-picker" id="accent-picker">
         ${ACCENT_OPTIONS.map(a => accentSwatchHtml(a.id, a.label, curAccent === a.id)).join('')}

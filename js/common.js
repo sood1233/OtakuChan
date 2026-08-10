@@ -44,6 +44,61 @@ function setPageDescription(text) {
   if (twTitle) twTitle.setAttribute('content', document.title);
 }
 
+// Sets <link rel="canonical"> + og:url to the page's real, final address
+// (creating the <link> tag if the static HTML didn't already have one).
+// Call this alongside setPageDescription() on any page whose canonical
+// URL depends on data that only loads client-side (a username, a post
+// id, a list id, ...) — without it, search engines have no signal that
+// /i/status/<id> and /marc/status/<id> are the same page, or that
+// profile.html?u=marc (the legacy fallback form) and /marc are too.
+function setCanonical(path) {
+  if (!path) return;
+  const url = location.origin + path;
+  let link = document.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    document.head.appendChild(link);
+  }
+  link.setAttribute('href', url);
+  const og = document.querySelector('meta[property="og:url"]');
+  if (og) og.setAttribute('content', url);
+}
+
+// Points og:image / twitter:image at a real avatar/media URL instead of
+// the generic logo baked into the HTML, so shared links (Discord/iMessage/
+// Slack/X unfurls) show the actual person or post image.
+function setPageImage(url) {
+  if (!url) return;
+  const setMeta = (selector, attr) => {
+    const el = document.querySelector(selector);
+    if (el) el.setAttribute(attr, url);
+  };
+  setMeta('meta[property="og:image"]', 'content');
+  setMeta('meta[name="twitter:image"]', 'content');
+  const card = document.querySelector('meta[name="twitter:card"]');
+  if (card) card.setAttribute('content', 'summary_large_image');
+}
+
+// Injects (or replaces) a JSON-LD <script> block describing the entity
+// this page is about (a Person for profiles, a SocialMediaPosting for
+// threads, ...). This is what lets search engines show rich results
+// (author, date, engagement counts) instead of a plain blue link, and
+// gives them an unambiguous, structured signal of what the page contains
+// on top of the plain-text content — helpful since this app has no
+// server-rendered content for a crawler that doesn't run JS.
+function setJsonLd(obj) {
+  if (!obj) return;
+  let el = document.getElementById('jsonld-data');
+  if (!el) {
+    el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.id = 'jsonld-data';
+    document.head.appendChild(el);
+  }
+  el.textContent = JSON.stringify(obj);
+}
+
 function u_(s) { return encodeURIComponent(s); }
 
 // ── HOVER/TOUCH PREFETCH — this app does full page navigations (no
@@ -246,14 +301,49 @@ const NAV_ICON = {
 // ── THEME — Default (light) / Dim / Lights out (dark), applied via
 // data-theme on <html>. A tiny inline script in every page's <head>
 // reads THEME_KEY before first paint (no flash); this just gives
-// settings.js (and anything else) a shared way to change/read it. ──
+// settings.js (and anything else) a shared way to change/read it.
+//
+// A stored value ('light'/'dim'/'dark') means the person explicitly
+// picked one in Settings and it always wins. No stored value (null)
+// means "Match device" — the default for everyone who's never opened
+// the picker — which follows the OS/browser's prefers-color-scheme,
+// live: flipping the phone from light to dark (or back) updates the
+// site immediately, no reload, without ever touching localStorage. ──
 const THEME_KEY = 'oc-theme';
-function applyTheme(theme) {
-  if (theme && theme !== 'light') document.documentElement.setAttribute('data-theme', theme);
-  else document.documentElement.removeAttribute('data-theme');
-  try { localStorage.setItem(THEME_KEY, theme || 'light'); } catch (e) {}
-  updateFavicon(theme);
+function systemPrefersDark() {
+  try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
+  catch (e) { return false; }
 }
+// System dark mode is a single boolean, but this app has two dark
+// looks (Dim vs. Lights out); "Dim" is the one used for auto/system
+// dark, same choice Twitter/X's own "Match device" setting makes.
+function resolveTheme(stored) {
+  if (stored === 'light' || stored === 'dim' || stored === 'dark') return stored;
+  return systemPrefersDark() ? 'dim' : 'light';
+}
+function getStoredTheme() {
+  try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+}
+// The theme actually on screen right now (resolves "auto" to light/dim).
+function getTheme() { return resolveTheme(getStoredTheme()); }
+// theme: 'light' | 'dim' | 'dark' (explicit) or 'auto'/falsy (match device).
+function applyTheme(theme) {
+  if (!theme || theme === 'auto') { try { localStorage.removeItem(THEME_KEY); } catch (e) {} }
+  else { try { localStorage.setItem(THEME_KEY, theme); } catch (e) {} }
+  const resolved = resolveTheme(theme === 'auto' ? null : theme);
+  if (resolved !== 'light') document.documentElement.setAttribute('data-theme', resolved);
+  else document.documentElement.removeAttribute('data-theme');
+  updateFavicon(resolved);
+}
+// Live-updates the page the instant the OS theme flips, but only for
+// people who haven't overridden it with an explicit Settings choice.
+(function watchSystemTheme() {
+  try {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => { if (!getStoredTheme()) applyTheme('auto'); };
+    mq.addEventListener ? mq.addEventListener('change', onChange) : mq.addListener(onChange);
+  } catch (e) {}
+})();
 // Swaps the two <link rel="icon"> hrefs between the light mark (white
 // square, black &) and dark mark (black square, white &) so the tab
 // favicon always matches Default vs Dim/Lights out. The pre-paint
@@ -267,10 +357,6 @@ function updateFavicon(theme) {
   if (f32) f32.href = dark ? 'img/favicon-dark-32.png' : 'img/favicon-32.png';
   if (f512) f512.href = dark ? 'img/favicon-dark.png' : 'img/favicon.png';
 }
-function getTheme() {
-  try { return localStorage.getItem(THEME_KEY) || 'light'; } catch (e) { return 'light'; }
-}
-
 // ── ACCENT COLOR — same idea as THEME above, but swaps the app's one
 // accent color (buttons/links/active states) instead of the surface
 // colors. Applied via data-accent on <html>; "blue" is the default and
@@ -2393,6 +2479,7 @@ function clearErr(el) {
   if (!el) return;
   el.style.display = 'none';
   el.textContent = '';
+  el.classList.remove('auth-ok');
 }
 
 // Uploads a file to the media bucket and returns { media_url, media_type }

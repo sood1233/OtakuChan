@@ -29,7 +29,13 @@ async function loadList() {
   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This List doesn't exist, or is private.</div>`; return; }
   list = data;
   document.title = `${list.name} — InteractInk`;
-  setPageDescription(`${list.name} — a List on InteractInk.`);
+  setPageDescription(list.description || `${list.name} — a List on InteractInk.`);
+  setCanonical(listUrl(list.id));
+  setJsonLd({
+    '@context': 'https://schema.org', '@type': 'ItemList',
+    name: list.name, description: list.description || undefined,
+    url: location.origin + listUrl(list.id),
+  });
 
   isOwner = !!(currentSession && list.owner_id === currentSession.user.id);
 

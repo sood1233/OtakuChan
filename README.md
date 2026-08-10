@@ -131,6 +131,61 @@ The left sidebar nav (`#side-nav`, filled in by `renderSideNav()` in
 `js/common.js`) is shared across every page instead of being copy-pasted
 HTML, so adding/reordering nav items only needs to happen in one place.
 
+## SEO / indexing — every profile and post is now a real, discoverable page
+This app is a client-rendered SPA: `profile.html`/`thread.html` are empty
+shells until `js/profile.js`/`js/thread.js` fetch the real content from
+Supabase in the browser. That's invisible to a human, but it meant two
+things were broken for search engines and link-unfurl bots:
+
+1. **Nothing to crawl.** There's no static list of `/<username>` and
+   `/<username>/status/<id>` URLs anywhere, so a crawler could only ever
+   find a profile/post by already having a link to it. Most users' pages
+   would simply never be discovered.
+2. **Nothing to read even if they found it.** Bots that don't execute
+   JS (Bing's crawler is limited here; link-unfurlers like Slack,
+   Discord, WhatsApp, iMessage, and X never run JS at all) would only
+   ever see the generic placeholder `<title>`/`<meta>` baked into the
+   HTML — every shared profile/post link unfurled as generic "Profile —
+   InteractInk" text.
+
+Three pieces fix this, all serverless (no build step added, still a
+static site otherwise):
+
+- **`/sitemap.xml`** (`api/sitemap.js`) — built live from `profiles`,
+  `posts`, `communities`, and public `lists`, so every one of them has a
+  discoverable URL. Linked from `/robots.txt`. Capped at ~5,000 rows per
+  table for now — see the comment in that file for how to scale past it.
+- **`/robots.txt`** (`api/robots.js`) — allows everything except the
+  personal/utility pages (settings, DMs, bookmarks, notifications,
+  login/signup, search results), which also carry a `noindex` meta tag
+  as the primary signal.
+- **Bot-only server-rendered HTML** (`api/prerender.js`) — requests to
+  `/<username>` or `/<username>/status/<id>` whose User-Agent matches a
+  known crawler/unfurl-bot pattern (see the `has` conditions in
+  `vercel.json`) get real, already-rendered HTML with the actual name,
+  bio, post text, and reply text instead of the empty SPA shell — a
+  human hitting the same URL still gets the normal app, unchanged. This
+  is what's usually called "dynamic rendering," not cloaking: both
+  versions show the same content, just rendered by different means.
+
+On top of that, every content page (`profile.js`, `thread.js`,
+`community.js`, `list.js`, `followlist.js`, `profilelists.js`) now sets
+a real `<link rel="canonical">`, `og:url`, `og:image`, and a JSON-LD
+block (`Person`/`SocialMediaPosting`/etc.) once its data loads, via
+`setCanonical()` / `setPageImage()` / `setJsonLd()` in `js/common.js` —
+previously only `document.title` and the description were being
+updated, so shared links had no real preview image and search engines
+had no structured signal of what the page was about, and no canonical
+URL tying together `/<username>`, the legacy `profile.html?u=<username>`
+form, and `/i/status/<id>` vs. `/<username>/status/<id>`.
+
+**One thing you need to do after deploying:** the sitemap/robots
+functions build absolute URLs from the request's own host, so they work
+on any domain automatically — nothing to configure there. But do
+resubmit `https://yourdomain/sitemap.xml` in Google Search Console
+(and Bing Webmaster Tools) once it's live, so it actually gets crawled
+instead of waiting to be discovered organically.
+
 ## How accounts work
 - `js/auth.js` handles sign up, log in, log out, session state, and
   renders the header's login/signup links vs. avatar-and-username menu.
@@ -260,6 +315,13 @@ adds a plain aggregate counter, the same way `like_count`/
 `reply_count`/`repost_count` already work.
 
 ## Customizing
+- SEO/indexing: `api/sitemap.js`, `api/robots.js`, `api/prerender.js`
+  (bot-only server render), plus `setCanonical()`/`setPageImage()`/
+  `setJsonLd()` in `js/common.js` — see "SEO / indexing" above. If you
+  ever rotate/move Supabase projects, the URL + anon key are duplicated
+  in `js/supabase-config.js` **and** the two `api/*.js` files (a plain
+  static-site file can't `import` another one at request time) — update
+  all three.
 - Colors/fonts/layout: `css/style.css`
 - Feed/thread/like/report/bookmark/delete logic: `js/board.js`, `js/thread.js`, `js/common.js`.
   Deleting is a soft delete (`posts.is_deleted = true`, same mechanism

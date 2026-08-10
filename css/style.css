@@ -1488,6 +1488,8 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 .theme-swatch .ts-preview { height:52px; display:flex; align-items:center; gap:6px; padding:0 10px; }
 .theme-swatch .ts-preview span { display:block; width:16px; height:16px; border-radius:50%; }
 .theme-swatch .ts-label { display:block; font-size:13px; font-weight:700; padding:8px 10px; color:var(--ink); background:var(--cream-card); }
+.theme-swatch[data-theme-opt="auto"] .ts-preview { background:linear-gradient(135deg, #FFFFFF 50%, #15202B 50%); }
+.theme-swatch[data-theme-opt="auto"] .ts-preview span { background:linear-gradient(135deg, #0F1419 50%, #F7F9F9 50%); }
 .theme-swatch[data-theme-opt="light"] .ts-preview { background:#FFFFFF; }
 .theme-swatch[data-theme-opt="light"] .ts-preview span { background:#0F1419; }
 .theme-swatch[data-theme-opt="dim"] .ts-preview { background:#15202B; }

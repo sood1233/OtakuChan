@@ -33,6 +33,8 @@ async function loadProfileLists() {
   document.getElementById('pl-back').href = profileUrl(profile.username);
   const canonical = profileListsUrl(profile.username);
   if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
+  setPageDescription(`Lists @${profile.username} is a member of, on InteractInk.`);
+  setCanonical(canonical);
 
   const { data: memberRows, error: memErr } = await sb.from('list_members')
     .select('list_id').eq('member_id', profile.id);

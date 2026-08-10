@@ -123,6 +123,8 @@ async function loadFollowList() {
   document.getElementById('fl-back').href = profileUrl(profile.username);
   const canonical = prettyFollowListUrl(profile.username, flTab);
   if (location.pathname !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
+  setPageDescription(`People ${flTab === 'following' ? 'followed by' : 'following'} @${profile.username} on InteractInk.`);
+  setCanonical(canonical);
 
   flRenderTabs();
   await flLoadMyFollowing();

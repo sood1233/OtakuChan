@@ -59,7 +59,25 @@ async function loadThread() {
   if (p.profile?.username) {
     const canonical = prettyPostUrl(p);
     if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical + location.hash); } catch (e) {} }
+    setCanonical(canonical);
   }
+  if (p.media_url) setPageImage(p.media_url);
+  else if (p.profile?.avatar_url) setPageImage(p.profile.avatar_url);
+  setJsonLd({
+    '@context': 'https://schema.org', '@type': 'SocialMediaPosting',
+    url: location.origin + prettyPostUrl(p),
+    datePublished: p.created_at,
+    text: p.body,
+    author: {
+      '@type': 'Person',
+      name: p.profile?.display_name || p.profile?.username || 'unknown',
+      url: p.profile?.username ? location.origin + prettyProfileUrl(p.profile.username) : undefined,
+    },
+    interactionStatistic: [
+      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: p.like_count || 0 },
+      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/ReplyAction', userInteractionCount: p.reply_count || 0 },
+    ],
+  });
 
   const { data: replies } = await sb.from('replies').select(REPLY_SELECT)
     .eq('post_id', postId).eq('is_deleted', false)

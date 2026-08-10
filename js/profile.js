@@ -36,6 +36,20 @@ async function loadProfile() {
   // thread.js's /i/status/ -> /<username>/status/ upgrade.
   const canonical = prettyProfileUrl(profile.username);
   if (location.pathname + location.search !== canonical) { try { history.replaceState(null, '', canonical); } catch (e) {} }
+  setCanonical(canonical);
+  if (profile.avatar_url) setPageImage(profile.avatar_url);
+  setJsonLd({
+    '@context': 'https://schema.org', '@type': 'ProfilePage',
+    dateCreated: profile.created_at, url: location.origin + canonical,
+    mainEntity: {
+      '@type': 'Person',
+      name: profile.display_name || profile.username,
+      alternateName: profile.username,
+      description: profile.bio || undefined,
+      image: profile.avatar_url || undefined,
+      url: location.origin + canonical,
+    },
+  });
 
   const flu = kind => followListUrl(profile.username, kind);
   const websiteHref = profile.website || null;

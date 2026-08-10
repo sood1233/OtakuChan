@@ -216,10 +216,32 @@ async function doSignUp(e) {
       return;
     }
 
-    // No session came back. The only realistic cause with "Confirm
-    // email" off is that toggle not actually being off yet — surface
-    // that plainly instead of leaving the person stuck on a spinner
-    // or a dead-end code screen.
+    // No session came back. Supabase collapses two very different
+    // situations into this same "success, no session" shape, so they
+    // need to be told apart instead of showing one generic error for
+    // both:
+    //
+    // 1) The email is already registered. To avoid leaking which
+    //    emails exist on the site, Supabase doesn't return a
+    //    "duplicate" error here — it silently returns a fake user
+    //    object with an *empty* identities array and no session. This
+    //    is almost always what actually happened when this code path
+    //    is hit (e.g. re-submitting the form, or testing with the
+    //    same address twice) — not a broken project setting.
+    // 2) "Confirm email" is genuinely ON for this project, and this
+    //    really is a brand-new signup pending a confirmation email —
+    //    data.user exists with a non-empty identities array.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw new Error('That email is already registered — try logging in instead.');
+    }
+    if (data.user) {
+      showErr(errEl, 'Account created! Check your email to confirm it, then log in.');
+      errEl.classList.add('auth-ok');
+      btn.value = 'Check your email';
+      return;
+    }
+    // Neither shape matched (data.user missing entirely) — the one
+    // remaining explanation is the project setting itself.
     throw new Error('Account created, but no session came back. If this keeps happening, check that "Confirm email" is turned OFF in the Supabase dashboard (Authentication → Providers → Email).');
   } catch (err) {
     showErr(errEl, err.message?.includes('duplicate') || err.message?.includes('unique')
