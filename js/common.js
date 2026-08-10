@@ -2285,10 +2285,46 @@ function esc(str) {
 // name-rendering helper below (pcNameHtml, whoRowHtml, authorHtml,
 // userRowHtml) calls this, so setting profiles.verified = true from
 // the admin panel is enough to make the badge show up everywhere.
+//
+// Rendered as an inline <svg><use> against a single shared <symbol>
+// (injected once by ensureBadgeDefs() below) rather than the old PNG.
+// That fixes two things the raster version couldn't: it's pixel-crisp
+// at every size/DPI instead of going soft when scaled, and the scalloped
+// seal shape is drawn from an exact vector path instead of a slightly
+// lumpy rasterized outline, so it reads as a clean, deliberate mark
+// instead of a blurry sticker.
 function vBadge(profile) {
-  return profile?.verified
-    ? `<img class="verified-badge" src="img/verified-badge.png" alt="Verified" title="Verified">`
-    : '';
+  if (!profile?.verified) return '';
+  ensureBadgeDefs();
+  return `<svg class="verified-badge" viewBox="0 0 24 24" role="img" aria-label="Verified" title="Verified"><use href="#vbadge-icon" xlink:href="#vbadge-icon"/></svg>`;
+}
+
+let _badgeDefsReady = false;
+function ensureBadgeDefs() {
+  if (_badgeDefsReady) return;
+  _badgeDefsReady = true;
+  const inject = () => {
+    if (document.getElementById('vbadge-defs')) return;
+    const holder = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    holder.setAttribute('id', 'vbadge-defs');
+    holder.setAttribute('width', '0');
+    holder.setAttribute('height', '0');
+    holder.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;';
+    holder.innerHTML = `
+      <defs>
+        <linearGradient id="vbadge-grad" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#3B0091"/>
+          <stop offset="100%" stop-color="#9B2CF0"/>
+        </linearGradient>
+      </defs>
+      <symbol id="vbadge-icon" viewBox="0 0 24 24">
+        <path fill="url(#vbadge-grad)" d="M12,2.6 C12.87,2.6 13.89,4.61 14.89,5.02 C15.89,5.44 18.03,4.74 18.65,5.35 C19.26,5.97 18.56,8.11 18.98,9.11 C19.39,10.11 21.4,11.13 21.4,12 C21.4,12.87 19.39,13.89 18.98,14.89 C18.56,15.89 19.26,18.03 18.65,18.65 C18.03,19.26 15.89,18.56 14.89,18.98 C13.89,19.39 12.87,21.4 12,21.4 C11.13,21.4 10.11,19.39 9.11,18.98 C8.11,18.56 5.97,19.26 5.35,18.65 C4.74,18.03 5.44,15.89 5.02,14.89 C4.61,13.89 2.6,12.87 2.6,12 C2.6,11.13 4.61,10.11 5.02,9.11 C5.44,8.11 4.74,5.97 5.35,5.35 C5.97,4.74 8.11,5.44 9.11,5.02 C10.11,4.61 11.13,2.6 12,2.6 Z"/>
+        <path fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M8.1,12.3 L10.7,14.9 L16.1,9.3"/>
+      </symbol>`;
+    document.body.appendChild(holder);
+  };
+  if (document.body) inject();
+  else document.addEventListener('DOMContentLoaded', inject);
 }
 
 // Renders body text with basic greentext (> lines) support, plus

@@ -615,9 +615,9 @@ select {
    (post cards, reply headers, profile header, who-to-follow, follower
    lists). Sits inline right after the name text — see vBadge() in
    js/common.js, which is the single place this <img> gets built. */
-.verified-badge { width:16px; height:16px; margin-left:0; vertical-align:-3px; flex:none; display:inline-block; }
+.verified-badge { width:16px; height:16px; margin-left:2px; vertical-align:-3px; flex:none; display:inline-block; }
 .op-detail-names .verified-badge { width:17px; height:17px; vertical-align:-3px; }
-.uname-row .verified-badge { width:21px; height:21px; vertical-align:-4px; }
+.uname-row .verified-badge { width:21px; height:21px; margin-left:3px; vertical-align:-4px; }
 .ph .nm:hover { text-decoration:underline; }
 .ph .pc-handle { color:var(--muted); font-weight:400; margin-right:5px; white-space:nowrap; }
 .ph .dt { color:var(--muted); font-weight:400; white-space:nowrap; }
