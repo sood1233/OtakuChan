@@ -50,6 +50,25 @@ async function renderAuthArea() {
   }
 
   currentProfile = await getProfile(session.user.id);
+
+  // Banned accounts get signed out the moment their profile loads,
+  // wherever they are on the site — admin_ban_user() (SQL) already
+  // stops them posting/replying at the RLS level, this just kicks
+  // them out of the session too instead of leaving them logged in
+  // and confused. See supabase/admin_panel.sql.
+  if (currentProfile?.banned) {
+    await sb.auth.signOut();
+    currentSession = null;
+    currentProfile = null;
+    unreadNotifCount = 0;
+    unreadChatCount = 0;
+    renderSideNav(); renderMobileChrome();
+    if (el) el.innerHTML = `<div class="auth-cta"><a class="cta-primary" href="signup.html">Sign up</a><a class="cta-ghost" href="login.html">Log in</a></div>`;
+    refreshPostGates();
+    alert('This account has been suspended.');
+    return;
+  }
+
   const uname = currentProfile?.username || 'user';
   const avatar = avatarUrl(currentProfile?.avatar_url);
   renderSideNav(); renderMobileChrome();

@@ -57,7 +57,7 @@ async function flLoadList() {
   const col = flTab === 'followers' ? 'followee_id' : 'follower_id';
   const wantCol = flTab === 'followers' ? 'follower_id' : 'followee_id';
   const { data, error } = await sb.from('follows')
-    .select(`${wantCol}, profile:profiles!follows_${wantCol}_fkey(id,username,display_name,avatar_url)`)
+    .select(`${wantCol}, profile:profiles!follows_${wantCol}_fkey(id,username,display_name,avatar_url,verified)`)
     .eq(col, flProfile.id)
     .order('created_at', { ascending: false })
     .limit(200);

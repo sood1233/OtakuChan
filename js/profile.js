@@ -9,7 +9,7 @@ const viewUsername = currentProfileUsername();
 let viewedProfile = null;
 let isOwnProfile = false;
 
-const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)';
 
 async function loadProfile() {
   const root = document.getElementById('profile-root');
@@ -63,7 +63,7 @@ async function loadProfile() {
       <img class="avatar pfp-lg" id="pv-avatar" src="${esc(avatarUrl(profile.avatar_url))}" alt="">
       <div class="profile-id">
         <div class="uname-row">
-          <div class="uname">${esc(profile.display_name || profile.username)}</div>
+          <div class="uname">${esc(profile.display_name || profile.username)}${vBadge(profile)}</div>
           <div class="profile-hdr-actions">
             ${!isOwnProfile && session ? `
               <a class="profile-icon-btn" href="${messagesUrl(profile.username)}" title="Message" aria-label="Message">${ICON_MESSAGE}</a>
@@ -355,7 +355,7 @@ async function cancelScheduledPost(postId) {
   }
 }
 
-const REPLY_SELECT = '*, profile:profiles(username,display_name,avatar_url)';
+const REPLY_SELECT = '*, profile:profiles(username,display_name,avatar_url,verified)';
 
 async function loadUserReplies(userId) {
   const el = document.getElementById('profile-posts');
@@ -380,9 +380,9 @@ async function loadUserReplies(userId) {
   const postIds = [...new Set(replies.map(r => r.post_id))];
   const parentIds = [...new Set(replies.filter(r => r.parent_reply_id).map(r => r.parent_reply_id))];
   const [postsRes, parentsRes] = await Promise.all([
-    sb.from('posts').select('id,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)').in('id', postIds),
+    sb.from('posts').select('id,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)').in('id', postIds),
     parentIds.length
-      ? sb.from('replies').select('id,profile:profiles(username,display_name,avatar_url)').in('id', parentIds)
+      ? sb.from('replies').select('id,profile:profiles(username,display_name,avatar_url,verified)').in('id', parentIds)
       : Promise.resolve({ data: [] })
   ]);
   const postById = new Map((postsRes.data || []).map(p => [p.id, p]));

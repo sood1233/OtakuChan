@@ -610,6 +610,13 @@ select {
   font-size:15px; line-height:1.3; margin-bottom:1px;
 }
 .ph .nm { color:var(--ink); font-weight:800; text-decoration:none; margin-right:5px; }
+
+/* Verified checkmark shown next to a display name wherever it appears
+   (post cards, reply headers, profile header, who-to-follow, follower
+   lists). Sits inline right after the name text — see vBadge() in
+   js/common.js, which is the single place this <img> gets built. */
+.verified-badge { width:15px; height:15px; margin-left:2px; vertical-align:-2px; flex:none; display:inline-block; }
+.uname-row .verified-badge, .op-detail-names .verified-badge { width:18px; height:18px; vertical-align:-3px; }
 .ph .nm:hover { text-decoration:underline; }
 .ph .pc-handle { color:var(--muted); font-weight:400; margin-right:5px; white-space:nowrap; }
 .ph .dt { color:var(--muted); font-weight:400; white-space:nowrap; }

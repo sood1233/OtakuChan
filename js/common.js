@@ -684,7 +684,7 @@ async function submitGlobalCompose() {
       poll_options: poll?.poll_options || null,
       poll_ends_at: poll?.poll_ends_at || null,
       scheduled_at
-    }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)').single();
+    }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)').single();
     if (error) throw error;
 
     bodyEl.value = ''; bodyEl.style.height = '';
@@ -854,7 +854,7 @@ async function submitReplyPopup() {
       parent_reply_id: null,
       author_id: currentSession.user.id,
       body, media_url, media_type
-    }).select('*, profile:profiles(username,display_name,avatar_url)').single();
+    }).select('*, profile:profiles(username,display_name,avatar_url,verified)').single();
     if (error) throw error;
 
     bodyEl.value = ''; bodyEl.style.height = '';
@@ -921,7 +921,7 @@ async function renderWhoToFollow() {
   // Pull a small pool of recently-active accounts and filter client-side —
   // simplest thing that works for a suggestions box this size, no RPC needed.
   const { data, error } = await sb.from('profiles')
-    .select('id,username,display_name,avatar_url')
+    .select('id,username,display_name,avatar_url,verified')
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -942,7 +942,7 @@ function whoRowHtml(profile) {
         <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="" loading="lazy" decoding="async">
       </a>
       <a class="who-row-txt" href="${profileUrl(uname)}">
-        <span class="who-row-name">${esc(profile.display_name || uname)}</span>
+        <span class="who-row-name">${esc(profile.display_name || uname)}${vBadge(profile)}</span>
         <span class="who-row-handle">@${esc(uname)}</span>
       </a>
       <button class="who-follow-btn" onclick="whoToggleFollow('${profile.id}', this)">Follow</button>
@@ -1243,7 +1243,7 @@ async function attachQuotedPosts(posts) {
   if (!ids.length) return;
   try {
     const { data } = await sb.from('posts')
-      .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)')
+      .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)')
       .in('id', ids);
     const byId = Object.fromEntries((data || []).map(qp => [qp.id, qp]));
     list.forEach(p => { if (p?.quote_of) p.quoted = byId[p.quote_of] || null; });
@@ -1317,7 +1317,7 @@ async function submitQuote() {
       author_id: currentSession.user.id,
       body,
       quote_of: quotingPostId
-    }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)').single();
+    }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)').single();
     if (error) throw error;
     // We already have the quoted post in postCache (it's whatever card
     // the Quote button was clicked from) — reuse it directly instead of
@@ -1387,7 +1387,7 @@ function pcAvatarHtml(profile, sizeClass = '') {
 }
 function pcNameHtml(profile) {
   const uname = profile?.username || 'unknown';
-  return `<a class="nm" href="${profileUrl(uname)}">${esc(profile?.display_name || uname)}</a>` +
+  return `<a class="nm" href="${profileUrl(uname)}">${esc(profile?.display_name || uname)}</a>${vBadge(profile)}` +
          `<span class="pc-handle">@${esc(uname)}</span>`;
 }
 
@@ -2270,13 +2270,25 @@ function authorHtml(profile) {
   const uname = profile?.username || 'unknown';
   return `<a class="pfl" href="${profileUrl(uname)}">` +
          `<img class="avatar pfp-sm" src="${esc(avatarUrl(profile?.avatar_url))}" alt="" loading="lazy" decoding="async">` +
-         `${esc(profile?.display_name || uname)}</a>`;
+         `${esc(profile?.display_name || uname)}${vBadge(profile)}</a>`;
 }
 
 function esc(str) {
   const d = document.createElement('div');
   d.textContent = str ?? '';
   return d.innerHTML;
+}
+
+// The verified checkmark shown right after a display name. `profile`
+// is any joined `profiles` row that included the `verified` column in
+// its select() — see js/supabase-config.js's ADMIN_PANEL note. Every
+// name-rendering helper below (pcNameHtml, whoRowHtml, authorHtml,
+// userRowHtml) calls this, so setting profiles.verified = true from
+// the admin panel is enough to make the badge show up everywhere.
+function vBadge(profile) {
+  return profile?.verified
+    ? `<img class="verified-badge" src="img/verified-badge.png" alt="Verified" title="Verified">`
+    : '';
 }
 
 // Renders body text with basic greentext (> lines) support, plus
@@ -3265,7 +3277,7 @@ function userRowHtml(profile) {
   <a class="ulrow" href="${profileUrl(uname)}">
     <img class="avatar pfp-md" src="${esc(avatarUrl(profile?.avatar_url))}" alt="" loading="lazy" decoding="async">
     <div class="ulrow-txt">
-      <span class="ulrow-name">${esc(profile?.display_name || uname)}</span>
+      <span class="ulrow-name">${esc(profile?.display_name || uname)}${vBadge(profile)}</span>
       <span class="ulrow-handle">@${esc(uname)}</span>
     </div>
   </a>`;

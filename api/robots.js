@@ -33,6 +33,7 @@ Disallow: /signup
 Disallow: /editprofile
 Disallow: /lists
 Disallow: /search
+Disallow: /admin
 
 Sitemap: ${origin}/sitemap.xml
 `;

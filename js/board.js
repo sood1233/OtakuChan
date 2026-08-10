@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // BOARD PAGE — /index.html
 // ─────────────────────────────────────────────────────────────
-const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)';
 
 let activeTab = 'foryou'; // 'foryou' | 'following'
 let pendingPosts = [];    // realtime posts held back until "Show N posts" is clicked
@@ -258,7 +258,7 @@ function trendListHtml(list) {
         <img class="avatar tcard-avatar" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="" loading="lazy" decoding="async">
         <div class="tcard-body">
           <div class="tcard-head">
-            <span class="tcard-name">${esc(p.profile?.display_name || uname)}</span>
+            <span class="tcard-name">${esc(p.profile?.display_name || uname)}${vBadge(p.profile)}</span>
             <span class="tcard-handle">@${esc(uname)}</span>
             <span class="tcard-dt">${timeAgo(p.created_at)}</span>
           </div>

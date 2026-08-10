@@ -9,7 +9,7 @@
 // (openAddToListModal() in common.js), not from this page — same
 // division as Twitter, where "Add to Lists" lives on the profile.
 // ─────────────────────────────────────────────────────────────
-const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)';
 
 const listId = currentListId();
 let list = null;       // the loaded list row
@@ -93,7 +93,7 @@ async function loadListMembers() {
   const memberIds = (memberRows || []).map(r => r.member_id);
   if (!memberIds.length) { listMembers = []; return; }
   const { data: profiles } = await sb.from('profiles')
-    .select('id,username,display_name,avatar_url').in('id', memberIds);
+    .select('id,username,display_name,avatar_url,verified').in('id', memberIds);
   const byId = new Map((profiles || []).map(p => [p.id, p]));
   listMembers = memberRows.map(r => byId.get(r.member_id)).filter(Boolean);
 }

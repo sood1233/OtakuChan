@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Admin — InteractInk</title>
+<!-- Belt-and-suspenders against crawling, on top of the vercel.json
+     X-Robots-Tag header and the /admin Disallow in api/robots.js:
+     noarchive/nosnippet/noimageindex too, and no og:/twitter: tags at
+     all so there's nothing worth putting in a preview card either. -->
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="googlebot" content="noindex, nofollow">
+<base href="/">
+<link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
+<link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512" id="fav512">
+<meta name="theme-color" content="#0EA5E9">
+<script>(function(){try{var t=localStorage.getItem('oc-theme');if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dim':'light';}if(t&&t!=="light"){document.documentElement.setAttribute('data-theme',t);}var a=localStorage.getItem('oc-accent');if(a&&a!=="blue")document.documentElement.setAttribute('data-accent',a);}catch(e){}})();</script>
+<link rel="preconnect" href="https://pyitivzoqleukuclajrf.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .adm-section { margin-bottom:28px; }
+  .adm-section h2 { font-size:16px; margin:0 0 10px; }
+  .adm-search { width:100%; box-sizing:border-box; padding:10px 14px; border-radius:999px; border:1px solid var(--border); background:var(--hover-bg); color:var(--ink); font-size:14px; margin-bottom:12px; }
+  .adm-search:focus { outline:2px solid var(--accent); }
+  .adm-row { display:flex; align-items:center; gap:10px; padding:10px 8px; border-bottom:1px solid var(--border); }
+  .adm-row-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .adm-row-name { font-weight:700; font-size:14px; }
+  .adm-row-handle { color:var(--muted); font-weight:400; }
+  .adm-row-dt { color:var(--muted); font-weight:400; }
+  .adm-post-row .adm-row-txt { gap:4px; }
+  .adm-post-body { color:var(--ink); text-decoration:none; font-size:13px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .adm-post-body:hover { text-decoration:underline; }
+  .adm-row-acts { display:flex; gap:6px; flex:none; }
+  .adm-btn { border:1px solid var(--border); background:transparent; color:var(--ink); font-weight:700; font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; }
+  .adm-btn:hover { background:var(--hover-bg); }
+  .adm-btn-active { background:var(--ink); color:var(--bg); }
+  .adm-btn-danger { color:var(--like); border-color:var(--like); }
+  .adm-btn-danger.adm-btn-active { background:var(--like); color:#fff; }
+  .adm-tag { font-size:10px; font-weight:800; text-transform:uppercase; margin-left:6px; padding:2px 6px; border-radius:6px; background:var(--like); color:#fff; vertical-align:middle; }
+  #admin-gate { padding:40px 16px; text-align:center; color:var(--muted); }
+</style>
+</head>
+<body data-page="admin">
+
+<div class="xshell">
+  <div id="hdr">
+    <div class="sb-top">
+      <a class="logo" href="/">
+        <span class="badge">
+          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
+        </span>
+        <span class="wordmark">Interact<em>Ink</em></span>
+      </a>
+      <nav id="side-nav"></nav>
+    </div>
+    <span id="auth-area" class="auth-area"></span>
+  </div>
+
+  <div id="main">
+    <div id="feed" style="max-width:640px;">
+      <div class="sec-bar">Admin</div>
+
+      <div id="admin-gate">Checking access&hellip;</div>
+
+      <div id="admin-panel" style="display:none; padding:16px;">
+        <div class="adm-section">
+          <h2>Users</h2>
+          <input class="adm-search" id="adm-user-q" placeholder="Search by username or display name&hellip;" autocomplete="off">
+          <div id="adm-user-results"></div>
+        </div>
+
+        <div class="adm-section">
+          <h2>Posts</h2>
+          <input class="adm-search" id="adm-post-q" placeholder="Search post text, or @username&hellip; (empty = most recent)" autocomplete="off">
+          <div id="adm-post-results"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sidebar">
+      <div id="ftr" style="padding:0;">
+        [<a href="index.html">&larr; Back to Home</a>]
+        <br><span style="font-size:10px;color:var(--muted);">&copy; 2026 InteractInk</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

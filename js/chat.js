@@ -43,8 +43,8 @@ async function loadConversationList(session, root) {
   document.getElementById('chat-sec-bar').innerHTML = 'Chat';
 
   const { data, error } = await sb.from('messages')
-    .select(`*, sender:profiles!messages_sender_id_fkey(username,display_name,avatar_url),
-                recipient:profiles!messages_recipient_id_fkey(username,display_name,avatar_url)`)
+    .select(`*, sender:profiles!messages_sender_id_fkey(username,display_name,avatar_url,verified),
+                recipient:profiles!messages_recipient_id_fkey(username,display_name,avatar_url,verified)`)
     .or(`sender_id.eq.${session.user.id},recipient_id.eq.${session.user.id}`)
     .order('created_at', { ascending: false })
     .limit(300);

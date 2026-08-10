@@ -2,7 +2,7 @@
 // SEARCH PAGE — /search.html?q=<term>[&t=posts|people]
 // With no query, shows the Explore panel instead (see EXPLORE below).
 // ─────────────────────────────────────────────────────────────
-const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)';
+const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)';
 
 const searchParams = new URLSearchParams(location.search);
 let searchQuery = searchParams.get('q') || '';
