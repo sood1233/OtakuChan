@@ -1113,12 +1113,29 @@ function toggleRepostMenu(id, ev) {
   if (!wrap) return;
   const willOpen = !wrap.classList.contains('open');
   document.querySelectorAll('.rp-menu-wrap.open, .pc-menu-wrap.open').forEach(w => w.classList.remove('open'));
-  if (willOpen) wrap.classList.add('open');
+  if (willOpen) {
+    wrap.classList.add('open');
+    // Mobile turns this into a full-screen bottom sheet, so the page
+    // behind it shouldn't also scroll while it's open.
+    if (window.matchMedia('(max-width: 640px)').matches) document.body.classList.add('oc-sheet-open');
+  }
 }
 document.addEventListener('click', (e) => {
   document.querySelectorAll('.rp-menu-wrap.open').forEach(w => {
-    if (!w.contains(e.target)) w.classList.remove('open');
+    // e.target === w covers a tap on the mobile backdrop: it's the
+    // wrap's own ::before pseudo-element, so w.contains(e.target)
+    // would otherwise be true (an element always "contains" itself)
+    // and the sheet would never dismiss on backdrop tap.
+    if (e.target === w || !w.contains(e.target)) {
+      w.classList.remove('open');
+      document.body.classList.remove('oc-sheet-open');
+    }
   });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.rp-menu-wrap.open').forEach(w => w.classList.remove('open'));
+  document.body.classList.remove('oc-sheet-open');
 });
 
 // Bumps the little repost count label + the reply-count-style icon
@@ -1181,13 +1198,15 @@ function repostMenuHtml(p) {
   const isReposted = reposted.has(p.id);
   return `
     <div class="rp-menu-wrap" id="rpmenu-${p.id}">
-      <button class="act repost${isReposted ? ' reposted' : ''}" data-count="${p.repost_count || 0}" onclick="toggleRepostMenu('${p.id}', event)">
+      <button class="act repost${isReposted ? ' reposted' : ''}" data-count="${p.repost_count || 0}" onclick="toggleRepostMenu('${p.id}', event)" aria-haspopup="true" aria-label="Repost">
         ${ICON.repost}<span class="act-label">${fmtCount(p.repost_count)}</span>
       </button>
-      <div class="rp-menu-dd">
+      <div class="rp-menu-dd" role="menu">
+        <div class="rp-menu-sheet-title">Repost</div>
         <button class="rp-do" style="${isReposted ? 'display:none;' : ''}" onclick="doRepost('${p.id}', event)">${ICON.repost} Repost</button>
-        <button class="rp-undo" style="${isReposted ? '' : 'display:none;'}" onclick="undoRepost('${p.id}', event)">${ICON.repost} Undo Repost</button>
-        <button onclick="openQuoteModal('${p.id}', event)">${ICON.quote} Quote</button>
+        <button class="rp-undo" style="${isReposted ? '' : 'display:none;'}" onclick="undoRepost('${p.id}', event)">${ICON.repost} Undo repost</button>
+        <div class="rp-menu-dd-sep"></div>
+        <button class="rp-quote" onclick="openQuoteModal('${p.id}', event)">${ICON.quote} Quote</button>
       </div>
     </div>`;
 }
@@ -1233,6 +1252,19 @@ async function attachQuotedPosts(posts) {
   }
 }
 
+// Live "characters left" counter under the quote textarea — amber
+// under 20 left, red (and the count itself, not just a separate
+// error) once over, same convention as the global compose box.
+function qmUpdateCount() {
+  const bodyEl = document.getElementById('qm-body');
+  const countEl = document.getElementById('qm-count');
+  if (!bodyEl || !countEl) return;
+  const left = 500 - bodyEl.value.length;
+  countEl.textContent = left;
+  countEl.classList.toggle('qm-count-warn', left <= 20 && left >= 0);
+  countEl.classList.toggle('qm-count-over', left < 0);
+}
+
 function openQuoteModal(postId, ev) {
   if (ev) ev.stopPropagation();
   if (!requireLogin()) return;
@@ -1240,18 +1272,36 @@ function openQuoteModal(postId, ev) {
   quotingPostId = postId;
   const modal = document.getElementById('modal-quote');
   if (!modal) return; // page doesn't include the quote modal markup
-  document.getElementById('qm-body').value = '';
+  const bodyEl = document.getElementById('qm-body');
+  bodyEl.value = '';
+  bodyEl.oninput = qmUpdateCount;
+  qmUpdateCount();
   document.getElementById('qm-err').style.display = 'none';
   document.getElementById('qm-preview').innerHTML = p ? quotedPostHtml(p) : '<div class="qp-embed-gone">Loading…</div>';
   const avEl = document.getElementById('qm-avatar');
   if (avEl) avEl.innerHTML = `<img src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">`;
   modal.classList.add('open');
-  document.getElementById('qm-body').focus();
+  bodyEl.focus();
 }
 function closeQuoteModal() {
   document.getElementById('modal-quote')?.classList.remove('open');
   quotingPostId = null;
 }
+// Quote and Report are the only two modals built as static page markup
+// rather than created on demand by JS (compose, delete-confirm,
+// create-community, etc. all wire this up themselves right after
+// building their DOM) — so, unlike every other modal in the app, they
+// were missing both backdrop-click-to-close and Escape-to-close.
+function wireStaticModalDismiss(bgId, closeFn) {
+  const el = document.getElementById(bgId);
+  if (!el) return;
+  el.addEventListener('click', e => { if (e.target === el) closeFn(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeFn();
+  });
+}
+wireStaticModalDismiss('modal-quote', closeQuoteModal);
+wireStaticModalDismiss('modal-report', closeReport);
 
 async function submitQuote() {
   if (!quotingPostId || !requireLogin()) return;
@@ -1316,7 +1366,11 @@ function togglePostMenu(id, ev) {
   const wrap = document.getElementById(`pmenu-${id}`);
   if (!wrap) return;
   const willOpen = !wrap.classList.contains('open');
-  document.querySelectorAll('.pc-menu-wrap.open').forEach(w => w.classList.remove('open'));
+  // Also close any open Repost/Quote dropdown — the two menus used to
+  // be able to be open at the same time, which looked broken when a
+  // card had both a repost sheet and a "···" menu stacked on screen.
+  document.querySelectorAll('.pc-menu-wrap.open, .rp-menu-wrap.open').forEach(w => w.classList.remove('open'));
+  document.body.classList.remove('oc-sheet-open');
   if (willOpen) wrap.classList.add('open');
 }
 document.addEventListener('click', (e) => {
