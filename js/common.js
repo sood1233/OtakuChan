@@ -748,7 +748,7 @@ function rpcModalEl() {
       <div class="pf-row gc-row">
         <span class="pf-avatar" id="rpc-avatar"></span>
         <div class="pf-col">
-          <textarea id="rpc-body" maxlength="4000" placeholder="${t('compose.reply')}"></textarea>
+          <textarea id="rpc-body" maxlength="500" placeholder="${t('compose.reply')}"></textarea>
           <div id="rpc-fp" class="fp"></div>
         </div>
       </div>
@@ -834,7 +834,7 @@ async function submitReplyPopup() {
 
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Reply can't be empty."); return; }
-  if (body.length > 4000) { showErr(errEl, 'Reply too long (max 4000 chars).'); return; }
+  if (body.length > 500) { showErr(errEl, 'Reply too long (max 500 chars).'); return; }
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';
@@ -2582,8 +2582,39 @@ function clearErr(el) {
   el.classList.remove('auth-ok');
 }
 
+// Re-encodes a still image to WebP at a very high quality setting
+// before it ever reaches the network. WebP's lossy mode at this
+// quality is visually indistinguishable from the source but usually
+// runs 25–50% smaller, and it also strips EXIF/metadata bloat as a
+// side effect of the canvas round-trip. Animated GIFs are skipped —
+// drawing one to a canvas only captures its first frame, which would
+// silently kill the animation. Falls back to the original file
+// untouched if the browser can't decode it, or if re-encoding
+// somehow comes out larger (e.g. an already-optimized WebP/AVIF).
+const IMAGE_COMPRESS_QUALITY = 0.92;
+async function compressImageFile(file) {
+  if (file.type === 'image/gif') return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', IMAGE_COMPRESS_QUALITY));
+    if (!blob || blob.size >= file.size) return file;
+    const name = file.name.replace(/\.[^.]+$/, '') + '.webp';
+    return new File([blob], name, { type: 'image/webp' });
+  } catch {
+    return file;
+  }
+}
+
 // Uploads a file to the media bucket and returns { media_url, media_type }
 async function uploadMedia(file) {
+  if (mediaTypeFor(file) === 'image') {
+    file = await compressImageFile(file);
+  }
   const type = mediaTypeFor(file);
   const ext = file.name.split('.').pop().toLowerCase();
   const path = `${crypto.randomUUID()}.${ext}`;

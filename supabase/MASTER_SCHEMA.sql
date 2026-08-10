@@ -1420,8 +1420,8 @@ create index if not exists communities_description_trgm_idx
 --      moderator, done by widening delete_own_post() rather than
 --      touching posts' RLS policy.
 --   3. Shrinks the max length of a POST (posts.body) from 4000 to
---      500 characters. Replies/comments are untouched — still 4000 —
---      since only posts were asked to shrink.
+--      500 characters. Replies/comments get the same 500-char limit
+--      via the separate reply_char_limit.sql migration.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── 1. Community avatar + creator can edit their own community ──
@@ -2087,3 +2087,25 @@ notify pgrst, 'reload schema';
 select proname, pg_get_function_identity_arguments(oid) as args
 from pg_proc
 where pronamespace = 'public'::regnamespace and proname = 'get_for_you_feed';
+
+-- ═══════════════════════════════════════════════════════════════════
+-- FROM: supabase/reply_char_limit.sql
+-- ═══════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════
+-- INTERACTINK — Reply character limit
+-- Run this in: Supabase Dashboard → SQL Editor → New query
+-- (after schema.sql has already been run). Safe to re-run.
+--
+-- What this does:
+--   Shrinks the max length of a REPLY (replies.body) from 4000 to
+--   500 characters, matching the limit already applied to posts in
+--   community_creator_and_post_limit.sql.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- (This will fail if any existing reply is already longer than 500
+-- chars — trim/delete those rows first if this errors out.)
+
+alter table public.replies drop constraint if exists replies_body_check;
+alter table public.replies add constraint replies_body_check check (char_length(body) between 1 and 500);
+
+notify pgrst, 'reload schema';

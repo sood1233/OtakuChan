@@ -13,8 +13,8 @@
 --      moderator, done by widening delete_own_post() rather than
 --      touching posts' RLS policy.
 --   3. Shrinks the max length of a POST (posts.body) from 4000 to
---      500 characters. Replies/comments are untouched — still 4000 —
---      since only posts were asked to shrink.
+--      500 characters. Replies/comments get the same 500-char limit
+--      via the separate reply_char_limit.sql migration.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── 1. Community avatar + creator can edit their own community ──
