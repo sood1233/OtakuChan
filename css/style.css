@@ -1861,3 +1861,26 @@ html[data-theme="dim"] .auth-ok, html[data-theme="dark"] .auth-ok { background:r
 @media (max-width:700px) {
   .ttv-vol-wrap { display:none; } /* no hover on touch — mute toggle only */
 }
+
+/* FULLSCREEN — the browser only stretches the .ttv wrapper itself to
+   fill the screen; without this the <video> stayed capped at its
+   feed-sized max-height (380px) and sat small in a corner, while the
+   center play button (centered on the wrapper) ended up floating in
+   the middle of the empty black space instead of over the video.
+   Flex-centering the wrapper and letting the video grow to fill it
+   (object-fit:contain, so aspect ratio is preserved with letterbox
+   bars instead of stretching) keeps the video and the button locked
+   to the same center point. */
+.ttv:fullscreen, .ttv:-webkit-full-screen {
+  width:100%; height:100%; max-width:none; border-radius:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.ttv:fullscreen .ttv-video, .ttv:-webkit-full-screen .ttv-video {
+  max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;
+}
+.ttv:fullscreen .ttv-big-play, .ttv:-webkit-full-screen .ttv-big-play {
+  width:80px; height:80px;
+}
+.ttv:fullscreen .ttv-big-play svg, .ttv:-webkit-full-screen .ttv-big-play svg {
+  width:34px; height:34px;
+}
