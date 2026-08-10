@@ -11,51 +11,74 @@ password — there is no anonymous posting.
 2. Wait for it to finish provisioning.
 
 ## 2. Run the schema
+Run **one file**: `supabase/MASTER_SCHEMA.sql`.
 1. In your project: **SQL Editor → New query**.
-2. Paste in the entire contents of `supabase/schema.sql` and run it.
-   This creates:
-   - `profiles` (username, display_name, avatar_url, bio) — one row
-     per user, auto-created by a trigger the moment someone signs up
-   - `posts`, `replies`, `likes`, `reports`, all tied to a `profiles.id`
-   - RLS policies (public read, write only when logged in and only
-     to your own rows)
-   - the realtime publication for live post/reply updates
+2. Paste in the *entire* contents of `supabase/MASTER_SCHEMA.sql` and hit Run.
+
+That one file is every other `supabase/*.sql` file in this project,
+already concatenated in the order their dependencies require — tables,
+RLS policies, triggers, storage buckets, everything. It's safe to
+re-run any time, on a brand new project or one that already has some
+of these applied. It creates (among other things):
+   - `profiles` (username, display_name, avatar_url, banner_url, bio) —
+     one row per user, auto-created by a trigger the moment someone
+     signs up (this is what makes account creation not require any
+     extra app-side "create the account" step — it happens in the DB
+     the instant `auth.users` gets a new row)
+   - `posts`, `replies`, `likes`, `reposts`, `reports`, `follows`,
+     `lists`, `communities`, `messages`, `notifications` — all tied to
+     a `profiles.id`
+   - `user_settings` — notification toggles and a "who can message
+     you" privacy setting, enforced by RLS
+   - RLS policies on every table (public read, write only when logged
+     in and only to your own rows)
+   - the realtime publication for live post/reply/notification/message
+     updates
    - two storage buckets: `media` (post/reply images & video, 5MB
      limit) and `avatars` (profile pictures, 2MB limit)
-3. Then run `supabase/settings.sql` (same SQL Editor → New query). This
-   adds the account "options" behind `settings.html`:
-   - `profiles.banner_url` — a cover photo, editable from `editprofile.html`
-   - `user_settings` — one row per user (auto-created), holding
-     notification toggles (likes / replies / follows) and a
-     "who can message you" (everyone / people you follow) privacy
-     setting, actually enforced by the `messages` table's RLS policy
-   - updated versions of the like/reply/follow triggers from
-     `schema.sql` that check those toggles before writing a
-     `notifications` row
+
+The individual `supabase/*.sql` files (`schema.sql`, `settings.sql`,
+`communities.sql`, etc.) still exist for reference/history, but you
+don't need to run them one by one — `MASTER_SCHEMA.sql` supersedes
+all of them.
 
 ## 3. Configure email auth
 Project Settings → Authentication → Providers → Email is on by
 default, which is all this app needs. Sign up works like this: enter
-username/email/password → a "check your email" screen appears →
-click the link in the email → a **`verified.html`** page confirms it
-and is *already logged in* → if the original sign-up tab is still
-open in the same browser, it notices automatically and jumps straight
-to the home feed too. Either way, there's no separate log-in step —
-verifying the email and being logged in happen at the same moment.
-For this to work, two dashboard settings matter:
-- **Authentication → URL Configuration → Site URL**: set this to
-  wherever you deploy the app (e.g. `https://yoursite.com`).
-- **Authentication → URL Configuration → Redirect URLs**: add
-  `https://yoursite.com/verified.html` (and, for local testing,
-  something like `http://localhost:3000/verified.html`) to the allow
-  list. Supabase refuses to redirect confirmation links anywhere not
-  on this list, so skipping this step is the most common reason
-  "verified.html never loads / the link just goes to a blank Supabase
-  page."
+username/email/password → a 6-digit code screen appears on the *same
+page* → type the code (it auto-submits at 6 digits) → you're verified
+and logged in immediately. No link to click, no second tab, no
+redirect, no dashboard "allowed redirect URL" list to get right —
+verifying the email and being logged in happen in that one call.
+
+**One dashboard step actually matters here, and it's easy to miss:**
+Supabase's default "Confirm signup" email template only contains a
+magic-link button — it does **not** show a 6-digit code unless the
+template is edited to include one. If you skip this, users land on
+the code screen but their email never actually contains a code to
+type, which looks exactly like "verification doesn't work."
+
+Fix it once: **Authentication → Email Templates → Confirm signup**,
+and make sure the body includes `{{ .Token }}` somewhere visible, e.g.:
+
+```html
+<h2>Confirm your signup</h2>
+<p>Your verification code is:</p>
+<h1 style="letter-spacing:4px;">{{ .Token }}</h1>
+<p>Enter this code on the sign up page to finish creating your account.</p>
+```
+
+You can leave the existing `{{ .ConfirmationURL }}` button in there
+too if you want a fallback, but the code is what this app's UI
+actually asks people to enter — without `{{ .Token }}` in the
+template, the app has nothing wrong with it, the email itself is just
+missing the one thing the person needs.
+
+Also worth checking:
 - **Authentication → Providers → Email → "Confirm email"**: if this
-  is ON (default), new users verify via the link above. If you turn
+  is ON (default), new users verify via the code above. If you turn
   it OFF, new users are logged in immediately after signing up and
-  never see the "check your email" screen at all.
+  never see the code screen at all.
 
 ## 4. Get your API keys
 Project Settings → API:
@@ -80,8 +103,7 @@ This is a plain static site — no build step, no Node server required.
 ## Pages
 - `/home` (`index.html`) — board feed, new-thread form (accounts only), trending sidebar, realtime new-post updates
 - `/<username>/status/<uuid>` (`thread.html`) — single thread with all replies, realtime new-reply updates. Also reachable as `/i/status/<uuid>` before the author is known (e.g. a raw copy-pasted id) — the address bar upgrades to the canonical `/<username>/status/<uuid>` automatically once the post loads, same as x.com.
-- `/login`, `/signup` (`login.html` / `signup.html`) — create an account / sign in
-- `verified.html` — where the email's verification link lands; confirms the email, is already logged in, and hands off to `/home`
+- `/login`, `/signup` (`login.html` / `signup.html`) — create an account / sign in (a 6-digit emailed code verifies and logs in on the same page)
 - `/<username>` (`profile.html`) — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
 - `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
 - `/<username>/followers`, `/<username>/following` (`followlist.html`) — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts

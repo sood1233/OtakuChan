@@ -10,22 +10,7 @@
 const SUPABASE_URL = 'https://pyitivzoqleukuclajrf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5aXRpdnpvcWxldWt1Y2xhanJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5Nzg0ODcsImV4cCI6MjEwMTU1NDQ4N30.gKvqOaAREY5wcptIv7OHfjHhZR5ogIaMY8I98jHRmFs';
 
-// detectSessionInUrl: when someone lands on this site with auth
-// tokens in the URL (i.e. clicking the "verify your email" link),
-// the client grabs them and creates a real, logged-in session
-// automatically — that's what lets verified.html finish account
-// creation without a separate log-in step. persistSession +
-// autoRefreshToken keep that session in localStorage so it also
-// syncs to any other open tab on this site (e.g. the original
-// signup.html tab waiting on it).
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    detectSessionInUrl: true,
-    persistSession: true,
-    autoRefreshToken: true,
-    flowType: 'implicit'
-  }
-});
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const MEDIA_BUCKET = 'media';
 const MAX_FILE_MB = 5;

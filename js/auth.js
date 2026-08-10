@@ -172,70 +172,17 @@ function togglePwVis(inputId, btn) {
 // ── SIGN UP ──
 // Flow: signUp() creates the auth.users row (and, via the DB trigger,
 // the profiles row + auto-follow of @marpe) right away, but with email
-// confirmation ON Supabase withholds a session until the link is
-// clicked. We point the confirmation email at verified.html, which
-// just says "email verified" and (because Supabase's JS client parses
-// the tokens straight out of that URL) is *already logged in the
-// instant it loads* — no code to type, no separate log-in step.
-//
-// The tricky part is the ORIGINAL tab (still sitting on signup.html):
-// it has no way to know the link got clicked unless something tells
-// it. Two things do:
-//  1. verified.html and this tab share the same browser storage, so
-//     the moment verified.html writes a session, supabase-js's
-//     cross-tab sync fires a SIGNED_IN event here too (handled by the
-//     onAuthStateChange listener at the bottom of this file).
-//  2. As a fallback (some browsers throttle background-tab storage
-//     events), we also poll getSession() every few seconds and
-//     re-check immediately when the tab regains focus.
-// Either path lands on the same "redirect to index.html, fully logged
-// in" outcome, so the person never has to do anything after clicking
-// the email link.
+// confirmation ON Supabase withholds a session until the code is
+// verified. This is a deliberately boring, single-page 6-digit code —
+// no redirect link, no second tab, no cross-tab sync, nothing that
+// depends on Supabase dashboard "Redirect URLs" being configured
+// exactly right, and nothing that a corporate email link-scanner can
+// silently pre-click and burn through before the real person gets to
+// it (a very common, very confusing way "click this link" flows quietly
+// break for a slice of users). verifyOtp() below both confirms the
+// email AND returns a real session in the same call, so "verified"
+// and "logged in" happen in the same step — no separate log-in.
 let pendingSignupEmail = null;
-let verifyPollTimer = null;
-
-function emailRedirectUrl() {
-  return `${location.origin}/verified.html`;
-}
-
-function showAwaitingVerification(email) {
-  pendingSignupEmail = email;
-  document.getElementById('su-form').style.display = 'none';
-  const emailSpan = document.getElementById('su-wait-email');
-  if (emailSpan) emailSpan.textContent = email;
-  document.getElementById('su-wait-step').style.display = 'block';
-  startVerifyPolling();
-}
-
-// Belt-and-suspenders check for "did the link already get clicked
-// (e.g. in another tab)?" — used by both the poll timer and the
-// focus/visibility listener below.
-async function checkIfVerifiedElsewhere() {
-  if (!pendingSignupEmail) return;
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    stopVerifyPolling();
-    location.href = 'index.html';
-  }
-}
-
-function startVerifyPolling() {
-  stopVerifyPolling();
-  verifyPollTimer = setInterval(checkIfVerifiedElsewhere, 3000);
-  document.addEventListener('visibilitychange', onVisibilityRecheck);
-  window.addEventListener('focus', checkIfVerifiedElsewhere);
-}
-
-function stopVerifyPolling() {
-  if (verifyPollTimer) clearInterval(verifyPollTimer);
-  verifyPollTimer = null;
-  document.removeEventListener('visibilitychange', onVisibilityRecheck);
-  window.removeEventListener('focus', checkIfVerifiedElsewhere);
-}
-
-function onVisibilityRecheck() {
-  if (document.visibilityState === 'visible') checkIfVerifiedElsewhere();
-}
 
 async function doSignUp(e) {
   e?.preventDefault();
@@ -259,7 +206,7 @@ async function doSignUp(e) {
   try {
     const { data, error } = await sb.auth.signUp({
       email, password,
-      options: { data: { username }, emailRedirectTo: emailRedirectUrl() }
+      options: { data: { username } }
     });
     if (error) throw error;
 
@@ -271,26 +218,26 @@ async function doSignUp(e) {
     }
 
     // Supabase gotcha: if this email already has an unconfirmed
-    // account (e.g. someone signed up, never clicked the link, and
+    // account (e.g. someone signed up, never entered the code, and
     // tried again), signUp() returns success with NO error and NO
-    // session — but it also does NOT send a new email, to avoid
+    // session — but it also does NOT send a new code, to avoid
     // leaking whether an email is registered. Silently showing the
-    // waiting step here is exactly what makes it look like "the email
+    // code step here is exactly what makes it look like "the code
     // never arrives": there's genuinely nothing new in their inbox.
     // data.user.identities is an empty array in this specific case
     // (a real new signup has one identity in it), so use that to
     // tell the two situations apart and be honest about which one
     // happened.
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      showAwaitingVerification(email);
-      showErr(document.getElementById('su-wait-err'),
-        'This email already has a pending, unverified account — no new email was just sent. Tap "Resend email" below to get a fresh one.');
+      showCodeStep(email);
+      showErr(document.getElementById('su-code-err'),
+        'This email already has a pending, unverified account — no new code was just sent. Tap "Resend code" below to get a fresh one.');
       return;
     }
 
     // Genuine new signup — email confirmation is ON, and Supabase
-    // just sent the verification link for the first time.
-    showAwaitingVerification(email);
+    // just sent the code for the first time.
+    showCodeStep(email);
   } catch (err) {
     showErr(errEl, err.message?.includes('duplicate') || err.message?.includes('unique')
       ? 'That username or email is already taken.'
@@ -299,24 +246,68 @@ async function doSignUp(e) {
   }
 }
 
-// ── RESEND VERIFICATION EMAIL ──
-async function doResendVerificationEmail() {
-  const errEl = document.getElementById('su-wait-err');
+function showCodeStep(email) {
+  pendingSignupEmail = email;
+  document.getElementById('su-form').style.display = 'none';
+  const emailSpan = document.getElementById('su-code-email');
+  if (emailSpan) emailSpan.textContent = email;
+  document.getElementById('su-code-step').style.display = 'block';
+  document.getElementById('su-code')?.focus();
+}
+
+// ── VERIFY SIGNUP CODE ──
+// verifyOtp({ type: 'signup' }) both confirms the email AND returns a
+// session in one call — that's what lets us skip a separate log-in.
+async function doVerifySignupCode(e) {
+  e?.preventDefault();
+  const code = document.getElementById('su-code').value.trim();
+  const btn = document.getElementById('su-code-btn');
+  const errEl = document.getElementById('su-code-err');
+  clearErr(errEl);
+
+  if (!pendingSignupEmail) {
+    showErr(errEl, 'Something went wrong — refresh and sign up again.');
+    return;
+  }
+  if (!/^\d{6}$/.test(code)) {
+    showErr(errEl, 'Enter the 6-digit code from your email.');
+    return;
+  }
+
+  btn.disabled = true; btn.value = 'Verifying…';
+  try {
+    const { data, error } = await sb.auth.verifyOtp({
+      email: pendingSignupEmail,
+      token: code,
+      type: 'signup'
+    });
+    if (error) throw error;
+    if (!data.session) throw new Error('Verified, but no session came back — try logging in.');
+    // Logged in — account fully created, no separate log-in step needed.
+    location.href = 'index.html';
+  } catch (err) {
+    showErr(errEl, /expired/i.test(err.message || '') ? 'That code expired — send a new one below.'
+      : /invalid|token/i.test(err.message || '') ? 'That code is incorrect.'
+      : (err.message || 'Verification failed.'));
+    btn.disabled = false; btn.value = 'Verify';
+  }
+}
+
+// ── RESEND SIGNUP CODE ──
+async function doResendSignupCode() {
+  const errEl = document.getElementById('su-code-err');
   const resendBtn = document.getElementById('su-resend-btn');
   clearErr(errEl);
   if (!pendingSignupEmail) return;
   if (resendBtn) { resendBtn.disabled = true; resendBtn.textContent = 'Sending…'; }
   try {
-    const { error } = await sb.auth.resend({
-      type: 'signup', email: pendingSignupEmail,
-      options: { emailRedirectTo: emailRedirectUrl() }
-    });
+    const { error } = await sb.auth.resend({ type: 'signup', email: pendingSignupEmail });
     if (error) throw error;
-    toast('New verification email sent — check your inbox.', 'success');
+    toast('New code sent — check your email.', 'success');
   } catch (err) {
-    showErr(errEl, err.message || 'Could not resend the email.');
+    showErr(errEl, err.message || 'Could not resend the code.');
   } finally {
-    if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = 'Resend email'; }
+    if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = 'Resend code'; }
   }
 }
 
@@ -363,15 +354,7 @@ async function uploadAvatar(file, userId) {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderAuthArea();
-  sb.auth.onAuthStateChange((_event, session) => {
+  sb.auth.onAuthStateChange((_event, _session) => {
     renderAuthArea();
-    // If this tab is sitting on signup.html's "check your email" step
-    // and a session just appeared (e.g. the person verified in
-    // another tab and supabase-js synced it over via storage), finish
-    // the job for them — no separate log-in required.
-    if (session && pendingSignupEmail) {
-      stopVerifyPolling();
-      location.href = 'index.html';
-    }
   });
 });
