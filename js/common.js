@@ -359,23 +359,23 @@ function updateFavicon(theme) {
 }
 // ── ACCENT COLOR — same idea as THEME above, but swaps the app's one
 // accent color (buttons/links/active states) instead of the surface
-// colors. Applied via data-accent on <html>; "blue" is the default and
+// colors. Applied via data-accent on <html>; "green" is the default and
 // needs no attribute (matches the :root values in style.css). ──
 const ACCENT_KEY = 'oc-accent';
 const ACCENT_OPTIONS = [
+  { id: 'green',  label: 'Green'  },
   { id: 'blue',   label: 'Blue'   },
   { id: 'red',    label: 'Red'    },
-  { id: 'green',  label: 'Green'  },
   { id: 'purple', label: 'Purple' },
   { id: 'orange', label: 'Orange' }
 ];
 function applyAccent(accent) {
-  if (accent && accent !== 'blue') document.documentElement.setAttribute('data-accent', accent);
+  if (accent && accent !== 'green') document.documentElement.setAttribute('data-accent', accent);
   else document.documentElement.removeAttribute('data-accent');
-  try { localStorage.setItem(ACCENT_KEY, accent || 'blue'); } catch (e) {}
+  try { localStorage.setItem(ACCENT_KEY, accent || 'green'); } catch (e) {}
 }
 function getAccent() {
-  try { return localStorage.getItem(ACCENT_KEY) || 'blue'; } catch (e) { return 'blue'; }
+  try { return localStorage.getItem(ACCENT_KEY) || 'green'; } catch (e) { return 'green'; }
 }
 
 let unreadNotifCount = 0;
@@ -3432,6 +3432,24 @@ function closeReport() {
   document.getElementById('modal-report').classList.remove('open');
   reportTarget = null;
 }
+// ── BUTTON PRESS BOUNCE — delegated so it also covers buttons the app
+// renders later (post actions, follow buttons, modals, etc.), not just
+// the ones present at page load. Re-triggers the .oc-bounce keyframe
+// (defined in style.css) on every press of a button-like control; kept
+// to real "button" controls (not plain links) so it stays subtle and
+// doesn't fire on ordinary navigation. ──
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('button, [role="button"], .accent-swatch, input[type="submit"], input[type="button"]');
+  if (!el || el.disabled) return;
+  el.classList.remove('oc-bounce');
+  // Force reflow so re-adding the class restarts the animation on rapid repeat clicks.
+  void el.offsetWidth;
+  el.classList.add('oc-bounce');
+});
+document.addEventListener('animationend', (e) => {
+  if (e.animationName === 'oc-btn-bounce') e.target.classList.remove('oc-bounce');
+});
+
 async function submitReport() {
   if (!reportTarget) return;
   const reason = document.getElementById('report-reason').value;
