@@ -621,6 +621,21 @@ select {
 }
 .cc-avatar-wrap:hover .cc-avatar-pick { opacity:1; }
 .cc-avatar-pick svg { width:20px; height:20px; }
+/* .cc-modal .cc-step-body label (below, meant for plain text labels
+   like "Add a banner & picture") is MORE specific than the bare
+   .cc-avatar-pick/.cc-banner-pick rules above, since both of these
+   labels live inside .cc-step-body inside .cc-modal. It was winning
+   the cascade and forcing display:block + margin:0 0 8px onto them —
+   killing .cc-avatar-pick's flex-centering (icon collapsed to the
+   top-left) and, via the inset:0 + explicit bottom margin combo,
+   shrinking its box by 8px too. .cc-banner-pick escaped visibly
+   because it centers itself with a transform instead of flex, which
+   that override doesn't touch. Re-declare both here with matching
+   specificity so they win instead. */
+.cc-modal .cc-step-body label.cc-avatar-pick,
+.cc-modal .cc-step-body label.cc-banner-pick {
+  display:flex; margin:0;
+}
 
 /* Single community header (community.html) */
 .community-banner-wrap {
