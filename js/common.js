@@ -301,7 +301,7 @@ const NAV_ICON = {
   chat:     '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="4"/><path d="M8.2 16v3.1a.5.5 0 0 0 .82.38L13.4 16"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24"><path d="M7 4.5h10a1 1 0 0 1 1 1V20a.6.6 0 0 1-.95.48L12 16.3l-5.05 4.18A.6.6 0 0 1 6 20V5.5a1 1 0 0 1 1-1Z"/></svg>',
   user:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.75"/><path d="M4.5 19.6c1.1-4.15 3.9-6.15 7.5-6.15s6.4 2 7.5 6.15"/></svg>',
-  gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.6c.05-.53.05-1.07 0-1.6l1.9-1.48-1.9-3.3-2.24.9a7.6 7.6 0 0 0-1.38-.8L15.4 4.7h-3.8l-.4 2.62c-.5.2-.96.47-1.38.8l-2.24-.9-1.9 3.3 1.9 1.48c-.05.53-.05 1.07 0 1.6l-1.9 1.48 1.9 3.3 2.24-.9c.42.33.88.6 1.38.8l.4 2.62h3.8l.4-2.62c.5-.2.96-.47 1.38-.8l2.24.9 1.9-3.3Z"/></svg>',
+  gear:     '<svg viewBox="0 0 24 24"><path d="M3.5 6.2h8.4M15.9 6.2H20.5"/><circle cx="13.9" cy="6.2" r="2.1"/><path d="M3.5 12h3.4M11.1 12H20.5"/><circle cx="9.1" cy="12" r="2.1"/><path d="M3.5 17.8h11.4M18.1 17.8H20.5"/><circle cx="16.1" cy="17.8" r="2.1"/></svg>',
   doc:      '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h8l4.5 4.5v11.5a1 1 0 0 1-1 1h-11.5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.5 3.5V8h4.5"/><path d="M8.5 13h7M8.5 16.5h7"/></svg>',
   dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></svg>',
   people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.3"/><path d="M2.8 20c.9-3.7 3.2-5.6 6.2-5.6s5.3 1.9 6.2 5.6"/><path d="M15.6 5.3a3.2 3.2 0 0 1 0 6.1"/><path d="M16.2 14.8c2.4.5 4.1 2.2 4.9 5.2"/></svg>',
@@ -539,7 +539,7 @@ function renderMobileChrome() {
             <a href="terms.html">${NAV_ICON.doc}Terms of Service</a>
           </div>
           <hr>
-          <button onclick="closeMobileDrawer();logOut();">Log out</button>
+          <button class="m-drawer-logout" onclick="closeMobileDrawer();logOut();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h3"/><path d="M15.5 16.5 20 12l-4.5-4.5"/><path d="M20 12H9"/></svg>Log out</button>
         ` : `
           <img class="avatar m-drawer-avatar" src="${DEFAULT_AVATAR}" alt="">
           <span class="m-drawer-name">Welcome to InteractInk</span>

@@ -958,7 +958,7 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
   .rp-menu-dd {
     position:fixed; left:0; right:0; bottom:0; top:auto; z-index:999;
     min-width:0; width:100%; max-width:100%; border-radius:20px 20px 0 0; border:none;
-    padding:8px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding:6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
     transform:translateY(100%); transform-origin:bottom center;
     transition:transform .2s cubic-bezier(.2,.8,.2,1), opacity .2s ease, visibility 0s linear .2s;
   }
@@ -966,12 +966,16 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
     transform:translateY(0);
     transition:transform .22s cubic-bezier(.2,.8,.2,1), opacity .15s ease;
   }
-  .rp-menu-sheet-title {
-    display:block; font-size:13px; font-weight:800; color:var(--muted);
-    padding:10px 12px 6px; text-transform:uppercase; letter-spacing:.02em;
+  /* Drag-handle, like a real bottom sheet, instead of the row list
+     just starting flush against the top edge. */
+  .rp-menu-dd::before {
+    content:""; display:block; width:36px; height:4px; border-radius:999px;
+    background:var(--line); margin:6px auto 4px;
   }
-  .rp-menu-dd button { padding:14px 12px; font-size:16px; }
-  .rp-menu-dd button svg { width:20px; height:20px; }
+  .rp-menu-sheet-title { display:none; }
+  .rp-menu-dd button { padding:12px 14px; font-size:15px; gap:14px; }
+  .rp-menu-dd button svg { width:19px; height:19px; }
+  .rp-menu-dd-sep { margin:2px 6px; }
 }
 /* Locks background scroll while the mobile repost sheet is open. */
 body.oc-sheet-open { overflow:hidden; }
@@ -1043,8 +1047,28 @@ body.oc-sheet-open { overflow:hidden; }
 .gc-toolbar { margin-top:0; padding:10px 16px 0; }
 .gc-status { display:block; padding:2px 16px 0; font-size:11px; color:var(--muted); min-height:14px; }
 @media (max-width:520px) {
-  .modal.gc-modal { width:100%; max-width:100%; height:100%; border-radius:0; padding-top:52px; max-height:100vh; overflow-y:auto; }
+  /* Full-screen compose, X-app style: Close top-left, Post/Reply
+     pinned top-right (pulled out of the toolbar's flow via
+     position:fixed), and the icon toolbar pinned to the bottom of
+     the screen — instead of everything just sitting in normal flow
+     inside a height:100% box, which left a dead, disconnected-looking
+     gap of empty space between the textarea and the toolbar. */
+  .modal.gc-modal {
+    width:100%; max-width:100%; height:100%; border-radius:0; padding-top:52px; max-height:100vh;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
   #gc-modal-bg.open { align-items:stretch; justify-content:stretch; }
+  .modal.gc-modal .modal-close { left:14px; right:auto; }
+  .modal.gc-modal .pf-btn { position:fixed; top:11px; right:14px; z-index:2; padding:8px 20px; }
+  .modal.gc-modal .rpc-context { flex:none; }
+  .modal.gc-modal .errmsg { flex:none; }
+  .modal.gc-modal .gc-row { flex:1 1 auto; min-height:0; overflow-y:auto; }
+  .modal.gc-modal .gc-reply-info { flex:none; }
+  .modal.gc-modal .gc-toolbar {
+    flex:none; border-top:1px solid var(--line);
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal.gc-modal .gc-status { flex:none; }
 }
 
 /* ── REPLY POPUP — opened by tapping the comment icon on a feed post
@@ -1055,10 +1079,9 @@ body.oc-sheet-open { overflow:hidden; }
 .rpc-context { padding:0 16px 8px; font-size:13px; color:var(--muted); }
 .rpc-context a { color:var(--link); text-decoration:none; }
 .rpc-context a:hover { text-decoration:underline; }
-@media (max-width:520px) {
-  .modal.rpc-modal { width:100%; max-width:100%; height:100%; border-radius:0; padding-top:52px; max-height:100vh; overflow-y:auto; }
-  #rpc-modal-bg.open { align-items:stretch; justify-content:stretch; }
-}
+/* Mobile full-screen layout, incl. the pinned-toolbar flex fix, comes
+   from the shared ".modal.gc-modal" rules above — .rpc-modal carries
+   that class too, so it doesn't need its own copy here. */
 
 /* legacy classes still referenced by unused code paths — harmless if present */
 .ai { color:var(--muted); font-size:11px; display:inline-flex; align-items:center; gap:4px; padding:4px 6px; }
@@ -1454,6 +1477,20 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
   .m-drawer-cta a { text-align:center; padding:10px; border-radius:999px; font-weight:800; font-size:14.5px; text-decoration:none; }
   .m-drawer-cta a.cta-primary { background:var(--ink); color:var(--bg); }
   .m-drawer-cta a.cta-ghost { border:1px solid var(--border-input); color:var(--ink); }
+
+  /* Log out — deliberately separated from the menu list above and
+     styled as a clear "danger" action (tinted, not the site accent),
+     instead of falling through to a bare unstyled <button>. */
+  .m-drawer-logout {
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; margin-top:2px; border:1px solid rgba(224,36,36,.25); border-radius:999px;
+    font-family:inherit; font-size:15px; font-weight:800; color:#e02424;
+    background:rgba(224,36,36,.08); padding:12px; cursor:pointer; text-decoration:none;
+    transition:background-color .12s ease;
+  }
+  .m-drawer-logout:hover { background:rgba(224,36,36,.16); }
+  .m-drawer-logout:active { background:rgba(224,36,36,.22); }
+  .m-drawer-logout svg { width:19px; height:19px; flex:none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
