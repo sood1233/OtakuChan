@@ -17,18 +17,9 @@
 
     { "source": "/admin",              "destination": "/admin.html" },
 
-    {
-      "source": "/",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
-      "destination": "/api/prerender?type=home"
-    },
-    {
-      "source": "/home",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
-      "destination": "/api/prerender?type=home"
-    },
+    { "source": "/",                   "destination": "/api/prerender?type=home" },
+    { "source": "/home",               "destination": "/api/prerender?type=home" },
 
-    { "source": "/home",               "destination": "/index.html" },
     { "source": "/notifications",      "destination": "/notifications.html" },
     { "source": "/bookmarks",          "destination": "/bookmarks.html" },
     { "source": "/settings",           "destination": "/settings.html" },
@@ -54,23 +45,13 @@
     { "source": "/:username/following",  "destination": "/followlist.html" },
 
     {
-      "source": "/i/status/:id",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
-      "destination": "/api/prerender?type=thread&id=:id"
-    },
-    {
-      "source": "/:username/status/:id",
-      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
-      "destination": "/api/prerender?type=thread&username=:username&id=:id"
-    },
-    {
       "source": "/:username",
       "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
       "destination": "/api/prerender?type=profile&username=:username"
     },
 
-    { "source": "/i/status/:id",         "destination": "/thread.html" },
-    { "source": "/:username/status/:id", "destination": "/thread.html" },
+    { "source": "/i/status/:id",         "destination": "/api/prerender?type=thread&id=:id" },
+    { "source": "/:username/status/:id", "destination": "/api/prerender?type=thread&username=:username&id=:id" },
 
     { "source": "/:username",          "destination": "/profile.html" }
   ]
