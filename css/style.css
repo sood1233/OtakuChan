@@ -532,6 +532,10 @@ select {
 .comm-about-add { background:none; border:none; color:var(--link); font-size:13px; font-weight:700; cursor:pointer; padding:4px 6px; border-radius:6px; }
 .comm-about-add:hover { background:var(--hover-bg); text-decoration:underline; }
 
+.comm-danger-section { border-bottom:none; }
+.comm-danger-section h3 { color:#dc2626; }
+.comm-danger-section .comm-about-fact-sub { display:block; margin:0 0 12px; }
+
 .comm-rules-list { list-style:none; margin:0; padding:0; counter-reset:comm-rule; }
 .comm-rule-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
 .comm-rule-row:last-child { border-bottom:none; }

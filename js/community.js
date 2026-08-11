@@ -277,8 +277,12 @@ function renderCommunityAbout() {
 
   const infoSection = `
     <div class="comm-about-section">
-      <h3>Community Info</h3>
-      <p class="comm-about-desc">${community.description ? esc(community.description) : 'This community hasn\'t added a description yet.'}</p>
+      <div class="comm-about-section-hdr">
+        <h3>Community Info</h3>
+        ${isCreator ? `<button type="button" class="comm-about-add" onclick="openEditCommunityForm()">Edit</button>` : ''}
+      </div>
+      <div id="comm-edit-form"></div>
+      <p class="comm-about-desc" id="comm-about-desc-text">${community.description ? esc(community.description) : 'This community hasn\'t added a description yet.'}</p>
       <div class="comm-about-fact">
         ${PEOPLE_ICON}
         <span>Only members can post.</span>
@@ -295,6 +299,20 @@ function renderCommunityAbout() {
         <span>Created ${createdStr}${creator ? ` by <a href="${profileUrl(creator.username)}">@${esc(creator.username)}</a>` : ''}</span>
       </div>
     </div>`;
+
+  // Creator-only — mirrors the Rules/Moderators sections above, just
+  // for the community row itself (name + description) and, below it,
+  // a separate destructive section for deleting the whole community.
+  // Both are gated the same way as everything else in isCreator: RLS
+  // (community_delete.sql / "creator can update own community") is
+  // the real enforcement, this is just so non-creators never see the
+  // controls in the first place.
+  const dangerSection = isCreator ? `
+    <div class="comm-about-section comm-danger-section">
+      <h3>Danger Zone</h3>
+      <p class="comm-about-fact-sub">Deleting this community permanently removes it — and every post in it — for everyone. This can't be undone.</p>
+      <button type="button" class="dc-btn dc-btn-delete" style="width:auto;padding:9px 18px;" onclick="deleteCommunityPrompt()">Delete community</button>
+    </div>` : '';
 
   const rulesSection = `
     <div class="comm-about-section">
@@ -321,7 +339,117 @@ function renderCommunityAbout() {
       </div>
     </div>`;
 
-  aboutEl.innerHTML = infoSection + rulesSection + modsSection;
+  aboutEl.innerHTML = infoSection + rulesSection + modsSection + dangerSection;
+}
+
+// ── EDIT COMMUNITY (creator only) — name + description, same
+// toggle-open inline-form pattern as openAddRuleForm() below. Picture
+// and banner already have their own pickers on the hero (see
+// changeCommunityAvatar/changeCommunityBanner above); this just adds
+// the two text fields that were missing an editing UI. Slug is
+// intentionally not editable here — the community's URL stays stable
+// even if its display name changes, same as usernames vs display
+// names elsewhere in the app. ──
+function openEditCommunityForm() {
+  if (!isCommunityCreator()) return;
+  const holder = document.getElementById('comm-edit-form');
+  if (!holder) return;
+  if (holder.innerHTML) { holder.innerHTML = ''; return; } // toggle closed if already open
+  holder.innerHTML = `
+    <div class="comm-inline-form">
+      <div class="errmsg" id="cef-err" style="display:none;"></div>
+      <input type="text" id="cef-name" maxlength="50" placeholder="Community name" value="${esc(community.name)}">
+      <textarea id="cef-desc" rows="3" maxlength="300" placeholder="Description (optional)">${esc(community.description || '')}</textarea>
+      <div class="comm-inline-form-actions">
+        <button type="button" class="modal-btn" style="margin:0;width:auto;padding:7px 16px;" onclick="submitEditCommunity()">Save</button>
+      </div>
+    </div>`;
+  document.getElementById('cef-name')?.focus();
+}
+
+async function submitEditCommunity() {
+  if (!isCommunityCreator()) return;
+  const nameEl = document.getElementById('cef-name');
+  const descEl = document.getElementById('cef-desc');
+  const errEl = document.getElementById('cef-err');
+  if (!nameEl) return;
+  clearErr(errEl);
+  const name = nameEl.value.trim();
+  const description = descEl.value.trim();
+  if (name.length < 3 || name.length > 50) { showErr(errEl, 'Name must be between 3 and 50 characters.'); return; }
+  try {
+    const { error } = await sb.from('communities').update({ name, description: description || null }).eq('id', community.id);
+    if (error) throw error;
+    community.name = name;
+    community.description = description || null;
+    document.getElementById('comm-edit-form').innerHTML = '';
+    document.title = `${community.name} — InteractInk`;
+    renderHero();
+    renderCommunityAbout();
+    toast('Community updated.');
+  } catch (e) {
+    showErr(errEl, e.message || 'Failed to update community.');
+  }
+}
+
+// ── DELETE COMMUNITY (creator only) — own confirm modal, same shape
+// as dcModalEl()/deletePost() in common.js (clear warning, filled red
+// destructive action on top, plain Cancel underneath) but kept local
+// to this page and its own element ids so it doesn't collide with the
+// post-delete modal's pendingDeletePostId state. Actual permission is
+// enforced server-side by the "creator can delete own community" RLS
+// policy (supabase/community_delete.sql) — this is just the UI. ──
+function ccdModalEl() {
+  let el = document.getElementById('ccd-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'ccd-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeDeleteCommunityConfirm(); });
+  el.innerHTML = `
+    <div class="modal dc-modal">
+      <h2 class="dc-title">Delete community?</h2>
+      <p class="dc-desc" id="ccd-desc">This can't be undone. It will be permanently removed, along with every post in it, for everyone.</p>
+      <div class="dc-actions">
+        <button type="button" class="dc-btn dc-btn-delete" id="ccd-confirm-btn" onclick="confirmDeleteCommunity()">Delete community</button>
+        <button type="button" class="dc-btn dc-btn-cancel" onclick="closeDeleteCommunityConfirm()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeDeleteCommunityConfirm();
+  });
+  return el;
+}
+
+function deleteCommunityPrompt() {
+  if (!isCommunityCreator()) return;
+  const el = ccdModalEl();
+  const descEl = document.getElementById('ccd-desc');
+  if (descEl) descEl.textContent = `This can't be undone. "${community.name}" and every post in it will be permanently removed for everyone.`;
+  if (el.classList.contains('open')) return;
+  el.classList.add('open');
+  lockScroll();
+}
+
+function closeDeleteCommunityConfirm() {
+  const el = document.getElementById('ccd-modal-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
+}
+
+async function confirmDeleteCommunity() {
+  if (!isCommunityCreator()) return;
+  const btn = document.getElementById('ccd-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    const { error } = await sb.from('communities').delete().eq('id', community.id);
+    if (error) throw error;
+    closeDeleteCommunityConfirm();
+    location.href = 'communities.html';
+  } catch (e) {
+    alert(e.message || 'Failed to delete community.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete community'; }
+  }
 }
 
 const PEOPLE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M14.5 20c.3-2.6 2.1-4.6 4.5-4.6 2.6 0 4.7 2.2 5 5"/></svg>`;
