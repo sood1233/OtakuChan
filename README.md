@@ -160,13 +160,16 @@ static site otherwise):
   login/signup, search results), which also carry a `noindex` meta tag
   as the primary signal.
 - **Bot-only server-rendered HTML** (`api/prerender.js`) — requests to
-  `/<username>` or `/<username>/status/<id>` whose User-Agent matches a
-  known crawler/unfurl-bot pattern (see the `has` conditions in
-  `vercel.json`) get real, already-rendered HTML with the actual name,
-  bio, post text, and reply text instead of the empty SPA shell — a
-  human hitting the same URL still gets the normal app, unchanged. This
-  is what's usually called "dynamic rendering," not cloaking: both
-  versions show the same content, just rendered by different means.
+  `/`, `/home`, `/<username>`, or `/<username>/status/<id>` whose
+  User-Agent matches a known crawler/unfurl-bot pattern (see the `has`
+  conditions in `vercel.json`) get real, already-rendered HTML —
+  the latest posts on `/` and `/home`, the actual name/bio/post text
+  on profile and thread pages — instead of the empty SPA shell (the
+  home feed's `id="feed-posts"><span class="spinner">Loading
+  posts…</span>` placeholder, in particular). A human hitting the same
+  URL still gets the normal app, unchanged. This is what's usually
+  called "dynamic rendering," not cloaking: both versions show the
+  same content, just rendered by different means.
 
 On top of that, every content page (`profile.js`, `thread.js`,
 `community.js`, `list.js`, `followlist.js`, `profilelists.js`) now sets

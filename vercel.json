@@ -17,6 +17,17 @@
 
     { "source": "/admin",              "destination": "/admin.html" },
 
+    {
+      "source": "/",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
+      "destination": "/api/prerender?type=home"
+    },
+    {
+      "source": "/home",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*([bB][oO][tT]|[cC]rawl|[sS]pider|facebookexternalhit|WhatsApp|SkypeUriPreview|Embedly|Pinterest|W3C_Validator).*" }],
+      "destination": "/api/prerender?type=home"
+    },
+
     { "source": "/home",               "destination": "/index.html" },
     { "source": "/notifications",      "destination": "/notifications.html" },
     { "source": "/bookmarks",          "destination": "/bookmarks.html" },

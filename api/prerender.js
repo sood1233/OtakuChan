@@ -1,20 +1,22 @@
 // ─────────────────────────────────────────────────────────────
-// BOT-FACING SERVER RENDER for /<username> and /<username>/status/<id>
-// (and their /i/status/<id> form). Wired up in vercel.json: requests
-// whose User-Agent matches a known crawler/link-unfurler pattern get
-// rewritten here *instead of* profile.html/thread.html; every other
-// visitor still gets the normal client-rendered app, unchanged.
+// BOT-FACING SERVER RENDER for /, /home, /<username>, and
+// /<username>/status/<id> (and their /i/status/<id> form). Wired up
+// in vercel.json: requests whose User-Agent matches a known
+// crawler/link-unfurler pattern get rewritten here *instead of*
+// index.html/profile.html/thread.html; every other visitor still
+// gets the normal client-rendered app, unchanged.
 //
-// WHY THIS EXISTS: profile.html/thread.html are empty shells until
-// js/profile.js / js/thread.js run and fetch the real content from
-// Supabase client-side. Googlebot can execute JS (with a delay — a
-// "second wave" indexing pass), but most other crawlers can't or
-// won't: Bingbot's JS rendering is limited, and link-unfurl bots
-// (Slack, Discord, WhatsApp, iMessage, Twitter/X, Facebook, Telegram)
-// never run JS at all — they just read <title>/<meta> straight out of
-// the initial HTML. Without this, every shared profile/post link
-// unfurls as generic "Profile — InteractInk" text, and most search
-// engines never see real content on these pages at all.
+// WHY THIS EXISTS: index.html/profile.html/thread.html are empty
+// shells until js/board.js / js/profile.js / js/thread.js run and
+// fetch the real content from Supabase client-side. Googlebot can
+// execute JS (with a delay — a "second wave" indexing pass), but most
+// other crawlers can't or won't: Bingbot's JS rendering is limited,
+// and link-unfurl bots (Slack, Discord, WhatsApp, iMessage,
+// Twitter/X, Facebook, Telegram) never run JS at all — they just read
+// <title>/<meta> straight out of the initial HTML. Without this,
+// every shared profile/post link unfurls as generic "Profile —
+// InteractInk" text, and the home feed looks empty to any crawler
+// that doesn't execute JS.
 //
 // This returns real, already-escaped text content (not just meta
 // tags) so it's a legitimate, content-matching version of the page —
@@ -73,6 +75,46 @@ ${bodyHtml}
 </body>
 </html>`;
   return { status, html };
+}
+
+async function renderHome(origin) {
+  const canonical = `${origin}/`;
+  const posts = await sbGet('posts',
+    `is_deleted=eq.false&select=id,body,created_at,like_count,reply_count,repost_count,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)&order=created_at.desc&limit=30`) || [];
+
+  const title = 'InteractInk';
+  const description = 'InteractInk is a real-time social imageboard — post, reply, and follow people with a live For You and Following feed.';
+  const jsonLd = {
+    '@context': 'https://schema.org', '@type': 'CollectionPage',
+    url: canonical, name: title,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: posts.map((p, i) => ({
+        '@type': 'ListItem', position: i + 1,
+        url: p.profile?.username
+          ? `${origin}/${encodeURIComponent(p.profile.username)}/status/${encodeURIComponent(p.id)}`
+          : `${origin}/i/status/${encodeURIComponent(p.id)}`,
+      })),
+    },
+  };
+  const postsHtml = posts.map(p => {
+    const uname = p.profile?.username;
+    const href = uname
+      ? `${origin}/${encodeURIComponent(uname)}/status/${encodeURIComponent(p.id)}`
+      : `${origin}/i/status/${encodeURIComponent(p.id)}`;
+    return `<li>
+  <p><a href="${href}"><strong>${esc(p.profile?.display_name || uname || 'unknown')}</strong> @${esc(uname || 'unknown')}</a> &middot; <small>${new Date(p.created_at).toLocaleString()}</small></p>
+  <p><a href="${href}">${esc((p.body || '').slice(0, 280))}</a></p>
+  <p><small>${p.like_count || 0} likes &middot; ${p.reply_count || 0} replies &middot; ${p.repost_count || 0} reposts</small></p>
+</li>`;
+  }).join('\n');
+  const bodyHtml = `
+<h1>InteractInk</h1>
+<p>${esc(description)}</p>
+<h2>Recent posts</h2>
+<ul>${postsHtml || '<li>No posts yet.</li>'}</ul>`;
+
+  return shell({ title, description, canonical, image: `${origin}/img/logo-light.png`, type: 'website', jsonLd, bodyHtml });
 }
 
 async function renderProfile(origin, username) {
@@ -155,7 +197,9 @@ module.exports = async function handler(req, res) {
 
   try {
     let result;
-    if (type === 'thread' && id) {
+    if (type === 'home') {
+      result = await renderHome(origin);
+    } else if (type === 'thread' && id) {
       result = await renderThread(origin, username, id);
     } else if (type === 'profile' && username) {
       result = await renderProfile(origin, username);
