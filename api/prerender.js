@@ -76,6 +76,24 @@ function injectHead(html, extra) {
   return html.replace('</head>', `${extra}\n</head>`);
 }
 
+// Inserts crawler-readable markup right after `anchor` (one of the
+// #feed-posts/#profile-root/#thread-root loading-spinner divs) instead
+// of replacing that div's contents. The spinner div is left exactly as
+// shipped, so a real visitor's browser keeps showing the normal styled
+// loading state — same as if this function didn't run at all — right
+// up until board.js/profile.js/thread.js swaps in the live, interactive
+// version a moment later. This block is only there for the (mostly
+// non-JS) crawlers/link-unfurl bots this file exists for; it's visually
+// hidden (the same .sr-only pattern used elsewhere on these pages) and
+// `aria-hidden` so it never flashes on screen and screen readers don't
+// announce it as duplicate content once the real version has loaded in.
+function insertHiddenSeoBlock(html, anchor, innerHtml) {
+  if (!html.includes(anchor)) {
+    throw new Error(`prerender template anchor not found: ${JSON.stringify(anchor)}`);
+  }
+  return html.replace(anchor, `${anchor}\n<div class="sr-only" aria-hidden="true">${innerHtml}</div>`);
+}
+
 // JSON.stringify does NOT escape "</script>" — a post body containing
 // that literal string would otherwise close the JSON-LD <script> tag
 // early and let the rest of the "JSON" be parsed as raw HTML/script.
@@ -127,9 +145,9 @@ async function renderHome(origin) {
   // valid and is how most sites layer WebSite + page-specific data).
   html = injectHead(html, jsonLdScriptTag(jsonLd));
 
-  html = replaceLine(html,
+  html = insertHiddenSeoBlock(html,
     '<div id="feed-posts"><span class="spinner">Loading posts&hellip;</span></div>',
-    `<div id="feed-posts">${postsHtml || '<p>No posts yet.</p>'}</div>`);
+    postsHtml || '<p>No posts yet.</p>');
 
   return { status: 200, html };
 }
@@ -148,9 +166,9 @@ async function renderProfile(origin, username) {
       "<meta name=\"description\" content=\"A user's profile on InteractInk — their posts, bio, and activity.\">",
       '<meta name="description" content="No user found with that username.">');
     html = injectHead(html, '<meta name="robots" content="noindex">');
-    html = replaceLine(html,
+    html = insertHiddenSeoBlock(html,
       '<div id="profile-root"><span class="spinner">Loading profile&hellip;</span></div>',
-      '<div id="profile-root"><p>No user found with that username.</p></div>');
+      '<p>No user found with that username.</p>');
     return { status: 404, html };
   }
 
@@ -210,9 +228,9 @@ async function renderProfile(origin, username) {
 
   html = injectHead(html, jsonLdScriptTag(jsonLd));
 
-  html = replaceLine(html,
+  html = insertHiddenSeoBlock(html,
     '<div id="profile-root"><span class="spinner">Loading profile&hellip;</span></div>',
-    `<div id="profile-root">${profileRootHtml}</div>`);
+    profileRootHtml);
 
   return { status: 200, html };
 }
@@ -231,9 +249,9 @@ async function renderThread(origin, username, id) {
       '<meta name="description" content="A post and its replies on InteractInk.">',
       '<meta name="description" content="This post was not found or has been removed.">');
     html = injectHead(html, '<meta name="robots" content="noindex">');
-    html = replaceLine(html,
+    html = insertHiddenSeoBlock(html,
       '<div id="thread-root"><span class="spinner">Loading&hellip;</span></div>',
-      '<div id="thread-root"><p>This post was not found or has been removed.</p></div>');
+      '<p>This post was not found or has been removed.</p>');
     return { status: 404, html };
   }
 
@@ -304,9 +322,9 @@ async function renderThread(origin, username, id) {
 
   html = injectHead(html, jsonLdScriptTag(jsonLd));
 
-  html = replaceLine(html,
+  html = insertHiddenSeoBlock(html,
     '<div id="thread-root"><span class="spinner">Loading&hellip;</span></div>',
-    `<div id="thread-root">${threadRootHtml}</div>`);
+    threadRootHtml);
 
   return { status: 200, html };
 }
