@@ -821,6 +821,15 @@ select {
 .repost-banner a { color:var(--muted); text-decoration:none; }
 .repost-banner a:hover { text-decoration:underline; }
 
+/* Pinned-post banner — the pin glyph is a solid silhouette (not a
+   stroked outline like the repost icon), tilted slightly and tinted
+   with the accent color so it reads as a small badge rather than
+   plain muted text. */
+.repost-banner svg.pin-ic {
+  width:14px; height:14px; fill:var(--maroon); stroke:none;
+  transform:rotate(-45deg);
+}
+
 .pc-row { display:flex; gap:12px; align-items:flex-start; }
 .pc-avatar-lnk { flex:none; line-height:0; }
 .pc-avatar { width:40px; height:40px; }

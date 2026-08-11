@@ -2428,7 +2428,7 @@ function repostBannerHtml(reposter) {
 // The "📌 Pinned" tag shown above a profile's pinned post — same
 // banner styling as repostBannerHtml above, just a pin icon + static
 // label since (unlike a repost) there's no one else to credit.
-const ICON_PIN = '<svg viewBox="0 0 24 24"><path d="M12 2.5 9.5 8 4 10l5.5 3L11 19l1-6L18 10l-5.5-2Z"/></svg>';
+const ICON_PIN = '<svg class="pin-ic" viewBox="0 0 24 24"><path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2z"/></svg>';
 function pinBannerHtml(pinned) {
   if (!pinned) return '';
   return `<div class="repost-banner">${ICON_PIN}<span>Pinned</span></div>`;
