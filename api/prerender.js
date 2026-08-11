@@ -16,13 +16,22 @@
 //
 // HOW IT WORKS: this reads the *real* index.html / thread.html file
 // (the same one the browser gets) and does a handful of targeted
-// string replacements — unique <title>/<meta>/canonical/OG tags, a
-// JSON-LD block, and real static markup in place of the loading
-// spinner — using data fetched from Supabase server-side. Every
-// original <script> tag is left in place, so once the page loads in
-// a real browser, js/board.js / js/thread.js runs exactly as before
-// and takes over (live updates, interactive buttons, etc.) — this
-// only replaces what the first response looks like before JS runs.
+// string replacements — unique <title>/<meta>/canonical/OG tags, and
+// a JSON-LD block — using data fetched from Supabase server-side.
+// Every original <script> tag is left in place, so once the page
+// loads in a real browser, js/board.js / js/thread.js runs exactly
+// as before and takes over (live updates, interactive buttons, etc).
+//
+// The loading spinner (#feed-posts / #profile-root / #thread-root)
+// is deliberately left untouched rather than swapped for real markup:
+// this file's response goes to every visitor, not just crawlers, so
+// replacing the spinner with plain unstyled HTML meant a real person
+// would see that flash on screen for a moment before board.js/
+// profile.js/thread.js loaded and replaced it with the styled version
+// — looked like a glitch. Instead, the real content this file exists
+// to serve to crawlers goes in a visually-hidden sibling right after
+// the spinner (see insertHiddenSeoBlock) — present in the HTML source
+// for anything reading raw markup, invisible on screen either way.
 //
 // This used to run only for requests whose User-Agent matched a
 // known bot/crawler pattern ("dynamic rendering") — that was fragile
