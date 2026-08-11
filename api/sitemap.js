@@ -102,6 +102,10 @@ module.exports = async function handler(req, res) {
     urlTag(`${origin}/`, null, 'hourly', '1.0'),
     urlTag(`${origin}/communities`, null, 'daily', '0.5'),
     urlTag(`${origin}/rules`, null, 'monthly', '0.3'),
+    urlTag(`${origin}/about`, null, 'monthly', '0.3'),
+    urlTag(`${origin}/contact`, null, 'monthly', '0.2'),
+    urlTag(`${origin}/privacy`, null, 'monthly', '0.2'),
+    urlTag(`${origin}/terms`, null, 'monthly', '0.2'),
     urlTag(`${origin}/login`, null, 'yearly', '0.1'),
     urlTag(`${origin}/signup`, null, 'yearly', '0.2'),
   ];

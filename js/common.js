@@ -295,7 +295,10 @@ const NAV_ICON = {
   doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>',
   dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
   people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.2"/><path d="M3 20c.9-3.6 3.2-5.4 6-5.4s5.1 1.8 6 5.4"/><path d="M15.5 5.2a3.1 3.1 0 0 1 0 6"/><path d="M16 14.8c2.4.4 4 2 4.7 5.2"/></svg>',
-  list:     '<svg viewBox="0 0 24 24"><path d="M4 6.5h2.2M4 12h2.2M4 17.5h2.2"/><path d="M9.5 6.5h10.5M9.5 12h10.5M9.5 17.5h10.5"/></svg>'
+  list:     '<svg viewBox="0 0 24 24"><path d="M4 6.5h2.2M4 12h2.2M4 17.5h2.2"/><path d="M9.5 6.5h10.5M9.5 12h10.5M9.5 17.5h10.5"/></svg>',
+  info:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></svg>',
+  mail:     '<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>',
+  shield:   '<svg viewBox="0 0 24 24"><path d="M12 3.5 5 6v6c0 4.5 3 7.5 7 8.5 4-1 7-4 7-8.5V6l-7-2.5Z"/></svg>'
 };
 
 // ── THEME — Default (light) / Dim / Lights out (dark), applied via
@@ -396,6 +399,10 @@ function currentNavKey() {
   if (path === '/lists' || path.startsWith('/i/lists/') || path.endsWith('/lists.html') || path.endsWith('/list.html')) return 'lists';
   if (path === '/settings' || path.endsWith('/settings.html')) return 'settings';
   if (path === '/rules' || path.endsWith('/rules.html')) return 'rules';
+  if (path === '/about' || path.endsWith('/about.html')) return 'about';
+  if (path === '/contact' || path.endsWith('/contact.html')) return 'contact';
+  if (path === '/privacy' || path.endsWith('/privacy.html')) return 'privacy';
+  if (path === '/terms' || path.endsWith('/terms.html')) return 'terms';
   if (currentSession && currentProfile && path.toLowerCase() === profileUrl(currentProfile.username).toLowerCase()) return 'profile';
   return null;
 }
@@ -410,7 +417,7 @@ function renderSideNav() {
   const item = (href, icon, label, key, extra = '') => {
     return `<a href="${href}"${key === here ? ' class="cur"' : ''}><span class="navicon">${icon}${extra}</span><span class="navlabel">${label}</span></a>`;
   };
-  const morePage = here === 'settings' || here === 'rules';
+  const morePage = here === 'settings' || here === 'rules' || here === 'about' || here === 'contact' || here === 'privacy' || here === 'terms';
   const postBtn = currentSession
     ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>${t('nav.post')}</span></button>`
     : `<a class="sidebar-post-btn" href="signup.html">${ICON_COMPOSE}<span>${t('nav.post')}</span></a>`;
@@ -430,6 +437,10 @@ function renderSideNav() {
        <div class="acct-menu navmore-menu" id="more-menu">
          <a href="settings.html">${NAV_ICON.gear}${t('nav.settings')}</a>
          <a href="rules.html">${NAV_ICON.doc}${t('nav.rules')}</a>
+         <a href="about.html">${NAV_ICON.info}${t('nav.about')}</a>
+         <a href="contact.html">${NAV_ICON.mail}${t('nav.contact')}</a>
+         <a href="privacy.html">${NAV_ICON.shield}${t('nav.privacy')}</a>
+         <a href="terms.html">${NAV_ICON.doc}${t('nav.terms')}</a>
        </div>
      </div>` +
     postBtn;
@@ -512,6 +523,10 @@ function renderMobileChrome() {
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
             <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
             <a href="rules.html">${NAV_ICON.doc}Rules</a>
+            <a href="about.html">${NAV_ICON.info}About</a>
+            <a href="contact.html">${NAV_ICON.mail}Contact</a>
+            <a href="privacy.html">${NAV_ICON.shield}Privacy Policy</a>
+            <a href="terms.html">${NAV_ICON.doc}Terms of Service</a>
           </div>
           <hr>
           <button onclick="closeMobileDrawer();logOut();">Log out</button>
@@ -523,6 +538,10 @@ function renderMobileChrome() {
             <a href="lists.html">${NAV_ICON.list}Lists</a>
             <a href="communities.html">${NAV_ICON.people}Communities</a>
             <a href="rules.html">${NAV_ICON.doc}Rules</a>
+            <a href="about.html">${NAV_ICON.info}About</a>
+            <a href="contact.html">${NAV_ICON.mail}Contact</a>
+            <a href="privacy.html">${NAV_ICON.shield}Privacy Policy</a>
+            <a href="terms.html">${NAV_ICON.doc}Terms of Service</a>
           </div>
           <div class="m-drawer-cta">
             <a class="cta-primary" href="signup.html">Sign up</a>
