@@ -52,6 +52,7 @@ async function loadThread() {
   cachePost(p);
   await attachQuotedPosts([p]);
   document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — InteractInk';
+  setPageH1(p.body ? p.body.slice(0, 140) : 'Post');
   setPageDescription(p.body || 'A post on InteractInk.');
   // Now that we know who posted it, upgrade a generic /i/status/<id>
   // (or a legacy ?id= link) to the canonical /<username>/status/<id>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin — InteractInk</title>
+<meta name="description" content="InteractInk admin panel — user and post moderation tools.">
 <!-- Locked to the @marpe account only — see supabase/admin_panel.sql.
      This page has no real security of its own (it's just HTML/JS
      sitting in the browser); the actual lock is is_admin() in the
@@ -48,8 +49,8 @@
     <div class="sb-top">
       <a class="logo" href="/">
         <span class="badge">
-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
+          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
+          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
         </span>
         <span class="wordmark">Interact<em>Ink</em></span>
       </a>
@@ -60,7 +61,7 @@
 
   <div id="main">
     <div id="feed" style="max-width:640px;">
-      <div class="sec-bar">Admin</div>
+      <div class="sec-bar"><h1 class="sr-only">Admin</h1>Admin</div>
 
       <div id="admin-gate">Checking access&hellip;</div>
 

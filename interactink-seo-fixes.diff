@@ -1,0 +1,744 @@
+diff -ru '--exclude=README.md' orig/about.html work/about.html
+--- orig/about.html	2026-08-11 06:14:41.000000000 +0000
++++ work/about.html	2026-08-11 06:25:46.222807753 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+diff -ru '--exclude=README.md' orig/admin.html work/admin.html
+--- orig/admin.html	2026-08-11 06:14:34.000000000 +0000
++++ work/admin.html	2026-08-11 06:29:03.580580461 +0000
+@@ -4,6 +4,7 @@
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+ <title>Admin — InteractInk</title>
++<meta name="description" content="InteractInk admin panel — user and post moderation tools.">
+ <!-- Locked to the @marpe account only — see supabase/admin_panel.sql.
+      This page has no real security of its own (it's just HTML/JS
+      sitting in the browser); the actual lock is is_admin() in the
+@@ -48,8 +49,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -60,7 +61,7 @@
+ 
+   <div id="main">
+     <div id="feed" style="max-width:640px;">
+-      <div class="sec-bar">Admin</div>
++      <div class="sec-bar"><h1 class="sr-only">Admin</h1>Admin</div>
+ 
+       <div id="admin-gate">Checking access&hellip;</div>
+ 
+diff -ru '--exclude=README.md' orig/api/robots.js work/api/robots.js
+--- orig/api/robots.js	2026-08-11 06:11:25.000000000 +0000
++++ work/api/robots.js	2026-08-11 06:29:25.905704407 +0000
+@@ -15,6 +15,12 @@
+ // shouldn't spend budget on someone's private settings or DM inbox,
+ // and none of it is public content anyway (RLS blocks it for a
+ // logged-out request same as it would for any other stranger).
++//
++// /login and /signup are intentionally NOT disallowed here: they're
++// public pages anyone can view without an account, so they're both
++// crawlable and listed in sitemap.xml (a URL that's blocked here but
++// still in the sitemap is a contradiction Search Console flags as an
++// error — keep these two lists in sync).
+ // ─────────────────────────────────────────────────────────────
+ module.exports = function handler(req, res) {
+   const host = req.headers['x-forwarded-host'] || req.headers.host;
+@@ -24,16 +30,22 @@
+   const body = `User-agent: *
+ Allow: /
+ Disallow: /settings
++Disallow: /settings.html
+ Disallow: /bookmarks
++Disallow: /bookmarks.html
+ Disallow: /notifications
++Disallow: /notifications.html
+ Disallow: /messages
+ Disallow: /messages/*
+-Disallow: /login
+-Disallow: /signup
++Disallow: /chat.html
+ Disallow: /editprofile
++Disallow: /editprofile.html
+ Disallow: /lists
++Disallow: /lists.html
+ Disallow: /search
++Disallow: /search.html
+ Disallow: /admin
++Disallow: /admin.html
+ 
+ Sitemap: ${origin}/sitemap.xml
+ `;
+diff -ru '--exclude=README.md' orig/api/sitemap.js work/api/sitemap.js
+--- orig/api/sitemap.js	2026-08-11 06:14:47.000000000 +0000
++++ work/api/sitemap.js	2026-08-11 06:29:11.298063635 +0000
+@@ -43,6 +43,20 @@
+ const PAGE_SIZE = 1000;
+ const MAX_ROWS = 5000;
+ 
++// Real <lastmod> for the static pages below, instead of omitting the tag —
++// pulled from each HTML file's own mtime on disk (the deploy bundle) rather
++// than hardcoded, so it stays accurate without needing to remember to bump
++// it by hand every time one of these pages is edited.
++const fs = require('fs');
++const nodePath = require('path');
++function fileLastmod(htmlFile) {
++  try {
++    return fs.statSync(nodePath.join(process.cwd(), htmlFile)).mtime;
++  } catch {
++    return null; // falls back to no <lastmod> for that URL if the file can't be stat'd
++  }
++}
++
+ async function fetchAll(path, selectParams) {
+   const rows = [];
+   let from = 0;
+@@ -99,15 +113,15 @@
+ 
+   const now = Date.now();
+   const staticUrls = [
+-    urlTag(`${origin}/`, null, 'hourly', '1.0'),
+-    urlTag(`${origin}/communities`, null, 'daily', '0.5'),
+-    urlTag(`${origin}/rules`, null, 'monthly', '0.3'),
+-    urlTag(`${origin}/about`, null, 'monthly', '0.3'),
+-    urlTag(`${origin}/contact`, null, 'monthly', '0.2'),
+-    urlTag(`${origin}/privacy`, null, 'monthly', '0.2'),
+-    urlTag(`${origin}/terms`, null, 'monthly', '0.2'),
+-    urlTag(`${origin}/login`, null, 'yearly', '0.1'),
+-    urlTag(`${origin}/signup`, null, 'yearly', '0.2'),
++    urlTag(`${origin}/`, fileLastmod('index.html'), 'hourly', '1.0'),
++    urlTag(`${origin}/communities`, fileLastmod('communities.html'), 'daily', '0.5'),
++    urlTag(`${origin}/rules`, fileLastmod('rules.html'), 'monthly', '0.3'),
++    urlTag(`${origin}/about`, fileLastmod('about.html'), 'monthly', '0.3'),
++    urlTag(`${origin}/contact`, fileLastmod('contact.html'), 'monthly', '0.2'),
++    urlTag(`${origin}/privacy`, fileLastmod('privacy.html'), 'monthly', '0.2'),
++    urlTag(`${origin}/terms`, fileLastmod('terms.html'), 'monthly', '0.2'),
++    urlTag(`${origin}/login`, fileLastmod('login.html'), 'yearly', '0.1'),
++    urlTag(`${origin}/signup`, fileLastmod('signup.html'), 'yearly', '0.2'),
+   ];
+ 
+   const profileUrls = profiles.map(p =>
+diff -ru '--exclude=README.md' orig/bookmarks.html work/bookmarks.html
+--- orig/bookmarks.html	2026-08-11 06:14:34.000000000 +0000
++++ work/bookmarks.html	2026-08-11 06:26:04.725876988 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -46,7 +46,7 @@
+ 
+   <div id="main">
+     <div id="feed" style="max-width:600px;">
+-      <div class="sec-bar">Bookmarks</div>
++      <div class="sec-bar"><h1 class="sr-only">Bookmarks</h1>Bookmarks</div>
+       <div id="feed-posts">
+         <div class="skel-card"><div class="skel-avatar"></div><div class="skel-lines"><div class="skel-line w40"></div><div class="skel-line w90"></div><div class="skel-line w60"></div></div></div>
+         <div class="skel-card"><div class="skel-avatar"></div><div class="skel-lines"><div class="skel-line w40"></div><div class="skel-line w90"></div><div class="skel-line w60"></div></div></div>
+diff -ru '--exclude=README.md' orig/chat.html work/chat.html
+--- orig/chat.html	2026-08-11 06:14:34.000000000 +0000
++++ work/chat.html	2026-08-11 06:26:27.712602529 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -46,6 +46,7 @@
+ 
+   <div id="main">
+     <div id="feed" style="max-width:600px;">
++      <h1 class="sr-only">Direct messages</h1>
+       <div class="sec-bar" id="chat-sec-bar">Chat</div>
+       <div id="chat-root"><span class="spinner">Loading&hellip;</span></div>
+     </div>
+diff -ru '--exclude=README.md' orig/communities.html work/communities.html
+--- orig/communities.html	2026-08-11 06:14:34.000000000 +0000
++++ work/communities.html	2026-08-11 06:26:46.714597086 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -46,7 +46,7 @@
+   <div id="main">
+     <div id="feed">
+       <div class="sec-bar">
+-        <span>Communities</span>
++        <h1>Communities</h1>
+         <a href="#" class="back" onclick="openCreateCommunityModal();return false;">+ Create</a>
+       </div>
+ 
+diff -ru '--exclude=README.md' orig/community.html work/community.html
+--- orig/community.html	2026-08-11 06:14:34.000000000 +0000
++++ work/community.html	2026-08-11 06:27:12.468684930 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -50,6 +50,8 @@
+         <a class="back" href="communities.html">&larr; All communities</a>
+       </div>
+ 
++      <h1 id="page-h1" class="sr-only">Community</h1>
++
+       <div id="community-hero"><span class="spinner">Loading&hellip;</span></div>
+ 
+       <div id="board-hdr" style="display:none;">
+diff -ru '--exclude=README.md' orig/contact.html work/contact.html
+--- orig/contact.html	2026-08-11 06:14:41.000000000 +0000
++++ work/contact.html	2026-08-11 06:25:46.256286307 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+diff -ru '--exclude=README.md' orig/css/style.css work/css/style.css
+--- orig/css/style.css	2026-08-11 06:11:25.000000000 +0000
++++ work/css/style.css	2026-08-11 06:26:44.297697552 +0000
+@@ -465,6 +465,7 @@
+   position:sticky; top:0; background-color:var(--translucent-bg); backdrop-filter:blur(8px); z-index:5;
+ }
+ .sec-bar .sub { font-weight:400; font-size:13px; color:var(--muted); }
++.sec-bar h1 { font:inherit; font-weight:inherit; margin:0; color:inherit; }
+ .sec-bar a.back { color:var(--maroon); font-size:14px; font-weight:700; margin-left:auto; text-decoration:none; }
+ .sec-bar a.back:hover { text-decoration:underline; }
+ 
+@@ -1451,9 +1452,16 @@
+ .auth-card-logo .badge { width:30px; height:30px; border-radius:50%; background:var(--hover-bg); display:flex; align-items:center; justify-content:center; flex:none; }
+ .auth-card-logo .badge .logo-mark { width:20px; height:20px; }
+ .auth-card-logo em { font-style:normal; color:var(--maroon); }
+-.auth-card b {
++.auth-card h1 {
+   display:block; font-family:inherit; font-weight:800; font-size:25px;
+-  color:var(--ink); background:none; padding:0; border-bottom:none;
++  color:var(--ink); background:none; padding:0; border-bottom:none; margin:0;
++}
++/* Visually hidden but still readable by screen readers and search engines —
++   used for pages whose primary heading is decorative/tab-driven in the UI
++   (e.g. the home feed) so every page still has exactly one descriptive <h1>. */
++.sr-only {
++  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
++  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+ }
+ .auth-sub { font-size:14px; color:var(--muted); margin:6px 0 22px; }
+ .auth-card .auth-body { padding:0; }
+diff -ru '--exclude=README.md' orig/editprofile.html work/editprofile.html
+--- orig/editprofile.html	2026-08-11 06:14:34.000000000 +0000
++++ work/editprofile.html	2026-08-11 06:28:14.401770743 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -49,7 +49,7 @@
+       <div class="sec-bar" id="ep-hdr">
+         <a class="ep-back" href="index.html" id="ep-back">&larr;</a>
+         <div>
+-          <b>Edit profile</b>
++          <h1>Edit profile</h1>
+         </div>
+       </div>
+       <div id="editprofile-root"><span class="spinner">Loading&hellip;</span></div>
+diff -ru '--exclude=README.md' orig/followlist.html work/followlist.html
+--- orig/followlist.html	2026-08-11 06:14:34.000000000 +0000
++++ work/followlist.html	2026-08-11 06:28:09.527512962 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -48,7 +48,7 @@
+       <div class="sec-bar" id="fl-hdr">
+         <a class="ep-back" href="index.html" id="fl-back">&larr;</a>
+         <div class="sec-bar-title">
+-          <b id="fl-name">&nbsp;</b>
++          <h1 id="fl-name">&nbsp;</h1>
+           <span class="sub" id="fl-handle"></span>
+         </div>
+       </div>
+diff -ru '--exclude=README.md' orig/index.html work/index.html
+--- orig/index.html	2026-08-11 06:14:34.000000000 +0000
++++ work/index.html	2026-08-11 06:25:58.383960527 +0000
+@@ -35,8 +35,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -48,6 +48,7 @@
+   <!-- CENTER + RIGHT -->
+   <div id="main">
+     <div id="feed">
++      <h1 class="sr-only">InteractInk — For You and Following feed</h1>
+       <!-- TABS -->
+       <div id="board-hdr">
+         <div class="xtabs" id="xtabs">
+diff -ru '--exclude=README.md' orig/js/common.js work/js/common.js
+--- orig/js/common.js	2026-08-11 06:13:41.000000000 +0000
++++ work/js/common.js	2026-08-11 06:27:09.307537965 +0000
+@@ -44,6 +44,16 @@
+   if (twTitle) twTitle.setAttribute('content', document.title);
+ }
+ 
++// Keeps the page's single static <h1 id="page-h1"> (present as a generic
++// placeholder in the HTML for pages whose real title is only known once
++// content loads — profile, thread, community, list) in sync with the real
++// content, same idea as setPageDescription() above for the meta tags.
++function setPageH1(text) {
++  if (!text) return;
++  const el = document.getElementById('page-h1');
++  if (el) el.textContent = text;
++}
++
+ // Sets <link rel="canonical"> + og:url to the page's real, final address
+ // (creating the <link> tag if the static HTML didn't already have one).
+ // Call this alongside setPageDescription() on any page whose canonical
+diff -ru '--exclude=README.md' orig/js/community.js work/js/community.js
+--- orig/js/community.js	2026-08-11 06:11:25.000000000 +0000
++++ work/js/community.js	2026-08-11 06:27:46.346823790 +0000
+@@ -27,6 +27,7 @@
+   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This community doesn't exist.</div>`; return; }
+   community = data;
+   document.title = `${community.name} — InteractInk`;
++  setPageH1(community.name);
+   setPageDescription(community.description || `${community.name} — a community on InteractInk.`);
+   setCanonical(communityUrl(community.slug));
+   if (community.banner_url || community.avatar_url) setPageImage(community.banner_url || community.avatar_url);
+@@ -384,6 +385,7 @@
+     community.description = description || null;
+     document.getElementById('comm-edit-form').innerHTML = '';
+     document.title = `${community.name} — InteractInk`;
++    setPageH1(community.name);
+     renderHero();
+     renderCommunityAbout();
+     toast('Community updated.');
+diff -ru '--exclude=README.md' orig/js/list.js work/js/list.js
+--- orig/js/list.js	2026-08-11 06:11:25.000000000 +0000
++++ work/js/list.js	2026-08-11 06:27:49.151995581 +0000
+@@ -29,6 +29,7 @@
+   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This List doesn't exist, or is private.</div>`; return; }
+   list = data;
+   document.title = `${list.name} — InteractInk`;
++  setPageH1(list.name);
+   setPageDescription(list.description || `${list.name} — a List on InteractInk.`);
+   setCanonical(listUrl(list.id));
+   setJsonLd({
+diff -ru '--exclude=README.md' orig/js/profile.js work/js/profile.js
+--- orig/js/profile.js	2026-08-11 06:11:25.000000000 +0000
++++ work/js/profile.js	2026-08-11 06:27:36.817708467 +0000
+@@ -30,6 +30,7 @@
+   viewedProfile = profile;
+   isOwnProfile = session && session.user.id === profile.id;
+   document.title = `@${profile.username} — InteractInk`;
++  setPageH1(profile.display_name ? `${profile.display_name} (@${profile.username})` : `@${profile.username}`);
+   setPageDescription(profile.bio || `@${profile.username}'s posts on InteractInk.`);
+   // Canonicalize casing (usernames are matched case-insensitively
+   // above via ilike) and upgrade a legacy ?u= link, same idea as
+diff -ru '--exclude=README.md' orig/js/search.js work/js/search.js
+--- orig/js/search.js	2026-08-11 06:11:25.000000000 +0000
++++ work/js/search.js	2026-08-11 06:28:33.643443812 +0000
+@@ -40,9 +40,11 @@
+   const root = document.getElementById('search-root');
+   if (!searchQuery.trim()) {
+     document.title = 'Explore — InteractInk';
++    setPageH1('Explore InteractInk');
+     return runExplore();
+   }
+   document.title = `${searchQuery} — Search — InteractInk`;
++  setPageH1(`Search: ${searchQuery}`);
+   root.innerHTML = skeletonFeedHtml();
+   if (searchTab === 'people') return searchPeople(root);
+   return searchPosts(root);
+diff -ru '--exclude=README.md' orig/js/thread.js work/js/thread.js
+--- orig/js/thread.js	2026-08-11 06:11:25.000000000 +0000
++++ work/js/thread.js	2026-08-11 06:27:39.817558257 +0000
+@@ -52,6 +52,7 @@
+   cachePost(p);
+   await attachQuotedPosts([p]);
+   document.title = (p.body ? p.body.slice(0, 60) : 'Post') + ' — InteractInk';
++  setPageH1(p.body ? p.body.slice(0, 140) : 'Post');
+   setPageDescription(p.body || 'A post on InteractInk.');
+   // Now that we know who posted it, upgrade a generic /i/status/<id>
+   // (or a legacy ?id= link) to the canonical /<username>/status/<id>
+diff -ru '--exclude=README.md' orig/list.html work/list.html
+--- orig/list.html	2026-08-11 06:14:34.000000000 +0000
++++ work/list.html	2026-08-11 06:27:16.924467005 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -50,6 +50,8 @@
+         <a class="back" href="lists.html">&larr; All Lists</a>
+       </div>
+ 
++      <h1 id="page-h1" class="sr-only">List</h1>
++
+       <div id="list-hero"><span class="spinner">Loading&hellip;</span></div>
+ 
+       <div id="board-hdr" style="display:none;">
+diff -ru '--exclude=README.md' orig/lists.html work/lists.html
+--- orig/lists.html	2026-08-11 06:14:34.000000000 +0000
++++ work/lists.html	2026-08-11 06:26:51.078325524 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -47,7 +47,7 @@
+   <div id="main">
+     <div id="feed">
+       <div class="sec-bar">
+-        <span>Lists</span>
++        <h1>Lists</h1>
+         <a href="#" class="back" onclick="openCreateListModal();return false;">+ Create</a>
+       </div>
+ 
+diff -ru '--exclude=README.md' orig/login.html work/login.html
+--- orig/login.html	2026-08-11 06:11:25.000000000 +0000
++++ work/login.html	2026-08-11 06:25:46.273625576 +0000
+@@ -14,7 +14,6 @@
+ <meta name="twitter:title" content="Log In — InteractInk">
+ <meta name="twitter:description" content="Log in to your InteractInk account.">
+ <meta name="twitter:image" content="/img/logo-light.png">
+-<meta name="robots" content="noindex, follow">
+ <link rel="canonical" href="/login">
+ <meta property="og:url" content="/login">
+ <base href="/">
+@@ -34,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -48,12 +47,12 @@
+     <div class="auth-card">
+       <a class="auth-card-logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="28" height="28">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="28" height="28">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="28" height="28">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="28" height="28">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+-      <b data-i18n="auth.logIn">Log In</b>
++      <h1 data-i18n="auth.logIn">Log In</h1>
+       <p class="auth-sub" data-i18n="auth.logInSub">Good to see you again.</p>
+       <div class="auth-body">
+         <div class="errmsg" id="li-err" style="display:none;"></div>
+diff -ru '--exclude=README.md' orig/notifications.html work/notifications.html
+--- orig/notifications.html	2026-08-11 06:14:34.000000000 +0000
++++ work/notifications.html	2026-08-11 06:26:04.727745826 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -46,7 +46,7 @@
+ 
+   <div id="main">
+     <div id="feed" style="max-width:600px;">
+-      <div class="sec-bar">Notifications</div>
++      <div class="sec-bar"><h1 class="sr-only">Notifications</h1>Notifications</div>
+       <div id="notif-root"><span class="spinner">Loading notifications&hellip;</span></div>
+     </div>
+ 
+diff -ru '--exclude=README.md' orig/privacy.html work/privacy.html
+--- orig/privacy.html	2026-08-11 06:14:41.000000000 +0000
++++ work/privacy.html	2026-08-11 06:25:46.278010123 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+diff -ru '--exclude=README.md' orig/profile.html work/profile.html
+--- orig/profile.html	2026-08-11 06:14:34.000000000 +0000
++++ work/profile.html	2026-08-11 06:27:24.279070851 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -48,6 +48,7 @@
+       <div class="sec-bar" style="position:static;background:none;backdrop-filter:none;">
+         <a class="back" href="index.html" style="margin-left:0;margin-right:auto;">&larr; Back to board</a>
+       </div>
++      <h1 id="page-h1" class="sr-only">Profile</h1>
+       <div id="profile-root"><span class="spinner">Loading profile&hellip;</span></div>
+     </div>
+ 
+diff -ru '--exclude=README.md' orig/profilelists.html work/profilelists.html
+--- orig/profilelists.html	2026-08-11 06:14:34.000000000 +0000
++++ work/profilelists.html	2026-08-11 06:28:09.527669440 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -48,7 +48,7 @@
+       <div class="sec-bar" id="pl-hdr">
+         <a class="ep-back" href="index.html" id="pl-back">&larr;</a>
+         <div class="sec-bar-title">
+-          <b id="pl-name">&nbsp;</b>
++          <h1 id="pl-name">&nbsp;</h1>
+           <span class="sub" id="pl-handle"></span>
+         </div>
+       </div>
+diff -ru '--exclude=README.md' orig/rules.html work/rules.html
+--- orig/rules.html	2026-08-11 06:14:34.000000000 +0000
++++ work/rules.html	2026-08-11 06:25:54.768280917 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -45,7 +45,9 @@
+ 
+   <div id="main">
+     <div class="page-wrap">
+-      <h1 id="rules">Rules</h1>
++      <h1>Rules &amp; FAQ</h1>
++
++      <h2 id="rules">Rules</h2>
+       <ol>
+         <li>No illegal content of any kind. This includes, without exception, child sexual abuse material — posts are logged and reported to the relevant authorities (NCMEC/law enforcement).</li>
+         <li>No doxxing — do not post other people's private information (addresses, phone numbers, full legal names, etc).</li>
+@@ -59,7 +61,7 @@
+       <h2>Moderation</h2>
+       <p>Every post can be reported with the "Report" link. Reports go to a moderation queue that isn't publicly readable. Moderators may remove any post or file for any reason, including rule violations.</p>
+ 
+-      <h1 id="faq" style="margin-top:24px;">FAQ</h1>
++      <h2 id="faq" style="margin-top:24px;">FAQ</h2>
+ 
+       <h2>Do I need an account?</h2>
+       <p>Yes. InteractInk is not anonymous — you need to sign up with an email, username, and password before you can post, reply, or like anything. Browsing the board doesn't require an account.</p>
+diff -ru '--exclude=README.md' orig/search.html work/search.html
+--- orig/search.html	2026-08-11 06:14:34.000000000 +0000
++++ work/search.html	2026-08-11 06:28:28.586424997 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -46,6 +46,7 @@
+ 
+   <div id="main">
+     <div id="feed" style="max-width:600px;">
++      <h1 id="page-h1" class="sr-only">Search InteractInk</h1>
+       <div class="search-topbar">
+         <form onsubmit="location.href='search.html?q='+encodeURIComponent(document.getElementById('sp-input').value.trim());return false;">
+           <div class="xsearch">
+diff -ru '--exclude=README.md' orig/settings.html work/settings.html
+--- orig/settings.html	2026-08-11 06:14:34.000000000 +0000
++++ work/settings.html	2026-08-11 06:26:04.737105446 +0000
+@@ -34,8 +34,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -46,7 +46,7 @@
+ 
+   <div id="main">
+     <div id="feed" style="max-width:600px;">
+-      <div class="sec-bar">Settings</div>
++      <div class="sec-bar"><h1 class="sr-only">Account settings</h1>Settings</div>
+       <div id="settings-root"><span class="spinner">Loading&hellip;</span></div>
+     </div>
+ 
+diff -ru '--exclude=README.md' orig/signup.html work/signup.html
+--- orig/signup.html	2026-08-11 06:11:25.000000000 +0000
++++ work/signup.html	2026-08-11 06:25:46.290657432 +0000
+@@ -14,7 +14,6 @@
+ <meta name="twitter:title" content="Sign Up — InteractInk">
+ <meta name="twitter:description" content="Create an InteractInk account — it takes a minute.">
+ <meta name="twitter:image" content="/img/logo-light.png">
+-<meta name="robots" content="noindex, follow">
+ <link rel="canonical" href="/signup">
+ <meta property="og:url" content="/signup">
+ <base href="/">
+@@ -34,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -48,12 +47,12 @@
+     <div class="auth-card">
+       <a class="auth-card-logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="28" height="28">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="28" height="28">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="28" height="28">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="28" height="28">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+-      <b data-i18n="auth.signUp">Sign Up</b>
++      <h1 data-i18n="auth.signUp">Sign Up</h1>
+       <p class="auth-sub" data-i18n="auth.signUpSub">Create your account — it only takes a minute.</p>
+       <div class="auth-body">
+         <div class="errmsg" id="su-err" style="display:none;"></div>
+diff -ru '--exclude=README.md' orig/terms.html work/terms.html
+--- orig/terms.html	2026-08-11 06:14:41.000000000 +0000
++++ work/terms.html	2026-08-11 06:25:46.292745668 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+diff -ru '--exclude=README.md' orig/thread.html work/thread.html
+--- orig/thread.html	2026-08-11 06:14:34.000000000 +0000
++++ work/thread.html	2026-08-11 06:27:31.080902863 +0000
+@@ -33,8 +33,8 @@
+     <div class="sb-top">
+       <a class="logo" href="/">
+         <span class="badge">
+-          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="36" height="36">
+-          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="36" height="36">
++          <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="InteractInk logo" width="36" height="36">
++          <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
+         </span>
+         <span class="wordmark">Interact<em>Ink</em></span>
+       </a>
+@@ -49,6 +49,7 @@
+         <a class="ep-back" href="index.html" id="thread-back" aria-label="Back" onclick="if(history.length>1){history.back();return false;}">&larr;</a>
+         <div><b>Post</b></div>
+       </div>
++      <h1 id="page-h1" class="sr-only">Post</h1>
+       <div id="thread-root"><span class="spinner">Loading&hellip;</span></div>
+     </div>
+ 

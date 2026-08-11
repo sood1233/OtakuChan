@@ -30,6 +30,7 @@ async function loadProfile() {
   viewedProfile = profile;
   isOwnProfile = session && session.user.id === profile.id;
   document.title = `@${profile.username} — InteractInk`;
+  setPageH1(profile.display_name ? `${profile.display_name} (@${profile.username})` : `@${profile.username}`);
   setPageDescription(profile.bio || `@${profile.username}'s posts on InteractInk.`);
   // Canonicalize casing (usernames are matched case-insensitively
   // above via ilike) and upgrade a legacy ?u= link, same idea as

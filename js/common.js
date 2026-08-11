@@ -44,6 +44,16 @@ function setPageDescription(text) {
   if (twTitle) twTitle.setAttribute('content', document.title);
 }
 
+// Keeps the page's single static <h1 id="page-h1"> (present as a generic
+// placeholder in the HTML for pages whose real title is only known once
+// content loads — profile, thread, community, list) in sync with the real
+// content, same idea as setPageDescription() above for the meta tags.
+function setPageH1(text) {
+  if (!text) return;
+  const el = document.getElementById('page-h1');
+  if (el) el.textContent = text;
+}
+
 // Sets <link rel="canonical"> + og:url to the page's real, final address
 // (creating the <link> tag if the static HTML didn't already have one).
 // Call this alongside setPageDescription() on any page whose canonical

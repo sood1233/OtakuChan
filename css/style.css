@@ -465,6 +465,7 @@ select {
   position:sticky; top:0; background-color:var(--translucent-bg); backdrop-filter:blur(8px); z-index:5;
 }
 .sec-bar .sub { font-weight:400; font-size:13px; color:var(--muted); }
+.sec-bar h1 { font:inherit; font-weight:inherit; margin:0; color:inherit; }
 .sec-bar a.back { color:var(--maroon); font-size:14px; font-weight:700; margin-left:auto; text-decoration:none; }
 .sec-bar a.back:hover { text-decoration:underline; }
 
@@ -1451,9 +1452,16 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 .auth-card-logo .badge { width:30px; height:30px; border-radius:50%; background:var(--hover-bg); display:flex; align-items:center; justify-content:center; flex:none; }
 .auth-card-logo .badge .logo-mark { width:20px; height:20px; }
 .auth-card-logo em { font-style:normal; color:var(--maroon); }
-.auth-card b {
+.auth-card h1 {
   display:block; font-family:inherit; font-weight:800; font-size:25px;
-  color:var(--ink); background:none; padding:0; border-bottom:none;
+  color:var(--ink); background:none; padding:0; border-bottom:none; margin:0;
+}
+/* Visually hidden but still readable by screen readers and search engines —
+   used for pages whose primary heading is decorative/tab-driven in the UI
+   (e.g. the home feed) so every page still has exactly one descriptive <h1>. */
+.sr-only {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
 .auth-sub { font-size:14px; color:var(--muted); margin:6px 0 22px; }
 .auth-card .auth-body { padding:0; }

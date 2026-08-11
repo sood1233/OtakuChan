@@ -43,6 +43,20 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const PAGE_SIZE = 1000;
 const MAX_ROWS = 5000;
 
+// Real <lastmod> for the static pages below, instead of omitting the tag —
+// pulled from each HTML file's own mtime on disk (the deploy bundle) rather
+// than hardcoded, so it stays accurate without needing to remember to bump
+// it by hand every time one of these pages is edited.
+const fs = require('fs');
+const nodePath = require('path');
+function fileLastmod(htmlFile) {
+  try {
+    return fs.statSync(nodePath.join(process.cwd(), htmlFile)).mtime;
+  } catch {
+    return null; // falls back to no <lastmod> for that URL if the file can't be stat'd
+  }
+}
+
 async function fetchAll(path, selectParams) {
   const rows = [];
   let from = 0;
@@ -99,15 +113,15 @@ module.exports = async function handler(req, res) {
 
   const now = Date.now();
   const staticUrls = [
-    urlTag(`${origin}/`, null, 'hourly', '1.0'),
-    urlTag(`${origin}/communities`, null, 'daily', '0.5'),
-    urlTag(`${origin}/rules`, null, 'monthly', '0.3'),
-    urlTag(`${origin}/about`, null, 'monthly', '0.3'),
-    urlTag(`${origin}/contact`, null, 'monthly', '0.2'),
-    urlTag(`${origin}/privacy`, null, 'monthly', '0.2'),
-    urlTag(`${origin}/terms`, null, 'monthly', '0.2'),
-    urlTag(`${origin}/login`, null, 'yearly', '0.1'),
-    urlTag(`${origin}/signup`, null, 'yearly', '0.2'),
+    urlTag(`${origin}/`, fileLastmod('index.html'), 'hourly', '1.0'),
+    urlTag(`${origin}/communities`, fileLastmod('communities.html'), 'daily', '0.5'),
+    urlTag(`${origin}/rules`, fileLastmod('rules.html'), 'monthly', '0.3'),
+    urlTag(`${origin}/about`, fileLastmod('about.html'), 'monthly', '0.3'),
+    urlTag(`${origin}/contact`, fileLastmod('contact.html'), 'monthly', '0.2'),
+    urlTag(`${origin}/privacy`, fileLastmod('privacy.html'), 'monthly', '0.2'),
+    urlTag(`${origin}/terms`, fileLastmod('terms.html'), 'monthly', '0.2'),
+    urlTag(`${origin}/login`, fileLastmod('login.html'), 'yearly', '0.1'),
+    urlTag(`${origin}/signup`, fileLastmod('signup.html'), 'yearly', '0.2'),
   ];
 
   const profileUrls = profiles.map(p =>

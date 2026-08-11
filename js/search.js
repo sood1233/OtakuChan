@@ -40,9 +40,11 @@ async function runSearch() {
   const root = document.getElementById('search-root');
   if (!searchQuery.trim()) {
     document.title = 'Explore — InteractInk';
+    setPageH1('Explore InteractInk');
     return runExplore();
   }
   document.title = `${searchQuery} — Search — InteractInk`;
+  setPageH1(`Search: ${searchQuery}`);
   root.innerHTML = skeletonFeedHtml();
   if (searchTab === 'people') return searchPeople(root);
   return searchPosts(root);

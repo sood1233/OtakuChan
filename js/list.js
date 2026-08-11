@@ -29,6 +29,7 @@ async function loadList() {
   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This List doesn't exist, or is private.</div>`; return; }
   list = data;
   document.title = `${list.name} — InteractInk`;
+  setPageH1(list.name);
   setPageDescription(list.description || `${list.name} — a List on InteractInk.`);
   setCanonical(listUrl(list.id));
   setJsonLd({

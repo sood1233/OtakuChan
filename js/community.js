@@ -27,6 +27,7 @@ async function loadCommunity() {
   if (!data) { heroEl.innerHTML = `<div id="feed-empty">This community doesn't exist.</div>`; return; }
   community = data;
   document.title = `${community.name} — InteractInk`;
+  setPageH1(community.name);
   setPageDescription(community.description || `${community.name} — a community on InteractInk.`);
   setCanonical(communityUrl(community.slug));
   if (community.banner_url || community.avatar_url) setPageImage(community.banner_url || community.avatar_url);
@@ -384,6 +385,7 @@ async function submitEditCommunity() {
     community.description = description || null;
     document.getElementById('comm-edit-form').innerHTML = '';
     document.title = `${community.name} — InteractInk`;
+    setPageH1(community.name);
     renderHero();
     renderCommunityAbout();
     toast('Community updated.');
