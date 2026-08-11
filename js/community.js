@@ -10,7 +10,10 @@ const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_n
 const communitySlug = currentCommunitySlug();
 let community = null;      // the loaded community row
 let isMember = false;      // whether the current user has joined it
-let communityTab = 'latest'; // 'latest' | 'trending'
+let communityTab = 'latest'; // 'top' | 'latest' | 'media' | 'about'
+let communityAboutLoaded = false; // so switching back to About doesn't refetch every time
+let communityRules = [];         // [{id, position, title, description}]
+let communityMods = [];          // [{user_id, profile}]
 
 async function loadCommunity() {
   const heroEl = document.getElementById('community-hero');
@@ -44,6 +47,8 @@ async function loadCommunity() {
   renderHero();
   document.getElementById('board-hdr').style.display = '';
   document.getElementById('pf-wrap').style.display = '';
+  document.getElementById('community-about').style.display = 'none';
+  document.getElementById('feed-posts').style.display = '';
   refreshPostGates();
   updateComposerVisibility();
   wireComposer();
@@ -188,10 +193,24 @@ function onCommunityMembershipChanged(communityId, joined) {
 function switchCommunityTab(tab) {
   if (tab === communityTab) return;
   communityTab = tab;
-  document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
-  document.getElementById('tab-trending').classList.toggle('active', tab === 'trending');
+  ['top', 'latest', 'media', 'about'].forEach(t =>
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  loadCommunityFeed();
+
+  const feedEl = document.getElementById('feed-posts');
+  const aboutEl = document.getElementById('community-about');
+  const pfWrap = document.getElementById('pf-wrap');
+  if (tab === 'about') {
+    feedEl.style.display = 'none';
+    pfWrap.style.display = 'none';
+    aboutEl.style.display = '';
+    loadCommunityAbout();
+  } else {
+    feedEl.style.display = '';
+    pfWrap.style.display = '';
+    aboutEl.style.display = 'none';
+    loadCommunityFeed();
+  }
 }
 
 async function loadCommunityFeed() {
@@ -200,18 +219,271 @@ async function loadCommunityFeed() {
   await ensureFeedPrereqsLoaded();
 
   let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false).eq('community_id', community.id);
-  query = communityTab === 'trending'
-    ? query.order('like_count', { ascending: false }).order('created_at', { ascending: false }).limit(100)
-    : query.order('created_at', { ascending: false }).limit(100);
+  if (communityTab === 'top') {
+    query = query.order('like_count', { ascending: false }).order('created_at', { ascending: false }).limit(100);
+  } else if (communityTab === 'media') {
+    query = query.not('media_url', 'is', null).order('created_at', { ascending: false }).limit(100);
+  } else {
+    query = query.order('created_at', { ascending: false }).limit(100);
+  }
 
   const { data, error } = await query;
   if (error) { feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(error.message)}</div>`; return; }
   if (!data.length) {
-    feedEl.innerHTML = `<div id="feed-empty">${communityTab === 'trending' ? 'Nothing trending here yet.' : `No posts yet. Be the first to post in ${esc(community.name)}.`}</div>`;
+    const emptyMsg = communityTab === 'top' ? 'Nothing trending here yet.'
+      : communityTab === 'media' ? 'No photos or videos posted here yet.'
+      : `No posts yet. Be the first to post in ${esc(community.name)}.`;
+    feedEl.innerHTML = `<div id="feed-empty">${emptyMsg}</div>`;
     return;
   }
   await attachQuotedPosts(data);
   feedEl.innerHTML = data.map(p => postCardHtml(p)).join('');
+}
+
+// ── ABOUT TAB — Community Info, visibility notes, Rules, Moderators.
+// Mirrors an X Community's About panel. Loaded once per page visit
+// (communityAboutLoaded) since rules/moderators rarely change while
+// someone's browsing; add/remove actions below patch the cached
+// arrays in place and re-render rather than refetching.
+async function loadCommunityAbout() {
+  const aboutEl = document.getElementById('community-about');
+  if (communityAboutLoaded) { renderCommunityAbout(); return; }
+  aboutEl.innerHTML = `<span class="spinner">Loading&hellip;</span>`;
+
+  const [rulesRes, modsRes, creatorRes] = await Promise.all([
+    sb.from('community_rules').select('*').eq('community_id', community.id).order('position', { ascending: true }),
+    sb.from('community_moderators').select('user_id, profile:profiles!community_moderators_user_id_fkey(id,username,display_name,avatar_url,verified)').eq('community_id', community.id).order('added_at', { ascending: true }),
+    sb.from('profiles').select('id,username,display_name,avatar_url,verified').eq('id', community.created_by).maybeSingle()
+  ]);
+
+  if (rulesRes.error) { aboutEl.innerHTML = `<div class="errmsg">Failed to load About: ${esc(rulesRes.error.message)}</div>`; return; }
+  communityRules = rulesRes.data || [];
+  communityMods = (modsRes.data || []).filter(m => m.profile);
+  community.creatorProfile = creatorRes.data || null;
+  communityAboutLoaded = true;
+  renderCommunityAbout();
+}
+
+function isCommunityCreator() {
+  return !!(currentSession && community && community.created_by === currentSession.user.id);
+}
+
+function renderCommunityAbout() {
+  const aboutEl = document.getElementById('community-about');
+  const isCreator = isCommunityCreator();
+  const created = new Date(community.created_at);
+  const createdStr = created.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  const creator = community.creatorProfile;
+
+  const infoSection = `
+    <div class="comm-about-section">
+      <h3>Community Info</h3>
+      <p class="comm-about-desc">${community.description ? esc(community.description) : 'This community hasn\'t added a description yet.'}</p>
+      <div class="comm-about-fact">
+        ${PEOPLE_ICON}
+        <span>Only members can post.</span>
+      </div>
+      <div class="comm-about-fact">
+        ${GLOBE_ICON}
+        <div>
+          <strong>All Communities are publicly visible.</strong>
+          <span class="comm-about-fact-sub">Anyone can join this Community.</span>
+        </div>
+      </div>
+      <div class="comm-about-fact">
+        ${CAL_ICON}
+        <span>Created ${createdStr}${creator ? ` by <a href="${profileUrl(creator.username)}">@${esc(creator.username)}</a>` : ''}</span>
+      </div>
+    </div>`;
+
+  const rulesSection = `
+    <div class="comm-about-section">
+      <div class="comm-about-section-hdr">
+        <h3>Rules</h3>
+        ${isCreator ? `<button type="button" class="comm-about-add" onclick="openAddRuleForm()">+ Add rule</button>` : ''}
+      </div>
+      <div id="comm-add-rule-form"></div>
+      ${communityRules.length
+        ? `<ol class="comm-rules-list">${communityRules.map(r => ruleRowHtml(r, isCreator)).join('')}</ol>`
+        : `<p class="comm-about-empty">This community hasn't posted any rules yet.</p>`}
+    </div>`;
+
+  const modsSection = `
+    <div class="comm-about-section">
+      <div class="comm-about-section-hdr">
+        <h3>Moderators</h3>
+        ${isCreator ? `<button type="button" class="comm-about-add" onclick="openAddModForm()">+ Add moderator</button>` : ''}
+      </div>
+      <div id="comm-add-mod-form"></div>
+      <div class="comm-mods-list">
+        ${creator ? modRowHtml(creator, true, isCreator) : ''}
+        ${communityMods.map(m => modRowHtml(m.profile, false, isCreator)).join('')}
+      </div>
+    </div>`;
+
+  aboutEl.innerHTML = infoSection + rulesSection + modsSection;
+}
+
+const PEOPLE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M14.5 20c.3-2.6 2.1-4.6 4.5-4.6 2.6 0 4.7 2.2 5 5"/></svg>`;
+const GLOBE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`;
+const CAL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`;
+
+function ruleRowHtml(r, isCreator) {
+  return `
+    <li class="comm-rule-row" data-rule-id="${r.id}">
+      <span class="comm-rule-num"></span>
+      <div class="comm-rule-body">
+        <div class="comm-rule-title">${esc(r.title)}</div>
+        ${r.description ? `<div class="comm-rule-desc">${esc(r.description)}</div>` : ''}
+      </div>
+      ${isCreator ? `<button type="button" class="comm-row-remove" title="Remove rule" onclick="removeCommunityRule('${r.id}')">&#10005;</button>` : ''}
+    </li>`;
+}
+
+function modRowHtml(profile, isOwner, canManage) {
+  const uname = profile.username || 'unknown';
+  const isSelf = currentSession && profile.id === currentSession.user.id;
+  return `
+    <div class="who-row comm-mod-row">
+      <a href="${profileUrl(uname)}">
+        <img class="avatar pfp-md" src="${esc(avatarUrl(profile.avatar_url))}" alt="" loading="lazy" decoding="async">
+      </a>
+      <a class="who-row-txt" href="${profileUrl(uname)}">
+        <span class="who-row-name">${esc(profile.display_name || uname)}${vBadge(profile)}</span>
+        <span class="who-row-handle">@${esc(uname)} &middot; ${isOwner ? 'Creator' : 'Moderator'}</span>
+      </a>
+      ${isOwner
+        ? ''
+        : (canManage
+          ? `<button type="button" class="comm-row-remove" title="Remove moderator" onclick="removeCommunityModerator('${profile.id}')">&#10005;</button>`
+          : (isSelf ? '' : `<button class="who-follow-btn" onclick="whoToggleFollow('${profile.id}', this)">${t('action.follow')}</button>`))}
+    </div>`;
+}
+
+// ── ADD RULE (creator only) ──
+function openAddRuleForm() {
+  const holder = document.getElementById('comm-add-rule-form');
+  if (!holder) return;
+  if (holder.innerHTML) { holder.innerHTML = ''; return; } // toggle closed if already open
+  holder.innerHTML = `
+    <div class="comm-inline-form">
+      <div class="errmsg" id="car-err" style="display:none;"></div>
+      <input type="text" id="car-title" maxlength="100" placeholder="Rule title, e.g. Stay on topic">
+      <textarea id="car-desc" rows="2" maxlength="300" placeholder="Description (optional)"></textarea>
+      <div class="comm-inline-form-actions">
+        <button type="button" class="modal-btn" style="margin:0;width:auto;padding:7px 16px;" onclick="submitAddRule()">Add rule</button>
+      </div>
+    </div>`;
+  document.getElementById('car-title')?.focus();
+}
+
+async function submitAddRule() {
+  const titleEl = document.getElementById('car-title');
+  const descEl = document.getElementById('car-desc');
+  const errEl = document.getElementById('car-err');
+  if (!titleEl) return;
+  clearErr(errEl);
+  const title = titleEl.value.trim();
+  const description = descEl.value.trim();
+  if (!title) { showErr(errEl, 'Give the rule a short title.'); return; }
+  if (communityRules.length >= 20) { showErr(errEl, 'This community already has the maximum number of rules.'); return; }
+  try {
+    const { data, error } = await sb.from('community_rules').insert({
+      community_id: community.id, position: communityRules.length, title, description: description || null
+    }).select('*').single();
+    if (error) throw error;
+    communityRules.push(data);
+    document.getElementById('comm-add-rule-form').innerHTML = '';
+    renderCommunityAbout();
+  } catch (e) {
+    showErr(errEl, e.message || 'Failed to add rule.');
+  }
+}
+
+async function removeCommunityRule(ruleId) {
+  if (!isCommunityCreator()) return;
+  try {
+    const { error } = await sb.from('community_rules').delete().eq('id', ruleId);
+    if (error) throw error;
+    communityRules = communityRules.filter(r => r.id !== ruleId);
+    renderCommunityAbout();
+  } catch (e) {
+    alert(e.message || 'Failed to remove rule.');
+  }
+}
+
+// ── ADD MODERATOR (creator only) — small username search scoped to
+// this modal-less inline form, same debounce idea as communities.js's
+// search box. ──
+let _modSearchDebounce = null;
+function openAddModForm() {
+  const holder = document.getElementById('comm-add-mod-form');
+  if (!holder) return;
+  if (holder.innerHTML) { holder.innerHTML = ''; return; }
+  holder.innerHTML = `
+    <div class="comm-inline-form">
+      <div class="errmsg" id="cam-err" style="display:none;"></div>
+      <input type="text" id="cam-search" placeholder="Search by username" autocomplete="off">
+      <div id="cam-results"></div>
+    </div>`;
+  const input = document.getElementById('cam-search');
+  input.focus();
+  input.addEventListener('input', () => {
+    clearTimeout(_modSearchDebounce);
+    _modSearchDebounce = setTimeout(() => runModSearch(input.value), 250);
+  });
+}
+
+async function runModSearch(q) {
+  const resultsEl = document.getElementById('cam-results');
+  if (!resultsEl) return;
+  q = q.trim();
+  if (!q) { resultsEl.innerHTML = ''; return; }
+  const takenIds = new Set([community.created_by, ...communityMods.map(m => m.user_id)]);
+  const { data, error } = await sb.from('profiles').select('id,username,display_name,avatar_url,verified')
+    .ilike('username', `%${q}%`).limit(6);
+  if (error || !data) { resultsEl.innerHTML = ''; return; }
+  const candidates = data.filter(p => !takenIds.has(p.id));
+  if (!candidates.length) { resultsEl.innerHTML = `<div class="comm-about-empty">No matching members found.</div>`; return; }
+  resultsEl.innerHTML = candidates.map(p => `
+    <div class="who-row comm-mod-search-row">
+      <img class="avatar pfp-md" src="${esc(avatarUrl(p.avatar_url))}" alt="">
+      <span class="who-row-txt">
+        <span class="who-row-name">${esc(p.display_name || p.username)}${vBadge(p)}</span>
+        <span class="who-row-handle">@${esc(p.username)}</span>
+      </span>
+      <button type="button" class="who-follow-btn" onclick="addCommunityModerator('${p.id}', this)">Add</button>
+    </div>`).join('');
+}
+
+async function addCommunityModerator(userId, btn) {
+  if (!isCommunityCreator()) return;
+  if (btn) btn.disabled = true;
+  try {
+    const { data, error } = await sb.from('community_moderators').insert({
+      community_id: community.id, user_id: userId, added_by: currentSession.user.id
+    }).select('user_id, profile:profiles!community_moderators_user_id_fkey(id,username,display_name,avatar_url,verified)').single();
+    if (error) throw error;
+    communityMods.push(data);
+    document.getElementById('comm-add-mod-form').innerHTML = '';
+    renderCommunityAbout();
+  } catch (e) {
+    alert(e.message || 'Failed to add moderator.');
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function removeCommunityModerator(userId) {
+  if (!isCommunityCreator()) return;
+  try {
+    const { error } = await sb.from('community_moderators').delete()
+      .eq('community_id', community.id).eq('user_id', userId);
+    if (error) throw error;
+    communityMods = communityMods.filter(m => m.user_id !== userId);
+    renderCommunityAbout();
+  } catch (e) {
+    alert(e.message || 'Failed to remove moderator.');
+  }
 }
 
 // ── COMPOSER — same shape as board.js's submitPost(), minus poll/

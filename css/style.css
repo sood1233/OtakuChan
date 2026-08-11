@@ -514,9 +514,95 @@ select {
 .comm-list .who-row-name { font-size:15px; }
 .comm-list .comm-desc { font-size:13px; color:var(--muted); margin-top:2px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
+/* ── COMMUNITY ABOUT TAB — Community Info / Rules / Moderators,
+   styled after an X Community's About panel. ── */
+.comm-about-section { padding:16px; border-bottom:1px solid var(--line); }
+.comm-about-section h3 { font-size:17px; font-weight:800; color:var(--ink); margin:0 0 10px; }
+.comm-about-section-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; }
+.comm-about-section-hdr h3 { margin-bottom:0; }
+.comm-about-desc { font-size:15px; line-height:1.4; color:var(--ink); margin:0 0 14px; white-space:pre-wrap; word-break:break-word; }
+.comm-about-fact { display:flex; align-items:flex-start; gap:12px; font-size:14px; color:var(--ink); margin-bottom:14px; }
+.comm-about-fact:last-child { margin-bottom:0; }
+.comm-about-fact svg { flex:none; width:20px; height:20px; stroke:var(--muted); margin-top:1px; }
+.comm-about-fact strong { font-weight:700; display:block; }
+.comm-about-fact-sub { color:var(--muted); font-size:13px; }
+.comm-about-fact a { color:var(--link); text-decoration:none; font-weight:700; }
+.comm-about-fact a:hover { text-decoration:underline; }
+.comm-about-empty { font-size:14px; color:var(--muted); margin:0; }
+.comm-about-add { background:none; border:none; color:var(--link); font-size:13px; font-weight:700; cursor:pointer; padding:4px 6px; border-radius:6px; }
+.comm-about-add:hover { background:var(--hover-bg); text-decoration:underline; }
+
+.comm-rules-list { list-style:none; margin:0; padding:0; counter-reset:comm-rule; }
+.comm-rule-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+.comm-rule-row:last-child { border-bottom:none; }
+.comm-rule-num { flex:none; width:24px; height:24px; border-radius:50%; background:var(--hover-bg); color:var(--muted); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; counter-increment:comm-rule; }
+.comm-rule-num::before { content:counter(comm-rule); }
+.comm-rule-body { flex:1; min-width:0; }
+.comm-rule-title { font-size:14.5px; font-weight:800; color:var(--ink); }
+.comm-rule-desc { font-size:13.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
+.comm-row-remove { flex:none; background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.comm-row-remove:hover { background:rgba(220,38,38,.08); color:#dc2626; }
+
+.comm-mods-list { display:flex; flex-direction:column; }
+.comm-mod-row { padding:8px 0; }
+.comm-mod-row .who-follow-btn { flex:none; }
+
+.comm-inline-form { background:var(--hover-bg); border-radius:var(--r-md); padding:12px; margin:0 0 12px; }
+.comm-inline-form input[type="text"], .comm-inline-form textarea {
+  width:100%; box-sizing:border-box; margin-bottom:8px; background:var(--bg);
+  border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; color:var(--ink);
+}
+.comm-inline-form textarea { resize:vertical; min-height:44px; }
+.comm-inline-form-actions { display:flex; justify-content:flex-end; }
+.comm-mod-search-row { padding:8px 4px; }
+#cam-results:empty { display:none; }
+
 /* Create-community modal — same .modal shell as the delete/quote/gif
    modals above, just a little wider to fit the description textarea. */
-.cc-modal { width:380px; }
+.modal.cc-modal { width:420px; padding-bottom:0; }
+.cc-dots { display:flex; justify-content:center; gap:6px; margin:0 0 12px; }
+.cc-dot { width:6px; height:6px; border-radius:50%; background:var(--line); transition:background-color .15s ease, transform .15s ease; }
+.cc-dot.active { background:var(--maroon); transform:scale(1.3); }
+.cc-dot.done { background:var(--muted); }
+.cc-step-body { padding:0 16px; min-height:120px; }
+.cc-modal .cc-step-body label { font-size:15px; font-weight:800; color:var(--ink); display:block; margin:0 0 8px; }
+.cc-modal .cc-step-body input[type="text"], .cc-modal .cc-step-body textarea {
+  width:100%; box-sizing:border-box; margin:0 0 8px; background:var(--bg);
+  border:1px solid var(--line); border-radius:8px; padding:9px 10px; font:inherit; color:var(--ink);
+}
+.cc-step-body textarea { resize:vertical; }
+.cc-modal .comm-inline-form input[type="text"], .cc-modal .comm-inline-form textarea { margin:0 0 8px; width:100%; }
+.cc-step-hint { font-size:12.5px; color:var(--muted); margin:6px 0 0; line-height:1.4; }
+.cc-nav { display:flex; align-items:center; gap:10px; padding:16px; border-top:1px solid var(--line); margin-top:16px; }
+.cc-nav-back { background:none; border:1px solid var(--line); color:var(--ink); border-radius:999px; padding:8px 16px; font-weight:700; cursor:pointer; }
+.cc-nav-back:hover { background:var(--hover-bg); }
+.cc-nav-next { flex:1; margin:0 !important; width:auto !important; }
+
+.cc-banner-wrap {
+  position:relative; height:120px; border-radius:var(--r-md); overflow:visible;
+  background:var(--banner-img, linear-gradient(135deg,#BEE3F8,#E6D9F7)) center/cover no-repeat;
+  margin-bottom:40px;
+}
+.cc-banner-pick {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:rgba(15,20,25,.55); color:#fff; border-radius:50%; transition:background-color .12s ease;
+}
+.cc-banner-pick:hover { background:rgba(15,20,25,.7); }
+.cc-banner-pick svg { width:18px; height:18px; }
+.cc-avatar-wrap { position:absolute; left:16px; bottom:-32px; width:72px; height:72px; }
+.cc-avatar-preview {
+  display:flex; align-items:center; justify-content:center; width:72px; height:72px; border-radius:50%;
+  border:4px solid var(--cream-card); background:var(--hover-bg); color:var(--muted);
+  font-size:24px; font-weight:800; overflow:hidden;
+}
+.cc-avatar-preview img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.cc-avatar-pick {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:rgba(15,20,25,.55); color:#fff; border-radius:50%; opacity:0; transition:opacity .12s ease;
+}
+.cc-avatar-wrap:hover .cc-avatar-pick { opacity:1; }
+.cc-avatar-pick svg { width:20px; height:20px; }
 
 /* Single community header (community.html) */
 .community-banner-wrap {

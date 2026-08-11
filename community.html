@@ -54,8 +54,10 @@
 
       <div id="board-hdr" style="display:none;">
         <div class="xtabs" id="community-tabs">
+          <button class="xtab" id="tab-top" onclick="switchCommunityTab('top');return false;">Top</button>
           <button class="xtab active" id="tab-latest" onclick="switchCommunityTab('latest');return false;">Latest</button>
-          <button class="xtab" id="tab-trending" onclick="switchCommunityTab('trending');return false;">Trending</button>
+          <button class="xtab" id="tab-media" onclick="switchCommunityTab('media');return false;">Media</button>
+          <button class="xtab" id="tab-about" onclick="switchCommunityTab('about');return false;">About</button>
         </div>
       </div>
 
@@ -95,6 +97,7 @@
       </div>
 
       <div id="feed-posts"></div>
+      <div id="community-about" style="display:none;"></div>
     </div>
 
     <div id="sidebar">
