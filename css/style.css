@@ -350,11 +350,17 @@ html[data-theme="dim"] .logo-mark-dark, html[data-theme="dark"] .logo-mark-dark 
 .acct-btn .acct-dots { flex:none; width:18px; height:18px; color:var(--ink); }
 .acct-btn .acct-dots svg { width:100%; height:100%; }
 .acct-menu {
-  display:none; position:absolute; left:0; bottom:56px; z-index:50;
+  position:absolute; left:0; bottom:56px; z-index:50;
   background:var(--cream-card); border:1px solid var(--line); border-radius:var(--r-sm); min-width:220px;
   box-shadow:var(--shadow-pop); overflow:hidden;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transform:translateY(6px) scale(.97); transform-origin:bottom left;
+  transition:opacity .13s ease, transform .13s cubic-bezier(.2,.8,.2,1), visibility 0s linear .13s;
 }
-.acct.open .acct-menu { display:block; }
+.acct.open .acct-menu {
+  opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0) scale(1);
+  transition:opacity .15s ease, transform .15s cubic-bezier(.2,.8,.2,1);
+}
 .acct-menu a, .acct-menu button {
   display:block; width:100%; text-align:left; background:none; border:none;
   font-family:inherit; font-size:14px; font-weight:700;
@@ -410,10 +416,10 @@ html[data-theme="dim"] .logo-mark-dark, html[data-theme="dark"] .logo-mark-dark 
 .pf-ic {
   width:34px; height:34px; border-radius:50%; border:none; background:none; cursor:pointer;
   color:var(--maroon); display:inline-flex; align-items:center; justify-content:center;
-  transition:background-color .12s ease;
+  transition:background-color .12s ease, transform .12s cubic-bezier(.34,1.56,.64,1);
 }
 .pf-ic svg { width:19px; height:19px; }
-.pf-ic:hover:not(:disabled) { background:var(--maroon-tint); }
+.pf-ic:hover:not(:disabled) { background:var(--maroon-tint); transform:scale(1.08); }
 .pf-ic:disabled { color:#9EC8DE; cursor:default; }
 
 input[type="text"], input[type="email"], input[type="password"], textarea, select {
@@ -1411,8 +1417,24 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
     padding:0 14px; background:var(--translucent-bg); backdrop-filter:blur(10px);
     border-bottom:1px solid var(--line); z-index:900;
   }
-  #m-topbar .m-avatar-btn { background:none; border:none; padding:0; line-height:0; cursor:pointer; position:relative; z-index:1; }
-  #m-topbar .m-avatar-btn img { width:32px; height:32px; }
+  #m-topbar .m-avatar-btn {
+    background:none; border:none; padding:0; line-height:0; cursor:pointer; position:relative; z-index:1;
+    border-radius:50%;
+  }
+  #m-topbar .m-avatar-btn img { width:32px; height:32px; display:block; transition:transform .2s cubic-bezier(.34,1.56,.64,1); }
+  #m-topbar .m-avatar-btn:active img { transform:scale(.86); transition-duration:.08s; }
+  /* Soft ring flash on tap release, layered on top of the generic
+     press-bounce every button already gets — makes a small round
+     avatar (where a 4% scale is easy to miss) read as clearly tapped. */
+  #m-topbar .m-avatar-btn::after {
+    content:""; position:absolute; inset:-5px; border-radius:50%;
+    box-shadow:0 0 0 0 var(--maroon-tint); opacity:0; pointer-events:none;
+  }
+  #m-topbar .m-avatar-btn.oc-bounce::after { animation:oc-avatar-ring .45s ease-out; }
+  @keyframes oc-avatar-ring {
+    0%   { box-shadow:0 0 0 0 var(--maroon-tint); opacity:1; }
+    100% { box-shadow:0 0 0 9px var(--maroon-tint); opacity:0; }
+  }
   /* Absolutely centered on the bar itself (not flex-centered between
      siblings) so the logo stays dead-center regardless of what sits
      to its left — previously it was one of three flex children with
@@ -1449,13 +1471,13 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 
   .m-drawer-bg {
     display:block; position:fixed; inset:0; background:rgba(91,112,131,0); z-index:950;
-    pointer-events:none; transition:background-color .2s ease;
+    pointer-events:none; transition:background-color .28s cubic-bezier(.2,.8,.2,1);
   }
   .m-drawer-bg.open { background:rgba(91,112,131,.4); pointer-events:auto; }
   .m-drawer {
     position:absolute; top:0; left:0; bottom:0; width:78vw; max-width:300px;
     background:var(--bg); padding:16px; overflow-y:auto;
-    transform:translateX(-100%); transition:transform .22s ease;
+    transform:translateX(-100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);
   }
   .m-drawer-bg.open .m-drawer { transform:translateX(0); }
   .m-drawer .m-drawer-avatar { width:52px; height:52px; display:block; margin-bottom:10px; }
