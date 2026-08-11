@@ -756,7 +756,20 @@ select {
    letting it float over the content below. Suspending containment
    while a popover inside this card is open lets it paint normally,
    without giving up the off-screen perf win everywhere else. */
-.pc:has(.pc-menu-wrap.open), .pc:has(.rp-menu-wrap.open) { content-visibility:visible; }
+.pc:has(.pc-menu-wrap.open), .pc:has(.rp-menu-wrap.open) {
+  content-visibility:visible;
+  /* content-visibility:auto (on every .pc, including this one's
+     siblings) creates a containment box, which is also a stacking
+     context. Turning off containment above stops THIS card from
+     clipping its own popover, but the next sibling card still has
+     its own stacking context and paints after this one in DOM order
+     — so it painted over the popover regardless of z-index, since
+     z-index only ranks elements within the same stacking context.
+     Giving this card position+z-index lifts it into the parent's
+     stacking context so it wins against every sibling. */
+  position:relative;
+  z-index:50;
+}
 .pc:hover { background:var(--hover-bg); border-color:var(--line); }
 .pc.flash { background:var(--maroon-tint); animation:flashfade 2.4s ease-out; }
 @keyframes flashfade { 0% { background:var(--maroon-tint); } 100% { background:var(--maroon-tint); } }
