@@ -155,6 +155,31 @@ let _scrollLockCount = 0;
 function lockScroll() { _scrollLockCount++; document.body.style.overflow = 'hidden'; }
 function unlockScroll() { _scrollLockCount = Math.max(0, _scrollLockCount - 1); if (_scrollLockCount === 0) document.body.style.overflow = ''; }
 
+// ─────────────────────────────────────────────────────────────
+// MOBILE KEYBOARD FIX — the full-screen compose modals (global
+// compose + the reply popup) pin their icon toolbar to the bottom of
+// the screen with flexbox (see the mobile ".modal.gc-modal" rules in
+// style.css) — that works great with the keyboard closed, but a lot
+// of mobile browsers (iOS Safari especially) don't shrink a
+// height:100% element when the on-screen keyboard opens, so the
+// toolbar ends up sitting UNDER the keyboard, invisible, instead of
+// right above it. window.visualViewport reports how tall the screen
+// actually still is once the keyboard has eaten into it — we mirror
+// that into a --vvh CSS variable and size the modal off it instead,
+// so the flex:none toolbar at the end of the column naturally lands
+// right above the keyboard, same as the real X app's compose screen.
+// ─────────────────────────────────────────────────────────────
+function syncViewportHeight() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--vvh', h + 'px');
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncViewportHeight);
+  window.visualViewport.addEventListener('scroll', syncViewportHeight);
+} else {
+  window.addEventListener('resize', syncViewportHeight);
+}
+syncViewportHeight();
 
 function profileUrl(username) { return `/${u_(username)}`; }
 function postUrl(post, replyId = null) {
@@ -574,6 +599,127 @@ function closeMobileDrawer() { document.getElementById('m-drawer-bg')?.classList
 // mchrome()) so it works on every page, not just the board — no
 // per-page HTML needed, unlike the quote-post modal.
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// REPLY AUDIENCE PICKER — the "Everyone can reply" pill shown above
+// every "new post" composer's toolbar (the global compose modal, the
+// home feed's inline composer, a community's inline composer) is
+// tappable and opens a small X-style menu: Everyone can reply, or No
+// one. One state object + one markup template here covers every
+// composer prefix ('gc'/'pf'/'cf'), same idea as composeExtras above.
+// The choice rides along on the post itself (posts.reply_audience —
+// see submitGlobalCompose()/submitPost()/submitCommunityPost()), and
+// postActionsHtml()/opDetailActionsHtml() further down gray out and
+// disable that post's reply button everywhere it's rendered whenever
+// reply_audience is 'none' — same as X hard-disabling the reply icon
+// on a reply-restricted Tweet instead of just hiding it.
+// ─────────────────────────────────────────────────────────────
+const replyAudienceState = {};
+function getReplyAudience(prefix) { return replyAudienceState[prefix] || 'everyone'; }
+
+const GA_ICON = {
+  everyone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 3.8 6 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-6-3.8-9s1.3-6.3 3.8-9Z"/></svg>',
+  none:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>'
+};
+const GA_LABEL = { everyone: 'Everyone can reply', none: 'No one can reply' };
+const GA_CHECK = '<svg class="ga-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+
+// Builds the pill + dropdown for one composer. Injected straight into
+// gcModalEl()'s template (JS-built) below, and dropped into the
+// static pf/cf composer markup at runtime by injectReplyAudienceUi().
+function replyAudienceMenuHtml(prefix) {
+  return `
+    <div class="ga-row">
+      <div class="ga-wrap" id="${prefix}-ga-wrap">
+        <button type="button" class="ga-btn" id="${prefix}-ga-btn" onclick="toggleAudienceMenu('${prefix}', event)" aria-haspopup="true" aria-label="Who can reply">
+          <span class="ga-btn-icon" id="${prefix}-ga-icon">${GA_ICON.everyone}</span>
+          <span id="${prefix}-ga-label">${GA_LABEL.everyone}</span>
+          <svg class="ga-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"/></svg>
+        </button>
+        <div class="ga-dd" id="${prefix}-ga-dd" role="menu">
+          <div class="ga-dd-title">Who can reply?</div>
+          <button type="button" class="ga-opt active" data-val="everyone" onclick="setReplyAudience('${prefix}','everyone');return false;">
+            ${GA_ICON.everyone.replace('<svg ', '<svg class="ga-opt-icon" ')}
+            <span class="ga-opt-txt"><b>Everyone</b><small>Anyone can reply</small></span>
+            ${GA_CHECK}
+          </button>
+          <button type="button" class="ga-opt" data-val="none" onclick="setReplyAudience('${prefix}','none');return false;">
+            ${GA_ICON.none.replace('<svg ', '<svg class="ga-opt-icon" ')}
+            <span class="ga-opt-txt"><b>No one</b><small>Nobody will be able to reply</small></span>
+            ${GA_CHECK}
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// pf (home feed) and cf (community) composers are static per-page
+// markup, not JS-built — this drops the same picker in right where
+// the page left an empty `<div id="${prefix}-ga-slot">` for it, so
+// the HTML/JS stay in sync automatically instead of two copy-pasted
+// markup blocks drifting apart.
+function injectReplyAudienceUi(prefix) {
+  const slot = document.getElementById(`${prefix}-ga-slot`);
+  if (slot) slot.outerHTML = replyAudienceMenuHtml(prefix);
+}
+
+function toggleAudienceMenu(prefix, ev) {
+  if (ev) ev.stopPropagation();
+  const wrap = document.getElementById(`${prefix}-ga-wrap`);
+  if (!wrap) return;
+  const willOpen = !wrap.classList.contains('open');
+  document.querySelectorAll('.ga-wrap.open').forEach(w => w.classList.remove('open'));
+  if (willOpen) {
+    wrap.classList.add('open');
+    // Mobile turns this into a full-screen bottom sheet (same trick
+    // as the repost/quote menu), so the page behind it shouldn't
+    // also scroll while it's open.
+    if (window.matchMedia('(max-width: 520px)').matches) document.body.classList.add('oc-sheet-open');
+  } else {
+    document.body.classList.remove('oc-sheet-open');
+  }
+}
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.ga-wrap.open').forEach(w => {
+    if (e.target === w || !w.contains(e.target)) {
+      w.classList.remove('open');
+      document.body.classList.remove('oc-sheet-open');
+    }
+  });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.ga-wrap.open').forEach(w => w.classList.remove('open'));
+  document.body.classList.remove('oc-sheet-open');
+});
+
+function updateAudienceUi(prefix) {
+  const value = getReplyAudience(prefix);
+  const btn = document.getElementById(`${prefix}-ga-btn`);
+  const iconEl = document.getElementById(`${prefix}-ga-icon`);
+  const labelEl = document.getElementById(`${prefix}-ga-label`);
+  if (iconEl) iconEl.innerHTML = GA_ICON[value];
+  if (labelEl) labelEl.textContent = GA_LABEL[value];
+  if (btn) btn.classList.toggle('ga-restricted', value === 'none');
+  document.querySelectorAll(`#${prefix}-ga-dd .ga-opt`).forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.val === value);
+  });
+}
+
+function setReplyAudience(prefix, value) {
+  replyAudienceState[prefix] = value;
+  updateAudienceUi(prefix);
+  document.getElementById(`${prefix}-ga-wrap`)?.classList.remove('open');
+  document.body.classList.remove('oc-sheet-open');
+}
+
+// Back to the default every time a composer is used up (see
+// resetComposeExtras() below) — same as X, which never remembers a
+// restricted-reply choice into the next Tweet you write.
+function resetReplyAudience(prefix) {
+  replyAudienceState[prefix] = 'everyone';
+  updateAudienceUi(prefix);
+}
+
 function gcModalEl() {
   let el = document.getElementById('gc-modal-bg');
   if (el) return el;
@@ -608,10 +754,7 @@ function gcModalEl() {
           </div>
         </div>
       </div>
-      <div class="gc-reply-info">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3.5 2"/></svg>
-        Everyone can reply
-      </div>
+      ${replyAudienceMenuHtml('gc')}
       <div class="pf-toolbar gc-toolbar">
         <div class="pf-icons">
           <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('gc-file').click();return false;">
@@ -666,6 +809,7 @@ function openGlobalCompose() {
   if (el.classList.contains('open')) return; // already open — ignore a double tap of the FAB/pill
   const avEl = document.getElementById('gc-avatar');
   if (avEl) avEl.innerHTML = `<img src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">`;
+  resetReplyAudience('gc');
   el.classList.add('open');
   lockScroll();
   setTimeout(() => document.getElementById('gc-body')?.focus(), 50);
@@ -712,7 +856,8 @@ async function submitGlobalCompose() {
       body, media_url, media_type,
       poll_options: poll?.poll_options || null,
       poll_ends_at: poll?.poll_ends_at || null,
-      scheduled_at
+      scheduled_at,
+      reply_audience: getReplyAudience('gc')
     }).select('*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)').single();
     if (error) throw error;
 
@@ -824,6 +969,10 @@ function updateRpcBtnState() {
 // "Replying to @user" line with no extra fetch.
 function openReplyPopup(postId) {
   if (!requireLogin()) return;
+  if (postCache[postId]?.reply_audience === 'none') {
+    toast('Replies are turned off for this post.', 'error');
+    return;
+  }
   rpcTargetPostId = postId;
   const el = rpcModalEl();
   const p = postCache[postId];
@@ -1442,10 +1591,18 @@ function pcNameHtml(profile) {
 function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null, bookmarkable = true, repostable = true } = {}) {
   const isLiked = liked.has(p.id);
   const isBookmarked = bookmarkable && bookmarked.has(p.id);
-  const replyTag = replyHref
-    ? `<a class="act reply" href="${replyHref}">`
-    : `<button class="act reply" onclick="${esc(replyOnclick)}">`;
-  const replyClose = replyHref ? '</a>' : '</button>';
+  // A post with reply_audience === 'none' gets a hard-disabled,
+  // grayed-out reply icon everywhere it's rendered — feed cards,
+  // profile, search, bookmarks, the lightbox — same as X, which
+  // disables (not hides) the reply button on a reply-restricted Tweet
+  // rather than just quietly dropping the link/onclick.
+  const repliesLocked = p.reply_audience === 'none';
+  const replyTag = repliesLocked
+    ? `<button class="act reply disabled" disabled title="Replies are turned off for this post.">`
+    : (replyHref
+      ? `<a class="act reply" href="${replyHref}">`
+      : `<button class="act reply" onclick="${esc(replyOnclick)}">`);
+  const replyClose = repliesLocked ? '</button>' : (replyHref ? '</a>' : '</button>');
   const rc = replyCount !== null ? replyCount : (p.reply_count || 0);
   return `
     <div class="acts">
@@ -1469,9 +1626,13 @@ function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount 
 function opDetailActionsHtml(p, replyOnclick) {
   const isLiked = liked.has(p.id);
   const isBookmarked = bookmarked.has(p.id);
+  const repliesLocked = p.reply_audience === 'none';
+  const replyBtn = repliesLocked
+    ? `<button class="act reply disabled" disabled title="Replies are turned off for this post.">${ICON.reply}<span class="act-label">${fmtCount(p.reply_count || 0)}</span></button>`
+    : `<button class="act reply" onclick="${esc(replyOnclick)}">${ICON.reply}<span class="act-label">${fmtCount(p.reply_count || 0)}</span></button>`;
   return `
     <div class="op-stats">
-      <button class="act reply" onclick="${esc(replyOnclick)}">${ICON.reply}<span class="act-label">${fmtCount(p.reply_count || 0)}</span></button>
+      ${replyBtn}
       ${repostMenuHtml(p)}
       <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this)">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
       <button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" data-count="${p.bookmark_count || 0}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}<span class="bc act-label">${fmtCount(p.bookmark_count || 0)}</span></button>
@@ -3553,6 +3714,7 @@ function resetComposeExtras(prefix) {
   composeExtras[prefix] = { gifUrl: null };
   removePoll(prefix);
   removeSchedule(prefix);
+  resetReplyAudience(prefix);
 }
 
 // ── FILE PREVIEW WIDGET ──

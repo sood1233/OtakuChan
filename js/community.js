@@ -651,7 +651,8 @@ async function submitCommunityPost() {
       body,
       media_url,
       media_type,
-      community_id: community.id
+      community_id: community.id,
+      reply_audience: getReplyAudience('cf')
     }).select(POST_SELECT).single();
     if (error) throw error;
     bodyEl.value = '';
@@ -693,6 +694,7 @@ let composerWired = false;
 function wireComposer() {
   if (composerWired) return;
   composerWired = true;
+  injectReplyAudienceUi('cf');
   wireFilePreview('cf-file', 'cf-fp', 'cf-err');
   const cfBody = document.getElementById('cf-body');
   if (cfBody) {

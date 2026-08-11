@@ -187,7 +187,8 @@ async function submitPost() {
       media_type,
       poll_options: poll?.poll_options || null,
       poll_ends_at: poll?.poll_ends_at || null,
-      scheduled_at
+      scheduled_at,
+      reply_audience: getReplyAudience('pf')
     }).select(POST_SELECT).single();
     if (error) throw error;
     bodyEl.value = '';
@@ -318,6 +319,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadTrending();
   subscribeRealtime();
   wireFilePreview('pf-file', 'pf-fp', 'pf-err');
+  injectReplyAudienceUi('pf');
   const pfBody = document.getElementById('pf-body');
   if (pfBody) {
     pfBody.addEventListener('input', () => {

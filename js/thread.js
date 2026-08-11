@@ -116,7 +116,7 @@ async function loadThread() {
 // load and again after every hash-driven re-render, since the actual
 // DOM nodes (e.g. #rf-body) are fresh each time.
 function afterRender() {
-  wireFilePreview('rf-file', 'rf-fp', 'rf-err');
+  if (document.getElementById('rf-file')) wireFilePreview('rf-file', 'rf-fp', 'rf-err');
   refreshPostGates();
   const rfBody = document.getElementById('rf-body');
   if (rfBody) {
@@ -133,6 +133,17 @@ function afterRender() {
 // parameter below). Kept as one template so both call sites stay in
 // sync.
 function replyComposerHtml() {
+  // The whole post disallows replies — same as X, where a
+  // reply-restricted Tweet's thread shows a locked message instead of
+  // a composer (and, since nothing could ever have been posted into
+  // it, there's nothing further down to reply to either).
+  if (currentPost?.reply_audience === 'none') {
+    return `
+    <div class="rfm rfm-locked">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>
+      <span>Replies are turned off for this post.</span>
+    </div>`;
+  }
   return `
     <div class="rfm" data-requires-auth style="display:none;">
       <span class="pf-avatar" id="rf-avatar"></span>
@@ -392,6 +403,10 @@ function toggleReplyBox(replyId) {
 
 async function submitReply(parentReplyId = currentFocusedReplyId()) {
   if (!requireLogin()) return;
+  if (currentPost?.reply_audience === 'none') {
+    toast('Replies are turned off for this post.', 'error');
+    return;
+  }
   const suffix   = parentReplyId ? `-${parentReplyId}` : '';
   const bodyEl   = parentReplyId ? document.getElementById(`rf-inline-body-${parentReplyId}`) : document.getElementById('rf-body');
   const fileEl   = parentReplyId ? document.getElementById(`rf-inline-file-${parentReplyId}`) : document.getElementById('rf-file');

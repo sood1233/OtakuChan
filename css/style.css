@@ -921,6 +921,10 @@ a.act:hover, button.act.reply:hover { background:var(--maroon-tint); color:var(-
 .act.like.liked { color:var(--like); }
 .act.like.liked svg { fill:var(--like); stroke:var(--like); animation:oc-pop .28s ease; }
 .act.reply svg, .act.views svg, .act.share svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.act.reply.disabled, .act.reply:disabled {
+  color:var(--muted); opacity:.55; cursor:not-allowed;
+}
+.act.reply.disabled:hover, .act.reply:disabled:hover { background:none; color:var(--muted); }
 .act.share.copied { color:var(--green); }
 .act.bookmark { flex:none; }
 .act.bookmark svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -1057,19 +1061,87 @@ body.oc-sheet-open { overflow:hidden; }
 .gc-row { padding:0 16px; }
 .gc-row textarea { height:100px; resize:none; border:none; padding:8px 0; font-size:19px; }
 .gc-row textarea:focus { box-shadow:none; }
-.gc-reply-info { display:flex; align-items:center; gap:6px; padding:6px 16px 10px 60px; font-size:13px; font-weight:700; color:var(--maroon); }
-.gc-reply-info svg { width:15px; height:15px; flex:none; }
 .gc-toolbar { margin-top:0; padding:10px 16px 0; }
 .gc-status { display:block; padding:2px 16px 0; font-size:11px; color:var(--muted); min-height:14px; }
+
+/* ── REPLY AUDIENCE PICKER — the "Everyone can reply" pill above a
+   composer's toolbar (see replyAudienceMenuHtml() in common.js),
+   tappable to restrict a new post to "No one". Same popover-menu look
+   as the repost/quote dropdown (.rp-menu-dd) for visual consistency,
+   just anchored under the pill instead of the repost icon. Shared
+   across the global compose modal (gc), the home feed's inline
+   composer (pf) and a community's inline composer (cf) — only the id
+   prefix differs. ── */
+.ga-row { padding:6px 16px 10px 60px; }
+.ga-wrap { position:relative; display:inline-block; }
+.ga-btn {
+  display:flex; align-items:center; gap:6px; padding:5px 10px 5px 8px;
+  font-family:inherit; font-size:13px; font-weight:700; color:var(--maroon); background:var(--maroon-tint);
+  border:none; border-radius:999px; cursor:pointer; transition:background .12s ease, opacity .12s ease;
+}
+.ga-btn:hover { opacity:.85; }
+.ga-btn-icon { display:inline-flex; }
+.ga-btn-icon svg { width:15px; height:15px; flex:none; }
+.ga-btn .ga-chev { width:14px; height:14px; margin-left:-1px; opacity:.85; }
+.ga-btn.ga-restricted { color:var(--muted); background:var(--hover-bg); }
+.ga-dd {
+  position:absolute; left:0; top:calc(100% + 4px); z-index:40; width:280px; max-width:calc(100vw - 32px);
+  background:var(--cream-card); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow-pop); overflow:hidden; padding:6px;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transform:translateY(-4px) scale(.97); transform-origin:top left;
+  transition:opacity .13s ease, transform .13s cubic-bezier(.2,.8,.2,1), visibility 0s linear .13s;
+}
+.ga-wrap.open .ga-dd {
+  opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0) scale(1);
+  transition:opacity .15s ease, transform .15s cubic-bezier(.2,.8,.2,1);
+}
+.ga-dd-title { font-size:15px; font-weight:800; color:var(--ink); padding:8px 10px 6px; }
+.ga-opt {
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:none; border:none; cursor:pointer;
+  border-radius:9px; font-family:inherit; padding:9px 10px; transition:background .1s ease;
+}
+.ga-opt:hover { background:var(--hover-bg); }
+.ga-opt-icon { width:19px; height:19px; flex:none; color:var(--maroon); }
+.ga-opt-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.ga-opt-txt b { font-size:14px; color:var(--ink); font-weight:700; }
+.ga-opt-txt small { font-size:12px; color:var(--muted); font-weight:400; }
+.ga-opt .ga-check { width:17px; height:17px; flex:none; color:var(--maroon); opacity:0; }
+.ga-opt.active .ga-check { opacity:1; }
+@media (max-width: 520px) {
+  .ga-wrap.open::before {
+    content:""; position:fixed; inset:0; background:rgba(15,20,25,.5); z-index:998; animation:oc-backdrop-in .15s ease;
+  }
+  .ga-dd {
+    position:fixed; left:0; right:0; bottom:0; top:auto; z-index:999;
+    width:100%; max-width:100%; border-radius:20px 20px 0 0; border:none;
+    padding:6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    transform:translateY(100%); transform-origin:bottom center;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1), opacity .2s ease, visibility 0s linear .2s;
+  }
+  .ga-wrap.open .ga-dd { transform:translateY(0); transition:transform .22s cubic-bezier(.2,.8,.2,1), opacity .15s ease; }
+  .ga-dd::before { content:""; display:block; width:36px; height:4px; border-radius:999px; background:var(--line); margin:6px auto 8px; }
+  .ga-opt { padding:12px 14px; }
+}
+
 @media (max-width:520px) {
   /* Full-screen compose, X-app style: Close top-left, Post/Reply
      pinned top-right (pulled out of the toolbar's flow via
      position:fixed), and the icon toolbar pinned to the bottom of
      the screen — instead of everything just sitting in normal flow
      inside a height:100% box, which left a dead, disconnected-looking
-     gap of empty space between the textarea and the toolbar. */
+     gap of empty space between the textarea and the toolbar.
+     Height comes off --vvh (kept in sync with window.visualViewport
+     by common.js) instead of a flat 100% — 100%/100vh doesn't shrink
+     when the on-screen keyboard opens on a lot of mobile browsers, so
+     the flex:none toolbar at the bottom of this column would end up
+     sitting under the keyboard instead of right above it like X's
+     compose screen. --vvh tracks the part of the screen actually
+     still visible, so the modal (and the toolbar pinned to its end)
+     shrinks to match as the keyboard opens and closes. */
   .modal.gc-modal {
-    width:100%; max-width:100%; height:100%; border-radius:0; padding-top:52px; max-height:100vh;
+    width:100%; max-width:100%; border-radius:0; padding-top:52px;
+    height:100%; height:var(--vvh, 100%); max-height:100vh; max-height:var(--vvh, 100vh);
     display:flex; flex-direction:column; overflow:hidden;
   }
   #gc-modal-bg.open { align-items:stretch; justify-content:stretch; }
@@ -1078,13 +1150,14 @@ body.oc-sheet-open { overflow:hidden; }
   .modal.gc-modal .rpc-context { flex:none; }
   .modal.gc-modal .errmsg { flex:none; }
   .modal.gc-modal .gc-row { flex:1 1 auto; min-height:0; overflow-y:auto; }
-  .modal.gc-modal .gc-reply-info { flex:none; }
+  .modal.gc-modal .ga-row { flex:none; }
   .modal.gc-modal .gc-toolbar {
     flex:none; border-top:1px solid var(--line);
     padding:10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   }
   .modal.gc-modal .gc-status { flex:none; }
 }
+
 
 /* ── REPLY POPUP — opened by tapping the comment icon on a feed post
    card. Same .gc-modal shell as the global compose modal above, just
@@ -1146,6 +1219,8 @@ body.oc-sheet-open { overflow:hidden; }
    above the replies list, X-style: avatar + single-line textarea that
    grows as you type, with the Reply button on the same row. */
 .rfm { background:var(--cream-card); border:none; border-top:1px solid var(--line); border-bottom:1px solid var(--line); border-radius:0; box-shadow:none; padding:10px 16px; margin-top:0; overflow:hidden; display:flex; gap:12px; align-items:flex-start; }
+.rfm-locked { align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:14px; font-weight:600; padding:18px 16px; }
+.rfm-locked svg { width:18px; height:18px; flex:none; }
 .rfm-col { flex:1; min-width:0; }
 .rfm input[type="text"] { margin:0 0 8px; width:100%; max-width:100%; }
 .rfm textarea { display:block; margin:0; width:100%; height:22px; min-height:22px; max-height:200px; resize:none; overflow:hidden; }
