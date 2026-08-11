@@ -600,6 +600,13 @@ select {
   display:flex; align-items:center; justify-content:center; width:72px; height:72px; border-radius:50%;
   border:4px solid var(--cream-card); background:var(--hover-bg); color:var(--muted);
   font-size:24px; font-weight:800; overflow:hidden;
+  /* border above is var(--cream-card), which equals the modal's own
+     background in dark themes (#000 on #000) — invisible, so the
+     circle had no visible edge and read as a shapeless blob with the
+     pick icon floating on it. .ep-avatar (edit-profile) already
+     solves this with a subtle outline independent of theme; mirror
+     that here. */
+  box-shadow:0 0 0 1px var(--line);
 }
 .cc-avatar-preview img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .cc-avatar-pick {
