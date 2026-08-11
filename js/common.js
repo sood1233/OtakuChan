@@ -295,20 +295,20 @@ const ICON = {
 // across every HTML file. auth.js calls this once it knows who (if
 // anyone) is logged in.
 const NAV_ICON = {
-  home:     '<svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg>',
-  search:   '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>',
-  bell:     '<svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .6-.2 1.2-.6 1.7L4 16.5h16l-1.4-2.6c-.4-.5-.6-1.1-.6-1.7V9a6 6 0 0 0-6-6Z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg>',
-  chat:     '<svg viewBox="0 0 24 24"><path d="M4 4.5h16v12H8.5L4 20.5v-16Z"/></svg>',
-  bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4.5L5.5 21V4.5a1 1 0 0 1 1-1Z"/></svg>',
-  user:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.3" r="3.6"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg>',
-  gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c0-.5.1-1 0-1.5l1.9-1.5-2-3.4-2.2.9c-.7-.6-1.5-1-2.3-1.3L14.4 4h-4l-.4 2.7c-.8.3-1.6.7-2.3 1.3l-2.2-.9-2 3.4L5.4 12c-.1.5 0 1 0 1.5l-1.9 1.5 2 3.4 2.2-.9c.7.6 1.5 1 2.3 1.3l.4 2.7h4l.4-2.7c.8-.3 1.6-.7 2.3-1.3l2.2.9 2-3.4-1.9-1.5Z"/></svg>',
-  doc:      '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h8"/></svg>',
-  dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
-  people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.2"/><path d="M3 20c.9-3.6 3.2-5.4 6-5.4s5.1 1.8 6 5.4"/><path d="M15.5 5.2a3.1 3.1 0 0 1 0 6"/><path d="M16 14.8c2.4.4 4 2 4.7 5.2"/></svg>',
-  list:     '<svg viewBox="0 0 24 24"><path d="M4 6.5h2.2M4 12h2.2M4 17.5h2.2"/><path d="M9.5 6.5h10.5M9.5 12h10.5M9.5 17.5h10.5"/></svg>',
-  info:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></svg>',
-  mail:     '<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>',
-  shield:   '<svg viewBox="0 0 24 24"><path d="M12 3.5 5 6v6c0 4.5 3 7.5 7 8.5 4-1 7-4 7-8.5V6l-7-2.5Z"/></svg>'
+  home:     '<svg viewBox="0 0 24 24"><path d="M4 12.3 11.15 5.7a1.3 1.3 0 0 1 1.7 0L20 12.3"/><path d="M6.3 10.6V18a1.6 1.6 0 0 0 1.6 1.6h8.2A1.6 1.6 0 0 0 17.7 18v-7.4"/><path d="M10 19.5v-4.2c0-.75.65-1.3 1.4-1.3h1.2c.75 0 1.4.55 1.4 1.3v4.2"/></svg>',
+  search:   '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.75"/><path d="m20 20-4.55-4.55"/></svg>',
+  bell:     '<svg viewBox="0 0 24 24"><path d="M12 3.25a5.75 5.75 0 0 0-5.75 5.75v2.6c0 .85-.32 1.67-.9 2.3l-1.05 1.13c-.9.97-.2 2.57 1.13 2.57h13.14c1.33 0 2.03-1.6 1.13-2.57l-1.05-1.13a3.4 3.4 0 0 1-.9-2.3V9A5.75 5.75 0 0 0 12 3.25Z"/><path d="M9.6 19.3a2.4 2.4 0 0 0 4.8 0"/></svg>',
+  chat:     '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="4"/><path d="M8.2 16v3.1a.5.5 0 0 0 .82.38L13.4 16"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24"><path d="M7 4.5h10a1 1 0 0 1 1 1V20a.6.6 0 0 1-.95.48L12 16.3l-5.05 4.18A.6.6 0 0 1 6 20V5.5a1 1 0 0 1 1-1Z"/></svg>',
+  user:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.75"/><path d="M4.5 19.6c1.1-4.15 3.9-6.15 7.5-6.15s6.4 2 7.5 6.15"/></svg>',
+  gear:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.6c.05-.53.05-1.07 0-1.6l1.9-1.48-1.9-3.3-2.24.9a7.6 7.6 0 0 0-1.38-.8L15.4 4.7h-3.8l-.4 2.62c-.5.2-.96.47-1.38.8l-2.24-.9-1.9 3.3 1.9 1.48c-.05.53-.05 1.07 0 1.6l-1.9 1.48 1.9 3.3 2.24-.9c.42.33.88.6 1.38.8l.4 2.62h3.8l.4-2.62c.5-.2.96-.47 1.38-.8l2.24.9 1.9-3.3Z"/></svg>',
+  doc:      '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h8l4.5 4.5v11.5a1 1 0 0 1-1 1h-11.5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.5 3.5V8h4.5"/><path d="M8.5 13h7M8.5 16.5h7"/></svg>',
+  dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></svg>',
+  people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.3"/><path d="M2.8 20c.9-3.7 3.2-5.6 6.2-5.6s5.3 1.9 6.2 5.6"/><path d="M15.6 5.3a3.2 3.2 0 0 1 0 6.1"/><path d="M16.2 14.8c2.4.5 4.1 2.2 4.9 5.2"/></svg>',
+  list:     '<svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="3" height="3" rx="0.8"/><rect x="4" y="10.5" width="3" height="3" rx="0.8"/><rect x="4" y="15.5" width="3" height="3" rx="0.8"/><path d="M10 7h10M10 12h10M10 17h10"/></svg>',
+  info:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"/></svg>',
+  mail:     '<svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.3 6.7 7.7 6 7.7-6"/></svg>',
+  shield:   '<svg viewBox="0 0 24 24"><path d="M12 3.3 5.3 5.9v5.4c0 4.7 2.9 7.9 6.7 8.9 3.8-1 6.7-4.2 6.7-8.9V5.9Z"/><path d="m9 12 2 2 4-4"/></svg>'
 };
 
 // ── THEME — Default (light) / Dim / Lights out (dark), applied via
