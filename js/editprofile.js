@@ -66,21 +66,27 @@ async function loadEditProfile() {
   document.getElementById('ep-avatar-file').addEventListener('change', (e) => {
     const file = e.target.files[0];
     const errEl = document.getElementById('ep-err');
+    e.target.value = '';
     if (!file) return;
-    if (!validateFile(file, errEl)) { e.target.value = ''; return; }
+    if (!validateFile(file, errEl)) return;
     clearErr(errEl);
-    epAvatarFile = file;
-    document.getElementById('ep-avatar-preview').src = URL.createObjectURL(file);
+    openCropModal(file, 'square', (cropped) => {
+      epAvatarFile = cropped;
+      document.getElementById('ep-avatar-preview').src = URL.createObjectURL(cropped);
+    });
   });
 
   document.getElementById('ep-banner-file').addEventListener('change', (e) => {
     const file = e.target.files[0];
     const errEl = document.getElementById('ep-err');
+    e.target.value = '';
     if (!file) return;
-    if (!validateFile(file, errEl)) { e.target.value = ''; return; }
+    if (!validateFile(file, errEl)) return;
     clearErr(errEl);
-    epBannerFile = file;
-    document.getElementById('ep-banner-wrap').style.setProperty('--banner-img', `url('${URL.createObjectURL(file)}')`);
+    openCropModal(file, 'wide', (cropped) => {
+      epBannerFile = cropped;
+      document.getElementById('ep-banner-wrap').style.setProperty('--banner-img', `url('${URL.createObjectURL(cropped)}')`);
+    });
   });
 
   document.getElementById('ep-bio').addEventListener('input', (e) => {

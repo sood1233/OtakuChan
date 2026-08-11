@@ -85,8 +85,16 @@ function renderHero() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4V7Z"/><circle cx="12" cy="13" r="3.5"/></svg>
       </label>
       <input type="file" id="hero-avatar-file" accept="image/*" style="display:none;" onchange="changeCommunityAvatar(this)">` : ''}`;
+  const bannerPick = isCreator ? `
+    <label class="comm-banner-pick" for="hero-banner-file" title="Change community banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4V7Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </label>
+    <input type="file" id="hero-banner-file" accept="image/*" style="display:none;" onchange="changeCommunityBanner(this)">` : '';
 
   heroEl.innerHTML = `
+    <div class="community-banner-wrap" id="community-banner-wrap" style="${community.banner_url ? `--banner-img:url('${esc(community.banner_url)}')` : ''}">
+      ${bannerPick}
+    </div>
     <div class="community-hero">
       <span class="comm-avatar-wrap">${avatarInner}</span>
       <div class="community-hero-body">
@@ -98,9 +106,9 @@ function renderHero() {
     </div>`;
 }
 
-// Only the creator ever sees the picker (see isCreator above), but the
-// upload itself is still checked server-side too: `avatars` storage
-// only allows writing inside your own <uid> folder, and the
+// Only the creator ever sees either picker (see isCreator above), but
+// the upload itself is still checked server-side too: `avatars`
+// storage only allows writing inside your own <uid> folder, and the
 // "creator can update own community" RLS policy only allows this
 // UPDATE if auth.uid() = created_by (see
 // supabase/community_creator_and_post_limit.sql).
@@ -112,15 +120,38 @@ async function changeCommunityAvatar(input) {
   if (community.created_by !== currentSession.user.id) return;
   const errEl = document.getElementById('cf-err'); // reuse the composer's error slot if present
   if (!validateFile(file, errEl)) return;
-  try {
-    const avatar_url = await uploadAvatar(file, currentSession.user.id);
-    const { error } = await sb.from('communities').update({ avatar_url }).eq('id', community.id);
-    if (error) throw error;
-    community.avatar_url = avatar_url;
-    renderHero();
-  } catch (e) {
-    alert(e.message || 'Could not update the community picture.');
-  }
+  openCropModal(file, 'square', async (cropped) => {
+    try {
+      const avatar_url = await uploadAvatar(cropped, currentSession.user.id);
+      const { error } = await sb.from('communities').update({ avatar_url }).eq('id', community.id);
+      if (error) throw error;
+      community.avatar_url = avatar_url;
+      renderHero();
+    } catch (e) {
+      alert(e.message || 'Could not update the community picture.');
+    }
+  });
+}
+
+async function changeCommunityBanner(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file || !community || !currentSession) return;
+  if (!requireLogin()) return;
+  if (community.created_by !== currentSession.user.id) return;
+  const errEl = document.getElementById('cf-err');
+  if (!validateFile(file, errEl)) return;
+  openCropModal(file, 'wide', async (cropped) => {
+    try {
+      const banner_url = await uploadAvatar(cropped, currentSession.user.id);
+      const { error } = await sb.from('communities').update({ banner_url }).eq('id', community.id);
+      if (error) throw error;
+      community.banner_url = banner_url;
+      renderHero();
+    } catch (e) {
+      alert(e.message || 'Could not update the community banner.');
+    }
+  });
 }
 
 async function heroToggleJoin() {

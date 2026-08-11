@@ -56,9 +56,26 @@ function renderHero() {
       <button type="button" class="list-edit-btn" onclick="openCreateListModal(list)">Edit</button>
       <button type="button" class="list-delete-btn" onclick="deleteListConfirm(list.id, list.name)">Delete</button>
     </div>` : '';
+  const bannerPick = isOwner ? `
+    <label class="list-banner-pick" for="list-banner-file" title="Change List banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4V7Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </label>
+    <input type="file" id="list-banner-file" accept="image/*" style="display:none;" onchange="changeListBanner(this)">` : '';
+  const avatarPick = isOwner ? `
+    <label class="list-avatar-pick" for="list-avatar-file" title="Change List picture">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4V7Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </label>
+    <input type="file" id="list-avatar-file" accept="image/*" style="display:none;" onchange="changeListAvatar(this)">` : '';
+
   heroEl.innerHTML = `
+    <div class="list-banner-wrap" id="list-banner-wrap" style="${list.banner_url ? `--banner-img:url('${esc(list.banner_url)}')` : ''}">
+      ${bannerPick}
+    </div>
     <div class="list-hero">
-      <span class="list-avatar list-avatar-lg">${listAvatarInner(list)}</span>
+      <span class="list-avatar-wrap">
+        <span class="list-avatar list-avatar-lg">${listAvatarInner(list)}</span>
+        ${avatarPick}
+      </span>
       <div class="list-hero-body">
         <div class="list-hero-name">${esc(list.name)} ${privacyTag}</div>
         ${list._owner ? `<div class="list-hero-owner">by <a href="${profileUrl(list._owner.username)}">@${esc(list._owner.username)}</a></div>` : ''}
@@ -67,6 +84,51 @@ function renderHero() {
       </div>
       ${actions}
     </div>`;
+}
+
+// Owner-only, same pattern as changeCommunityAvatar/Banner: crop
+// first, then upload straight to `avatars` storage (still scoped to
+// the acting user's own <uid> folder — see uploadAvatar()) and
+// update the row. RLS's "owner can update their own list" policy is
+// what actually enforces this server-side.
+async function changeListAvatar(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file || !list || !currentSession) return;
+  if (!requireLogin()) return;
+  if (list.owner_id !== currentSession.user.id) return;
+  if (!validateFile(file)) return;
+  openCropModal(file, 'square', async (cropped) => {
+    try {
+      const avatar_url = await uploadAvatar(cropped, currentSession.user.id);
+      const { error } = await sb.from('lists').update({ avatar_url }).eq('id', list.id);
+      if (error) throw error;
+      list.avatar_url = avatar_url;
+      renderHero();
+    } catch (e) {
+      toast(e.message || 'Could not update the List picture.', 'error');
+    }
+  });
+}
+
+async function changeListBanner(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file || !list || !currentSession) return;
+  if (!requireLogin()) return;
+  if (list.owner_id !== currentSession.user.id) return;
+  if (!validateFile(file)) return;
+  openCropModal(file, 'wide', async (cropped) => {
+    try {
+      const banner_url = await uploadAvatar(cropped, currentSession.user.id);
+      const { error } = await sb.from('lists').update({ banner_url }).eq('id', list.id);
+      if (error) throw error;
+      list.banner_url = banner_url;
+      renderHero();
+    } catch (e) {
+      toast(e.message || 'Could not update the List banner.', 'error');
+    }
+  });
 }
 
 // Called by submitList() in common.js after a successful edit, so

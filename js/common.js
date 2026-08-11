@@ -1868,12 +1868,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 //     on success, adds the profile being viewed to the new list too.
 // ─────────────────────────────────────────────────────────────
 
-// Shared "avatar or initial-letter fallback" for a list — same idea
-// as communityAvatarInner(), just a rounded-square glyph instead of a
-// circle so a list card never gets mistaken for a person or community
-// at a glance, matching Twitter's own square list icons.
+// Shared "picture or glyph fallback" for a list — same idea as
+// communityAvatarInner(), just a rounded-square glyph (instead of an
+// initial letter) when no picture's been set, so a list card never
+// gets mistaken for a person or community at a glance, matching
+// Twitter's own square list icons.
 function listAvatarInner(l) {
-  return `<span class="list-avatar-glyph">${NAV_ICON.list}</span>`;
+  return l.avatar_url ? `<img src="${esc(l.avatar_url)}" alt="">` : `<span class="list-avatar-glyph">${NAV_ICON.list}</span>`;
 }
 
 // Compact list-row markup — used by lists.html's Your Lists/Lists
