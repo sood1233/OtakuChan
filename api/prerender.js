@@ -134,6 +134,89 @@ async function renderHome(origin) {
   return { status: 200, html };
 }
 
+// ── PROFILE ("/:username") ──
+
+async function renderProfile(origin, username) {
+  let html = readTemplate('profile.html');
+
+  const profiles = await sbGet('profiles', `username=ilike.${encodeURIComponent(username)}&select=*`);
+  const profile = profiles && profiles[0];
+
+  if (!profile) {
+    html = replaceLine(html, '<title>Profile — InteractInk</title>', '<title>User not found — InteractInk</title>');
+    html = replaceLine(html,
+      "<meta name=\"description\" content=\"A user's profile on InteractInk — their posts, bio, and activity.\">",
+      '<meta name="description" content="No user found with that username.">');
+    html = injectHead(html, '<meta name="robots" content="noindex">');
+    html = replaceLine(html,
+      '<div id="profile-root"><span class="spinner">Loading profile&hellip;</span></div>',
+      '<div id="profile-root"><p>No user found with that username.</p></div>');
+    return { status: 404, html };
+  }
+
+  const canonical = `${origin}/${encodeURIComponent(profile.username)}`;
+  const posts = await sbGet('posts',
+    `author_id=eq.${profile.id}&is_deleted=eq.false&select=id,body,created_at&order=created_at.desc&limit=20`) || [];
+
+  const titleText = `${profile.display_name || profile.username} (@${profile.username}) — InteractInk`;
+  const descText = (profile.bio || `@${profile.username}'s posts on InteractInk.`).slice(0, 200);
+  const image = profile.avatar_url || '/img/logo-light.png';
+
+  const jsonLd = {
+    '@context': 'https://schema.org', '@type': 'ProfilePage',
+    dateCreated: profile.created_at, url: canonical,
+    mainEntity: {
+      '@type': 'Person', name: profile.display_name || profile.username,
+      alternateName: profile.username, description: profile.bio || undefined,
+      image: profile.avatar_url || undefined, url: canonical,
+    },
+  };
+
+  const postsHtml = posts.map(p => `<li><a href="${origin}/${encodeURIComponent(profile.username)}/status/${encodeURIComponent(p.id)}">${esc((p.body || '').slice(0, 140))}</a> <small>(${new Date(p.created_at).toLocaleDateString()})</small></li>`).join('\n');
+
+  const profileRootHtml = `<article>
+  <h1>${esc(profile.display_name || profile.username)}</h1>
+  <p>@${esc(profile.username)}</p>
+  ${profile.bio ? `<p>${esc(profile.bio)}</p>` : ''}
+  <small>Joined ${new Date(profile.created_at).toLocaleDateString()} &middot; ${profile.followers_count || 0} followers &middot; ${profile.following_count || 0} following &middot; ${profile.posts_count || 0} posts</small>
+</article>
+<h2 class="sr-only">Recent posts</h2>
+<ul>${postsHtml || '<li>No posts yet.</li>'}</ul>`;
+
+  html = replaceLine(html, '<title>Profile — InteractInk</title>', `<title>${esc(titleText)}</title>`);
+  html = replaceLine(html,
+    "<meta name=\"description\" content=\"A user's profile on InteractInk — their posts, bio, and activity.\">",
+    `<meta name="description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:title" content="Profile — InteractInk">',
+    `<meta property="og:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    "<meta property=\"og:description\" content=\"A user's profile on InteractInk — their posts, bio, and activity.\">",
+    `<meta property="og:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:image" content="/img/logo-light.png">',
+    `<meta property="og:image" content="${esc(image)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:title" content="Profile — InteractInk">',
+    `<meta name="twitter:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    "<meta name=\"twitter:description\" content=\"A user's profile on InteractInk — their posts, bio, and activity.\">",
+    `<meta name="twitter:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:image" content="/img/logo-light.png">',
+    `<meta name="twitter:image" content="${esc(image)}">`);
+  html = replaceLine(html, '<link rel="canonical">', `<link rel="canonical" href="${esc(canonical)}">`);
+  html = replaceLine(html, '<meta property="og:url" content="">', `<meta property="og:url" content="${esc(canonical)}">`);
+
+  html = injectHead(html, jsonLdScriptTag(jsonLd));
+
+  html = replaceLine(html,
+    '<div id="profile-root"><span class="spinner">Loading profile&hellip;</span></div>',
+    `<div id="profile-root">${profileRootHtml}</div>`);
+
+  return { status: 200, html };
+}
+
 // ── THREAD ("/i/status/:id", "/:username/status/:id") ──
 
 async function renderThread(origin, username, id) {
@@ -240,6 +323,8 @@ module.exports = async function handler(req, res) {
       result = await renderHome(origin);
     } else if (type === 'thread' && id) {
       result = await renderThread(origin, username, id);
+    } else if (type === 'profile' && username) {
+      result = await renderProfile(origin, username);
     } else {
       res.status(400).send('Bad request');
       return;
