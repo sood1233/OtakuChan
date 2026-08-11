@@ -607,6 +607,12 @@ select {
      solves this with a subtle outline independent of theme; mirror
      that here. */
   box-shadow:0 0 0 1px var(--line);
+  /* Without border-box, the 4px border was added OUTSIDE the 72px
+     content box, rendering this at 80x80 while .cc-avatar-wrap and
+     the .cc-avatar-pick overlay (which fills the wrap via inset:0)
+     stayed at 72x72 — an 8px size mismatch between the circle and
+     its own icon overlay. */
+  box-sizing:border-box;
 }
 .cc-avatar-preview img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .cc-avatar-pick {
