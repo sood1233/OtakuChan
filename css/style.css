@@ -748,6 +748,15 @@ select {
   content-visibility:auto;
   contain-intrinsic-size:auto 180px;
 }
+/* content-visibility:auto above gives the card its own containment
+   box, which silently clips anything a descendant tries to paint
+   outside it — including the "···" and repost popovers, which are
+   position:absolute and often taller than the (short) card they sit
+   in. That clipped the popover mid-item on small cards instead of
+   letting it float over the content below. Suspending containment
+   while a popover inside this card is open lets it paint normally,
+   without giving up the off-screen perf win everywhere else. */
+.pc:has(.pc-menu-wrap.open), .pc:has(.rp-menu-wrap.open) { content-visibility:visible; }
 .pc:hover { background:var(--hover-bg); border-color:var(--line); }
 .pc.flash { background:var(--maroon-tint); animation:flashfade 2.4s ease-out; }
 @keyframes flashfade { 0% { background:var(--maroon-tint); } 100% { background:var(--maroon-tint); } }
