@@ -13,5 +13,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const MEDIA_BUCKET = 'media';
-const MAX_FILE_MB = 50;
+const MAX_FILE_MB = 100;
+// Separate cap for profile/community/List avatars (square crops —
+// see js/crop-modal.js's openCropModal), so it can be tuned
+// independently of the general upload cap above if the two ever need
+// to diverge.
+const AVATAR_MAX_MB = 100;
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];

@@ -294,6 +294,212 @@ async function renderProfile(origin, username) {
   return { status: 200, html };
 }
 
+// ── COMMUNITY ("/communities/:slug") ──
+
+async function renderCommunity(origin, slug) {
+  let html = readTemplate('community.html');
+
+  const communities = await sbGet('communities', `slug=eq.${encodeURIComponent(slug)}&select=*`);
+  const community = communities && communities[0];
+
+  if (!community) {
+    html = replaceLine(html, '<title>Community — InteractInk</title>', '<title>Community not found — InteractInk</title>');
+    html = replaceLine(html,
+      '<meta name="description" content="A community on InteractInk — join the conversation.">',
+      '<meta name="description" content="No community found with that slug.">');
+    html = injectHead(html, '<meta name="robots" content="noindex">');
+    html = insertHiddenSeoBlock(html,
+      '<div id="community-hero"><span class="spinner">Loading&hellip;</span></div>',
+      '<p>No community found with that slug.</p>');
+    return { status: 404, html };
+  }
+
+  const canonical = `${origin}/communities/${encodeURIComponent(community.slug)}`;
+  const posts = await sbGet('posts',
+    `community_id=eq.${community.id}&is_deleted=eq.false&select=id,body,created_at,like_count,reply_count,repost_count,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)&order=created_at.desc&limit=20`) || [];
+
+  const titleText = `${community.name} — InteractInk`;
+  const descText = (community.description || `${community.name} — a community on InteractInk.`).slice(0, 200);
+  const image = community.banner_url || community.avatar_url || '/img/logo-light.png';
+
+  const jsonLd = {
+    '@context': 'https://schema.org', '@type': 'CollectionPage',
+    url: canonical, name: community.name, description: community.description || undefined,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: posts.map((p, i) => ({
+        '@type': 'ListItem', position: i + 1,
+        url: p.profile?.username
+          ? `${origin}/${encodeURIComponent(p.profile.username)}/status/${encodeURIComponent(p.id)}`
+          : `${origin}/i/status/${encodeURIComponent(p.id)}`,
+      })),
+    },
+  };
+
+  const postsHtml = posts.map(p => {
+    const uname = p.profile?.username;
+    const href = uname
+      ? `${origin}/${encodeURIComponent(uname)}/status/${encodeURIComponent(p.id)}`
+      : `${origin}/i/status/${encodeURIComponent(p.id)}`;
+    return `<article>
+  <a href="${href}"><strong>${esc(p.profile?.display_name || uname || 'unknown')}</strong> @${esc(uname || 'unknown')}</a>
+  &middot; <small>${new Date(p.created_at).toLocaleString()}</small>
+  <p><a href="${href}">${esc((p.body || '').slice(0, 280))}</a></p>
+  <small>${p.like_count || 0} likes &middot; ${p.reply_count || 0} replies &middot; ${p.repost_count || 0} reposts</small>
+</article>`;
+  }).join('\n');
+
+  const communityRootHtml = `<article>
+  <h1>${esc(community.name)}</h1>
+  ${community.description ? `<p>${esc(community.description)}</p>` : ''}
+  <small>${community.member_count || 0} member${community.member_count === 1 ? '' : 's'} &middot; ${community.post_count || 0} post${community.post_count === 1 ? '' : 's'}</small>
+</article>
+<h2 class="sr-only">Recent posts</h2>
+<ul>${postsHtml ? '' : '<li>No posts yet.</li>'}</ul>
+${postsHtml}`;
+
+  html = replaceLine(html, '<title>Community — InteractInk</title>', `<title>${esc(titleText)}</title>`);
+  html = replaceLine(html,
+    '<meta name="description" content="A community on InteractInk — join the conversation.">',
+    `<meta name="description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:title" content="Community — InteractInk">',
+    `<meta property="og:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:description" content="A community on InteractInk — join the conversation.">',
+    `<meta property="og:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:image" content="/img/logo-light.png">',
+    `<meta property="og:image" content="${esc(image)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:title" content="Community — InteractInk">',
+    `<meta name="twitter:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:description" content="A community on InteractInk — join the conversation.">',
+    `<meta name="twitter:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:image" content="/img/logo-light.png">',
+    `<meta name="twitter:image" content="${esc(image)}">`);
+  html = replaceLine(html, '<link rel="canonical">', `<link rel="canonical" href="${esc(canonical)}">`);
+  html = replaceLine(html, '<meta property="og:url" content="">', `<meta property="og:url" content="${esc(canonical)}">`);
+
+  html = injectHead(html, jsonLdScriptTag(jsonLd));
+
+  html = insertHiddenSeoBlock(html,
+    '<div id="community-hero"><span class="spinner">Loading&hellip;</span></div>',
+    communityRootHtml);
+
+  return { status: 200, html };
+}
+
+// ── LIST ("/i/lists/:id") ──
+
+async function renderList(origin, id) {
+  let html = readTemplate('list.html');
+
+  const lists = await sbGet('lists', `id=eq.${encodeURIComponent(id)}&select=*`);
+  const list = lists && lists[0];
+
+  // Private lists get the same "doesn't exist" treatment here as they
+  // get in sitemap.js (excluded there via `.filter(l => !l.is_private)`)
+  // — a crawler/link-unfurl bot shouldn't be able to discover a
+  // private list's name/description/members through this route.
+  if (!list || list.is_private) {
+    html = replaceLine(html, '<title>List — InteractInk</title>', '<title>List not found — InteractInk</title>');
+    html = replaceLine(html,
+      '<meta name="description" content="A curated List on InteractInk — a merged timeline of its members\' posts.">',
+      '<meta name="description" content="No List found with that id, or it&#39;s private.">');
+    html = injectHead(html, '<meta name="robots" content="noindex">');
+    html = insertHiddenSeoBlock(html,
+      '<div id="list-hero"><span class="spinner">Loading&hellip;</span></div>',
+      "<p>No List found with that id, or it's private.</p>");
+    return { status: 404, html };
+  }
+
+  const canonical = `${origin}/i/lists/${encodeURIComponent(list.id)}`;
+
+  const memberRows = await sbGet('list_members', `list_id=eq.${list.id}&select=member_id`) || [];
+  const memberIds = memberRows.map(r => r.member_id);
+
+  const posts = memberIds.length
+    ? (await sbGet('posts',
+        `author_id=in.(${memberIds.map(m => encodeURIComponent(m)).join(',')})&is_deleted=eq.false&select=id,body,created_at,like_count,reply_count,repost_count,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url)&order=created_at.desc&limit=20`) || [])
+    : [];
+
+  const titleText = `${list.name} — InteractInk`;
+  const descText = (list.description || `${list.name} — a List on InteractInk.`).slice(0, 200);
+  const image = list.banner_url || list.avatar_url || '/img/logo-light.png';
+
+  const jsonLd = {
+    '@context': 'https://schema.org', '@type': 'CollectionPage',
+    url: canonical, name: list.name, description: list.description || undefined,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: posts.map((p, i) => ({
+        '@type': 'ListItem', position: i + 1,
+        url: p.profile?.username
+          ? `${origin}/${encodeURIComponent(p.profile.username)}/status/${encodeURIComponent(p.id)}`
+          : `${origin}/i/status/${encodeURIComponent(p.id)}`,
+      })),
+    },
+  };
+
+  const postsHtml = posts.map(p => {
+    const uname = p.profile?.username;
+    const href = uname
+      ? `${origin}/${encodeURIComponent(uname)}/status/${encodeURIComponent(p.id)}`
+      : `${origin}/i/status/${encodeURIComponent(p.id)}`;
+    return `<article>
+  <a href="${href}"><strong>${esc(p.profile?.display_name || uname || 'unknown')}</strong> @${esc(uname || 'unknown')}</a>
+  &middot; <small>${new Date(p.created_at).toLocaleString()}</small>
+  <p><a href="${href}">${esc((p.body || '').slice(0, 280))}</a></p>
+  <small>${p.like_count || 0} likes &middot; ${p.reply_count || 0} replies &middot; ${p.repost_count || 0} reposts</small>
+</article>`;
+  }).join('\n');
+
+  const listRootHtml = `<article>
+  <h1>${esc(list.name)}</h1>
+  ${list.description ? `<p>${esc(list.description)}</p>` : ''}
+  <small>${list.member_count || 0} member${list.member_count === 1 ? '' : 's'} &middot; ${list.follower_count || 0} follower${(list.follower_count || 0) === 1 ? '' : 's'}</small>
+</article>
+<h2 class="sr-only">Recent posts</h2>
+<ul>${postsHtml ? '' : '<li>No posts yet.</li>'}</ul>
+${postsHtml}`;
+
+  html = replaceLine(html, '<title>List — InteractInk</title>', `<title>${esc(titleText)}</title>`);
+  html = replaceLine(html,
+    '<meta name="description" content="A curated List on InteractInk — a merged timeline of its members\' posts.">',
+    `<meta name="description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:title" content="List — InteractInk">',
+    `<meta property="og:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:description" content="A curated List on InteractInk — a merged timeline of its members\' posts.">',
+    `<meta property="og:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:image" content="/img/logo-light.png">',
+    `<meta property="og:image" content="${esc(image)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:title" content="List — InteractInk">',
+    `<meta name="twitter:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:description" content="A curated List on InteractInk — a merged timeline of its members\' posts.">',
+    `<meta name="twitter:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:image" content="/img/logo-light.png">',
+    `<meta name="twitter:image" content="${esc(image)}">`);
+  html = replaceLine(html, '<link rel="canonical">', `<link rel="canonical" href="${esc(canonical)}">`);
+  html = replaceLine(html, '<meta property="og:url" content="">', `<meta property="og:url" content="${esc(canonical)}">`);
+
+  html = injectHead(html, jsonLdScriptTag(jsonLd));
+
+  html = insertHiddenSeoBlock(html,
+    '<div id="list-hero"><span class="spinner">Loading&hellip;</span></div>',
+    listRootHtml);
+
+  return { status: 200, html };
+}
+
 // ── THREAD ("/i/status/:id", "/:username/status/:id") ──
 
 async function renderThread(origin, username, id) {
@@ -392,7 +598,7 @@ module.exports = async function handler(req, res) {
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0];
   const origin = `${proto}://${host}`;
-  const { type, username, id } = req.query;
+  const { type, username, id, slug } = req.query;
 
   try {
     let result;
@@ -402,6 +608,10 @@ module.exports = async function handler(req, res) {
       result = await renderThread(origin, username, id);
     } else if (type === 'profile' && username) {
       result = await renderProfile(origin, username);
+    } else if (type === 'community' && slug) {
+      result = await renderCommunity(origin, slug);
+    } else if (type === 'list' && id) {
+      result = await renderList(origin, id);
     } else {
       res.status(400).send('Bad request');
       return;
@@ -414,7 +624,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
     res.status(result.status).send(result.html);
   } catch (e) {
-    console.error(`prerender handler failed | type=${type} username=${username} id=${id} origin=${origin}:`, e.stack || e.message);
+    console.error(`prerender handler failed | type=${type} username=${username} id=${id} slug=${slug} origin=${origin}:`, e.stack || e.message);
     res.status(502).send('Render failed: ' + e.message);
   }
 }

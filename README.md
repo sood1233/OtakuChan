@@ -34,8 +34,8 @@ of these applied. It creates (among other things):
      in and only to your own rows)
    - the realtime publication for live post/reply/notification/message
      updates
-   - two storage buckets: `media` (post/reply images & video, 5MB
-     limit) and `avatars` (profile pictures, 2MB limit)
+   - two storage buckets: `media` (post/reply images & video, 100MB
+     limit) and `avatars` (profile pictures, 100MB limit)
 
 The individual `supabase/*.sql` files (`schema.sql`, `settings.sql`,
 `communities.sql`, etc.) still exist for reference/history, but you

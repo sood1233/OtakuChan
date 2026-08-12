@@ -524,6 +524,31 @@ select {
 .who-box .show-more:hover { background:rgba(15,20,25,.03); text-decoration:none; }
 .who-box .no-t { padding:4px 16px 12px; }
 
+/* ── COMMUNITY GUIDE (communities.html explainer — collapsible accordion,
+   styled after .who-box: same --hover-bg card + --r-lg radius, real
+   margin-top so it reads as its own block below the communities list
+   instead of a flush-against-it wall of text) ── */
+.comm-guide-title { font:inherit; font-weight:800; font-size:19px; color:var(--ink); margin:28px 16px 10px; }
+.comm-guide { background:var(--hover-bg); border-radius:var(--r-lg); margin:0 16px 16px; overflow:hidden; }
+.comm-guide-item { border-top:1px solid var(--line); }
+.comm-guide-item:first-child { border-top:none; }
+.comm-guide-item summary {
+  list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 16px; font-size:15px; font-weight:700; color:var(--ink); transition:background-color .12s ease;
+}
+.comm-guide-item summary::-webkit-details-marker { display:none; }
+.comm-guide-item summary:hover { background:rgba(15,20,25,.03); }
+.comm-guide-item summary::after {
+  content:''; flex:none; width:8px; height:8px; margin-top:-3px;
+  border-right:2px solid var(--muted); border-bottom:2px solid var(--muted);
+  transform:rotate(45deg); transition:transform .15s ease;
+}
+.comm-guide-item[open] summary::after { margin-top:3px; transform:rotate(-135deg); }
+.comm-guide-item[open] summary { border-bottom:1px solid var(--line); }
+.comm-guide-body { padding:2px 16px 16px; }
+.comm-guide-body p { font-size:14.5px; line-height:1.5; color:var(--ink); margin:0; }
+.comm-guide-body b { font-weight:700; }
+
 /* ── COMMUNITIES — sidebar box rows, browse list, and single-community page ── */
 .comm-avatar {
   flex:none; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;

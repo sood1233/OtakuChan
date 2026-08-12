@@ -42,6 +42,11 @@ Disallow: /editprofile
 Disallow: /editprofile.html
 Disallow: /lists
 Disallow: /lists.html
+Disallow: /*/followers
+Disallow: /*/following
+Disallow: /followlist.html
+Disallow: /*/lists
+Disallow: /profilelists.html
 Disallow: /search
 Disallow: /search.html
 Disallow: /admin

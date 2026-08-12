@@ -95,6 +95,19 @@ function cmModalEl() {
 // 3:1, 1500×500 output). onApply(File) fires only when the user hits
 // Apply — Back/Escape/backdrop just close with no callback.
 function openCropModal(file, shape, onApply) {
+  // shape === 'square' is always an avatar (profile/community/list —
+  // see the shape comment atop this file); 'wide' banners aren't
+  // covered by this cap. Callers already run the file through
+  // validateFile()'s general MAX_FILE_MB check before reaching here,
+  // but that's the *upload* limit for any file type — this is the
+  // avatar-specific cap (AVATAR_MAX_MB, js/supabase-config.js), kept
+  // as its own constant so the two can diverge later without this
+  // check silently drifting out of sync with the general one.
+  if (shape === 'square' && file.size > AVATAR_MAX_MB * 1024 * 1024) {
+    showErr(null, `File too large. Max ${AVATAR_MAX_MB}MB.`);
+    return;
+  }
+
   const el = cmModalEl();
   const stage = document.getElementById('cm-stage');
   const frame = document.getElementById('cm-frame');
