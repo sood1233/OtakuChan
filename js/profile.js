@@ -110,7 +110,22 @@ async function loadProfile() {
     isBlocked(profile.id).then(b => { const btn = document.getElementById('pm-block-btn'); if (btn && b) btn.textContent = `Unblock @${profile.username}`; });
   }
 
+  // profiles.posts_count only tracks top-level posts (see the comment
+  // on confirmDeletePost() in common.js) — replies count toward the
+  // "Posts" stat too (10 posts + 10 replies shows 20), so patch the
+  // number in once the reply count comes back rather than blocking
+  // the whole header render on an extra query.
+  loadReplyCountIntoStat(profile.id, profile.posts_count || 0);
+
   loadUserPosts(profile.id);
+}
+
+async function loadReplyCountIntoStat(userId, basePostsCount) {
+  const { count, error } = await sb.from('replies').select('id', { count: 'exact', head: true })
+    .eq('author_id', userId).eq('is_deleted', false);
+  if (error) return; // leave the posts-only number showing rather than a broken stat
+  const el = document.getElementById('stat-posts');
+  if (el) el.textContent = fmtCount(basePostsCount + (count || 0));
 }
 
 // ── HEADER ICONS used only on the profile page ──

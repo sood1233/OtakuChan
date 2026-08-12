@@ -62,6 +62,24 @@ async function sbGet(tbl, query) {
   return Array.isArray(data) ? data : null;
 }
 
+// Row-count-only query (no rows fetched) via PostgREST's exact-count
+// header — same idea as the `{ count: 'exact', head: true }` calls in
+// js/auth.js/js/thread.js, just over the raw REST API since this file
+// runs server-side without the supabase-js client.
+async function sbCount(tbl, query) {
+  const url = `${SUPABASE_URL}/rest/v1/${tbl}?${query}&select=id&limit=1`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Prefer: 'count=exact',
+    },
+  });
+  if (!resp.ok) return 0;
+  const range = resp.headers.get('content-range'); // "0-0/42"
+  const total = range && range.split('/')[1];
+  return total && total !== '*' ? parseInt(total, 10) || 0 : 0;
+}
+
 // Reads a static HTML file from the deployed project. Both index.html
 // and thread.html ship alongside this function in the same deployment,
 // so they're available on disk at request time — this is what lets us
@@ -184,6 +202,11 @@ async function renderProfile(origin, username) {
   const canonical = `${origin}/${encodeURIComponent(profile.username)}`;
   const posts = await sbGet('posts',
     `author_id=eq.${profile.id}&is_deleted=eq.false&select=id,body,created_at&order=created_at.desc&limit=20`) || [];
+  // "Posts" counts replies too (see loadReplyCountIntoStat() in
+  // js/profile.js) — profiles.posts_count only tracks top-level posts,
+  // so add the reply count here for the same total the live page shows.
+  const replyCount = await sbCount('replies', `author_id=eq.${profile.id}&is_deleted=eq.false`);
+  const totalPostsCount = (profile.posts_count || 0) + replyCount;
 
   const titleText = `${profile.display_name || profile.username} (@${profile.username}) — InteractInk`;
   const descText = (profile.bio || `@${profile.username}'s posts on InteractInk.`).slice(0, 200);
@@ -205,7 +228,7 @@ async function renderProfile(origin, username) {
   <h1>${esc(profile.display_name || profile.username)}</h1>
   <p>@${esc(profile.username)}</p>
   ${profile.bio ? `<p>${esc(profile.bio)}</p>` : ''}
-  <small>Joined ${new Date(profile.created_at).toLocaleDateString()} &middot; ${profile.followers_count || 0} followers &middot; ${profile.following_count || 0} following &middot; ${profile.posts_count || 0} posts</small>
+  <small>Joined ${new Date(profile.created_at).toLocaleDateString()} &middot; ${profile.followers_count || 0} followers &middot; ${profile.following_count || 0} following &middot; ${totalPostsCount} posts</small>
 </article>
 <h2 class="sr-only">Recent posts</h2>
 <ul>${postsHtml || '<li>No posts yet.</li>'}</ul>`;

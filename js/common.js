@@ -1837,12 +1837,13 @@ async function confirmDeletePost() {
     document.querySelectorAll(`[data-post-id="${id}"]`).forEach(el => el.remove());
     document.getElementById(`reply-${id}`)?.remove();
     // If we're looking at a profile page's post count, the only way a
-    // Delete button can even show is on your own post, and the only
-    // profile a Delete button can appear on is your own (other
-    // people's posts never render Delete for you) — so this is always
-    // safe to decrement when it's present. Replies aren't counted in
-    // stat-posts, so skip the decrement for those.
-    if (!isReply && typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
+    // Delete button can even show is on your own post or reply, and
+    // the only profile a Delete button can appear on is your own
+    // (other people's posts/replies never render Delete for you) — so
+    // this is always safe to decrement when it's present. Replies
+    // count toward "Posts" the same as top-level posts (see
+    // loadReplyCountIntoStat() in profile.js), so both decrement it now.
+    if (typeof bumpStat === 'function' && document.getElementById('stat-posts')) bumpStat('stat-posts', -1);
   } catch (e) {
     // Full object (code/details/hint included) goes to the console so
     // it's inspectable via devtools if this ever needs debugging again
