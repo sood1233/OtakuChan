@@ -2761,6 +2761,43 @@ function skeletonThreadHtml() {
     </div>` + skeletonFeedHtml(2);
 }
 
+// ── PAGE-NUMBER PAGER — shared by any 10-per-page browse list
+// (Communities' "All"/"Joined" tabs, Lists' "Your Lists"/"Lists
+// you're on" tabs). `onPageAttr` is the raw JS expression string used
+// as each page button's onclick body (e.g. "gotoCommunitiesPage(N)")
+// — callers own their own page-state variable and re-render, this
+// just builds the numbered-with-ellipsis strip and Prev/Next arrows
+// around it. Renders nothing (empty string) when everything already
+// fits on one page.
+function pagerHtml(page, totalPages, onPageFnName) {
+  if (totalPages <= 1) return '';
+  const arrowIcon = (dir) => dir === 'prev'
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>`;
+
+  // Keep first, last, current, and current's immediate neighbors;
+  // collapse every other gap to a single "…".
+  const keep = new Set([1, totalPages, page, page - 1, page + 1]);
+  const nums = [];
+  for (let n = 1; n <= totalPages; n++) {
+    if (keep.has(n) && n >= 1 && n <= totalPages) nums.push(n);
+  }
+
+  let mid = '';
+  let prevN = 0;
+  for (const n of nums) {
+    if (prevN && n - prevN > 1) mid += `<span class="comm-pager-ellipsis">&hellip;</span>`;
+    mid += `<button type="button" class="comm-pager-btn${n === page ? ' active' : ''}" ${n === page ? 'aria-current="page"' : ''} onclick="${onPageFnName}(${n})">${n}</button>`;
+    prevN = n;
+  }
+
+  return `<div class="comm-pager">
+    <button type="button" class="comm-pager-btn" aria-label="Previous page" ${page <= 1 ? 'disabled' : ''} onclick="${onPageFnName}(${page - 1})">${arrowIcon('prev')}</button>
+    ${mid}
+    <button type="button" class="comm-pager-btn" aria-label="Next page" ${page >= totalPages ? 'disabled' : ''} onclick="${onPageFnName}(${page + 1})">${arrowIcon('next')}</button>
+  </div>`;
+}
+
 function postCardHtml(p, flash = false) {
   cachePost(p);
   return `

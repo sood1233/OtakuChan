@@ -7,6 +7,8 @@
 let communitiesTab = 'all'; // 'all' | 'mine'
 let joinedIds = new Set();  // populated once, used to render the right Join/Joined pill on the "All" list too
 let communitySearch = '';   // current text in #comm-search, applied to both tabs
+const COMMUNITIES_PAGE_SIZE = 10;
+let communitiesPage = { all: 1, mine: 1 }; // each tab tracks its own page independently
 
 async function loadJoinedIds() {
   if (!currentSession) { joinedIds = new Set(); return; }
@@ -17,9 +19,16 @@ async function loadJoinedIds() {
 function switchCommunitiesTab(tab) {
   if (tab === communitiesTab) return;
   communitiesTab = tab;
+  communitiesPage[tab] = 1; // switching to a tab always starts it back at page 1
   document.getElementById('ctab-all').classList.toggle('active', tab === 'all');
   document.getElementById('ctab-mine').classList.toggle('active', tab === 'mine');
   renderList();
+}
+
+function gotoCommunitiesPage(n) {
+  communitiesPage[communitiesTab] = n;
+  renderList();
+  document.getElementById('communities-list')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 async function renderList() {
@@ -32,31 +41,38 @@ async function renderList() {
   }
 
   const q = communitySearch.trim();
+  const page = communitiesPage[communitiesTab];
 
-  let list;
+  let list, totalCount;
   if (communitiesTab === 'mine') {
     // "Joined" is always a short, already-loaded-ish list — filtering
     // client-side after the fetch avoids a second round-trip shape
-    // (embedded select can't ilike the nested community row directly).
+    // (embedded select can't ilike the nested community row directly),
+    // and paginating client-side after that keeps this in line with
+    // the "All" tab's 10-per-page without a second query shape to
+    // maintain just for this tab.
     const { data, error } = await sb.from('community_members')
       .select('community:communities(*)')
       .eq('user_id', currentSession.user.id)
       .order('joined_at', { ascending: false });
     if (error) { listEl.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
-    list = (data || []).map(r => r.community).filter(Boolean);
+    let all = (data || []).map(r => r.community).filter(Boolean);
     if (q) {
       const needle = q.toLowerCase();
-      list = list.filter(c => c.name.toLowerCase().includes(needle) || (c.description || '').toLowerCase().includes(needle));
+      all = all.filter(c => c.name.toLowerCase().includes(needle) || (c.description || '').toLowerCase().includes(needle));
     }
+    totalCount = all.length;
+    list = all.slice((page - 1) * COMMUNITIES_PAGE_SIZE, page * COMMUNITIES_PAGE_SIZE);
   } else {
-    let query = sb.from('communities').select('*');
+    let query = sb.from('communities').select('*', { count: 'exact' });
     if (q) query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
-    const { data, error } = await query
+    const { data, error, count } = await query
       .order('member_count', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(100);
+      .range((page - 1) * COMMUNITIES_PAGE_SIZE, page * COMMUNITIES_PAGE_SIZE - 1);
     if (error) { listEl.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
     list = data || [];
+    totalCount = count || 0;
   }
 
   if (!list.length) {
@@ -68,9 +84,11 @@ async function renderList() {
     return;
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / COMMUNITIES_PAGE_SIZE));
   listEl.innerHTML = `<div class="comm-list">` +
     list.map(c => communityRowHtml(c, communitiesTab === 'mine' || joinedIds.has(c.id))).join('') +
-    `</div>`;
+    `</div>` +
+    pagerHtml(page, totalPages, 'gotoCommunitiesPage');
 }
 
 // Overrides the compact sidebar-box version from common.js with a
@@ -111,6 +129,7 @@ function wireCommunitySearch() {
     clearTimeout(_searchDebounce);
     _searchDebounce = setTimeout(() => {
       communitySearch = input.value;
+      communitiesPage[communitiesTab] = 1; // new search — start the current tab back at page 1, leave the other tab's page alone
       renderList();
     }, 250);
   });

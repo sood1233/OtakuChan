@@ -427,6 +427,11 @@ html[data-theme="dim"] .logo-mark-dark, html[data-theme="dark"] .logo-mark-dark 
 }
 .show-new-pill:hover { background:var(--maroon-tint); text-decoration:none; }
 
+/* Bottom-of-feed marker the infinite-scroll IntersectionObserver
+   watches to trigger the next page — invisible, just needs height so
+   it can scroll into view before the user hits the literal bottom. */
+.feed-sentinel { height:1px; }
+
 /* ── POST FORM (inline composer, Twitter-style) ── */
 #pf-wrap { max-width:none; margin:0; padding:0; border-bottom:8px solid var(--line); }
 #pf-box { background:var(--cream-card); border-bottom:1px solid var(--line); border-radius:0; box-shadow:none; overflow:visible; padding:12px 16px 8px; }
@@ -568,6 +573,21 @@ select {
 .comm-list .avatar { width:48px; height:48px; }
 .comm-list .who-row-name { font-size:15px; }
 .comm-list .comm-desc { font-size:13px; color:var(--muted); margin-top:2px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── PAGE-NUMBER PAGER — shared by any 10-per-page list (Communities
+   browse, Lists browse): Prev/Next arrows + numbered pages with
+   first/last/current/±1-neighbor kept and gaps collapsed to "…". ── */
+.comm-pager { display:flex; align-items:center; justify-content:center; gap:4px; padding:16px; flex-wrap:wrap; }
+.comm-pager-btn {
+  flex:none; min-width:32px; height:32px; padding:0 6px; border-radius:var(--r-sm); border:none; background:none;
+  font-family:inherit; font-size:14px; font-weight:700; color:var(--ink); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:background-color .12s ease;
+}
+.comm-pager-btn:hover:not(:disabled) { background:var(--hover-bg); }
+.comm-pager-btn:disabled { color:var(--muted); opacity:.4; cursor:default; }
+.comm-pager-btn.active { background:var(--ink); color:var(--bg); }
+.comm-pager-btn svg { width:16px; height:16px; }
+.comm-pager-ellipsis { flex:none; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; }
 
 /* ── COMMUNITY ABOUT TAB — Community Info / Rules / Moderators,
    styled after an X Community's About panel. ── */

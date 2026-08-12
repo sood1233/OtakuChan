@@ -2,31 +2,32 @@
 // BOARD PAGE — /index.html
 // ─────────────────────────────────────────────────────────────
 const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)';
+const FEED_PAGE_SIZE = 20; // per-request page size — NOT a total-feed cap; paging can continue indefinitely
 
 let activeTab = 'foryou'; // 'foryou' | 'following'
 let pendingPosts = [];    // realtime posts held back until "Show N posts" is clicked
+
+// ── Infinite-scroll paging state for the currently active tab ──
+let followingIds = null;       // Set of author ids the viewer follows — populated on Following tab load, also used by subscribeRealtime()
+let feedCursor = null;         // For You: id of the last post rendered (server re-derives its score from this)
+let feedRecentAuthors = [null, null]; // For You: last two authors rendered [mostRecent, secondMostRecent] — carries the "no 2-in-a-row" rule across a page boundary
+let followingCursor = null;    // Following: sort-time (created_at) of the last item rendered
+let feedExhausted = false;     // true once a page comes back short — no more to load
+let feedLoadingMore = false;
+let feedObserver = null;
 
 async function loadFeed() {
   const feedEl = document.getElementById('feed-posts');
   feedEl.innerHTML = skeletonFeedHtml();
   pendingPosts = [];
   hidePendingPill();
+  feedCursor = null;
+  feedRecentAuthors = [null, null];
+  followingCursor = null;
+  followingIds = null;
+  feedExhausted = false;
+  if (feedObserver) { feedObserver.disconnect(); feedObserver = null; }
   await ensureFeedPrereqsLoaded();
-
-  let query = sb.from('posts').select(POST_SELECT).eq('is_deleted', false);
-
-  // "Following" also pulls in reposts made by people you follow —
-  // same as Twitter's home timeline — each carrying a "[Name]
-  // reposted" banner and slotting in at repost time, not post time.
-  //
-  // Reposts are fetched as plain reposts-row + posts-by-id + profiles-
-  // by-id lookups, never as a `reposts.select('post:posts(...)')`
-  // embed — `reposts` and its foreign keys are recent additions, and
-  // an embed that PostgREST's schema cache hasn't picked up yet fails
-  // its *entire* query, not just the repost part (see the comment
-  // above attachQuotedPosts() in common.js for the same reasoning
-  // applied to quote_of).
-  let combined = null;
 
   if (activeTab === 'following') {
     if (!currentSession) {
@@ -34,72 +35,192 @@ async function loadFeed() {
       return;
     }
     const { data: follows } = await sb.from('follows').select('followee_id').eq('follower_id', currentSession.user.id);
-    const ids = (follows || []).map(f => f.followee_id);
-    if (!ids.length) {
+    followingIds = new Set((follows || []).map(f => f.followee_id));
+    if (!followingIds.size) {
       feedEl.innerHTML = `<div id="feed-empty">You're not following anyone yet. Posts from people you follow will show up here.</div>`;
       return;
     }
-    query = query.in('author_id', ids);
 
-    const [ownRes, repostRowsRes] = await Promise.all([
-      query.order('created_at', { ascending: false }).limit(100),
-      sb.from('reposts').select('post_id, user_id, created_at')
-        .in('user_id', ids)
-        .order('created_at', { ascending: false }).limit(100)
-    ]);
-
-    if (ownRes.error) {
-      feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(ownRes.error.message)}</div>`;
+    const page = await fetchFollowingPage(null);
+    if (page.error) {
+      feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(page.error.message)}</div>`;
       return;
     }
-
-    const ownPosts = (ownRes.data || []).map(p => ({ ...p, _sortTime: p.created_at }));
-
-    let repostedPosts = [];
-    const repostRows = repostRowsRes.data || [];
-    if (repostRowsRes.error) console.warn('reposts lookup failed', repostRowsRes.error);
-    if (repostRows.length) {
-      const postIds = [...new Set(repostRows.map(r => r.post_id))];
-      const reposterIds = [...new Set(repostRows.map(r => r.user_id))];
-      const [{ data: repostedPostRows, error: postsErr }, { data: reposterProfiles, error: profErr }] = await Promise.all([
-        sb.from('posts').select(POST_SELECT).in('id', postIds).eq('is_deleted', false),
-        sb.from('profiles').select('id,username,display_name').in('id', reposterIds)
-      ]);
-      if (postsErr) console.warn('reposted posts lookup failed', postsErr);
-      if (profErr) console.warn('reposter profiles lookup failed', profErr);
-      const postById = new Map((repostedPostRows || []).map(p => [p.id, p]));
-      const profById = new Map((reposterProfiles || []).map(p => [p.id, p]));
-      repostedPosts = repostRows
-        .map(r => {
-          const p = postById.get(r.post_id);
-          const reposter = profById.get(r.user_id);
-          return (p && reposter) ? { ...p, _sortTime: r.created_at, _repostedBy: reposter } : null;
-        })
-        .filter(Boolean);
+    if (!page.data.length) {
+      feedEl.innerHTML = `<div id="feed-empty">No posts yet. Be the first to post.</div>`;
+      return;
     }
-
-    combined = [...ownPosts, ...repostedPosts]
-      .sort((a, b) => new Date(b._sortTime) - new Date(a._sortTime))
-      .slice(0, 100);
-  }
-
-  const { data, error } = combined ? { data: combined, error: null }
-    : await sb.rpc('get_for_you_feed', {
-        viewer: currentSession?.user?.id || null,
-        limit_n: 100,
-        offset_n: 0
-      }).select(POST_SELECT);
-
-  if (error) {
-    feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(error.message)}</div>`;
+    await attachQuotedPosts(page.data);
+    renderFeedPage(page.data, true);
+    followingCursor = page.cursor;
+    feedExhausted = page.done;
     return;
   }
-  if (!data.length) {
+
+  const page = await fetchForYouPage(null, null, null);
+  if (page.error) {
+    feedEl.innerHTML = `<div class="errmsg">Failed to load posts: ${esc(page.error.message)}</div>`;
+    return;
+  }
+  if (!page.data.length) {
     feedEl.innerHTML = `<div id="feed-empty">No posts yet. Be the first to post.</div>`;
     return;
   }
-  await attachQuotedPosts(data);
-  feedEl.innerHTML = data.map(p => postCardHtml(p)).join('');
+  await attachQuotedPosts(page.data);
+  renderFeedPage(page.data, true);
+  updateForYouPagingState(page.data);
+  feedExhausted = page.data.length < FEED_PAGE_SIZE;
+}
+
+// Called when the bottom-of-feed sentinel scrolls into view. Appends
+// the next page for whichever tab is currently active — the "no
+// 100-post ceiling" fix: as long as the server keeps returning a
+// full page, this keeps going.
+async function loadMoreFeed() {
+  if (feedLoadingMore || feedExhausted) return;
+  feedLoadingMore = true;
+  try {
+    if (activeTab === 'following') {
+      if (!followingIds || !followingIds.size) { feedExhausted = true; return; }
+      const page = await fetchFollowingPage(followingCursor);
+      if (page.error || !page.data.length) { feedExhausted = true; return; }
+      await attachQuotedPosts(page.data);
+      renderFeedPage(page.data, false);
+      followingCursor = page.cursor;
+      feedExhausted = page.done;
+    } else {
+      const page = await fetchForYouPage(feedCursor, feedRecentAuthors[0], feedRecentAuthors[1]);
+      if (page.error || !page.data.length) { feedExhausted = true; return; }
+      await attachQuotedPosts(page.data);
+      renderFeedPage(page.data, false);
+      updateForYouPagingState(page.data);
+      feedExhausted = page.data.length < FEED_PAGE_SIZE;
+    }
+  } finally {
+    feedLoadingMore = false;
+  }
+}
+
+// Tracks the id (paging cursor) and last-two-authors (de-clump state)
+// of whatever was most recently rendered, so the next loadMoreFeed()
+// call can pick up exactly where this page left off.
+function updateForYouPagingState(pageData) {
+  if (!pageData.length) return;
+  const last = pageData[pageData.length - 1];
+  feedCursor = last.id;
+  const secondLast = pageData[pageData.length - 2];
+  feedRecentAuthors = pageData.length >= 2
+    ? [last.author_id, secondLast.author_id]
+    : [last.author_id, feedRecentAuthors[0]];
+}
+
+// get_for_you_feed() does the real ranking (recency decay + engagement
+// + affinity toward followed/interacted accounts) and its own same-
+// author de-clumping server-side — see supabase/for_you_feed.sql.
+// Paging is cursor-based: `after_id` is the last post id the client
+// has already seen, and the two `recent_author_*` params carry the
+// "no 2-in-a-row" state across the page boundary so a run of the same
+// author can't span two pages of infinite scroll.
+async function fetchForYouPage(afterId, recentAuthor1, recentAuthor2) {
+  const { data, error } = await sb.rpc('get_for_you_feed', {
+    viewer: currentSession?.user?.id || null,
+    limit_n: FEED_PAGE_SIZE,
+    after_id: afterId || null,
+    recent_author_1: recentAuthor1 || null,
+    recent_author_2: recentAuthor2 || null
+  }).select(POST_SELECT);
+  return { data: data || [], error };
+}
+
+// "Following" also pulls in reposts made by people you follow — same
+// as Twitter's home timeline — each carrying a "[Name] reposted"
+// banner and slotting in at repost time, not post time.
+//
+// Reposts are fetched as plain reposts-row + posts-by-id + profiles-
+// by-id lookups, never as a `reposts.select('post:posts(...)')`
+// embed — `reposts` and its foreign keys are recent additions, and
+// an embed that PostgREST's schema cache hasn't picked up yet fails
+// its *entire* query, not just the repost part (see the comment
+// above attachQuotedPosts() in common.js for the same reasoning
+// applied to quote_of).
+//
+// Cursor-paged on `created_at < cursor` against both sources (own
+// posts and reposts) rather than one global `.limit(100)` — each
+// source is re-queried with a fresh per-page limit every call, so
+// there's no ceiling on how many pages deep infinite scroll can go.
+async function fetchFollowingPage(cursor) {
+  const ids = [...followingIds];
+  let ownQuery = sb.from('posts').select(POST_SELECT).eq('is_deleted', false)
+    .in('author_id', ids).order('created_at', { ascending: false }).limit(FEED_PAGE_SIZE);
+  let repostQuery = sb.from('reposts').select('post_id, user_id, created_at')
+    .in('user_id', ids).order('created_at', { ascending: false }).limit(FEED_PAGE_SIZE);
+  if (cursor) {
+    ownQuery = ownQuery.lt('created_at', cursor);
+    repostQuery = repostQuery.lt('created_at', cursor);
+  }
+
+  const [ownRes, repostRowsRes] = await Promise.all([ownQuery, repostQuery]);
+  if (ownRes.error) return { data: [], error: ownRes.error, done: true, cursor };
+
+  const ownPosts = (ownRes.data || []).map(p => ({ ...p, _sortTime: p.created_at }));
+
+  let repostedPosts = [];
+  const repostRows = repostRowsRes.data || [];
+  if (repostRowsRes.error) console.warn('reposts lookup failed', repostRowsRes.error);
+  if (repostRows.length) {
+    const postIds = [...new Set(repostRows.map(r => r.post_id))];
+    const reposterIds = [...new Set(repostRows.map(r => r.user_id))];
+    const [{ data: repostedPostRows, error: postsErr }, { data: reposterProfiles, error: profErr }] = await Promise.all([
+      sb.from('posts').select(POST_SELECT).in('id', postIds).eq('is_deleted', false),
+      sb.from('profiles').select('id,username,display_name').in('id', reposterIds)
+    ]);
+    if (postsErr) console.warn('reposted posts lookup failed', postsErr);
+    if (profErr) console.warn('reposter profiles lookup failed', profErr);
+    const postById = new Map((repostedPostRows || []).map(p => [p.id, p]));
+    const profById = new Map((reposterProfiles || []).map(p => [p.id, p]));
+    repostedPosts = repostRows
+      .map(r => {
+        const p = postById.get(r.post_id);
+        const reposter = profById.get(r.user_id);
+        return (p && reposter) ? { ...p, _sortTime: r.created_at, _repostedBy: reposter } : null;
+      })
+      .filter(Boolean);
+  }
+
+  const combined = [...ownPosts, ...repostedPosts]
+    .sort((a, b) => new Date(b._sortTime) - new Date(a._sortTime));
+
+  const page = combined.slice(0, FEED_PAGE_SIZE);
+  // Only exhausted once BOTH sources stop returning a full page each —
+  // one source coming up short doesn't mean the other has too.
+  const done = (ownRes.data || []).length < FEED_PAGE_SIZE && repostRows.length < FEED_PAGE_SIZE;
+  const nextCursor = page.length ? page[page.length - 1]._sortTime : cursor;
+
+  return { data: page, error: null, done, cursor: nextCursor };
+}
+
+// Renders a page of posts: replaces the feed (reset) or appends
+// (infinite scroll), then (re)attaches the bottom sentinel so the
+// IntersectionObserver below has something to watch for the next page.
+function renderFeedPage(posts, replace) {
+  const feedEl = document.getElementById('feed-posts');
+  const sentinel = document.getElementById('feed-sentinel');
+  if (sentinel) sentinel.remove();
+  const html = posts.map(p => postCardHtml(p)).join('');
+  if (replace) feedEl.innerHTML = html;
+  else feedEl.insertAdjacentHTML('beforeend', html);
+  feedEl.insertAdjacentHTML('beforeend', '<div id="feed-sentinel" class="feed-sentinel"></div>');
+  setupFeedObserver();
+}
+
+function setupFeedObserver() {
+  if (feedObserver) { feedObserver.disconnect(); feedObserver = null; }
+  const sentinel = document.getElementById('feed-sentinel');
+  if (!sentinel) return;
+  feedObserver = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) loadMoreFeed();
+  }, { rootMargin: '600px' });
+  feedObserver.observe(sentinel);
 }
 
 function switchTab(tab) {
@@ -275,41 +396,99 @@ function trendListHtml(list) {
   }).join('');
 }
 
-// ── REALTIME: new posts appear live, queued behind the pill above ──
+// ── REALTIME: new posts (and, on the Following tab, new reposts)
+// appear live, queued behind the "Show N posts" pill above. ──
+//
+// Subscribed ONCE, at page load — not re-subscribed on every
+// switchTab(), so tab switches can never stack duplicate channels.
+// Instead each handler reads the live `activeTab`/`followingIds`
+// module state at event time, so a single channel naturally tracks
+// whichever tab happens to be active when the event arrives.
+let feedChannel = null;
+
+// De-dupes against posts already queued in the pill (not just posts
+// already on screen) — needed now that a post can be queued twice:
+// once from its own INSERT, once from a repost-of-it INSERT arriving
+// moments later.
+function queuePendingPost(p) {
+  if (document.getElementById(`post-${p.id}`)) return;
+  if (pendingPosts.some(x => x.id === p.id)) return;
+  pendingPosts.push(p);
+  showPendingPill();
+}
+
+async function handleRealtimePostInsert(payload) {
+  const p = payload.new;
+  if (p.is_deleted) return;
+  // BUGFIX: Realtime's postgres_changes broadcast goes out to every
+  // subscribed client the instant a row is inserted, regardless of
+  // RLS — so without this check, a post scheduled for later would
+  // still pop up as a "Show 1 post" pill for everyone right away,
+  // fully readable once clicked, well before its scheduled time.
+  if (p.scheduled_at && new Date(p.scheduled_at).getTime() > Date.now()) return;
+
+  if (activeTab === 'following') {
+    // Following tab only ever shows people the viewer follows — same
+    // filter loadFeed() applies, just re-checked live per event.
+    if (!followingIds || !followingIds.has(p.author_id)) return;
+  }
+  // 'foryou' tab: no author filter, matching what get_for_you_feed()
+  // itself is willing to rank in (anyone not blocked/muted).
+
+  p.profile = await getProfile(p.author_id);
+  await attachQuotedPosts([p]);
+  queuePendingPost(p);
+}
+
+async function handleRealtimeRepostInsert(payload) {
+  // Reposts only ever show up as feed items on the Following tab
+  // (that's the only place loadFeed() surfaces them at all — see
+  // fetchFollowingPage()), and only when they're reposts BY someone
+  // the viewer follows.
+  if (activeTab !== 'following') return;
+  if (!followingIds || !followingIds.size) return;
+  const r = payload.new;
+  if (!followingIds.has(r.user_id)) return;
+  if (document.getElementById(`post-${r.post_id}`)) return;
+
+  const [{ data: postRow, error: postErr }, reposterProfile] = await Promise.all([
+    sb.from('posts').select(POST_SELECT).eq('id', r.post_id).eq('is_deleted', false).maybeSingle(),
+    getProfile(r.user_id)
+  ]);
+  if (postErr || !postRow || !reposterProfile) return;
+  postRow._repostedBy = reposterProfile;
+  await attachQuotedPosts([postRow]);
+  queuePendingPost(postRow);
+}
+
+async function handleRealtimePostUpdate(payload) {
+  const p = payload.new;
+  const card = document.getElementById(`post-${p.id}`);
+  if (card) {
+    p.profile = await getProfile(p.author_id);
+    // This UPDATE fires on ANY change to the row — a like, a
+    // bookmark, a view bump, a repost, all of it — since they're
+    // all just counter columns on `posts`. `payload.new` is the
+    // raw row, so a quote post needs its embedded original
+    // re-attached here too, or postCardHtml() renders it as if
+    // the original had been deleted. (Same reasoning as the
+    // INSERT handler above.)
+    await attachQuotedPosts([p]);
+    card.outerHTML = postCardHtml(p);
+  }
+}
+
 function subscribeRealtime() {
-  sb.channel('posts-feed')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async payload => {
-      const p = payload.new;
-      if (p.is_deleted) return;
-      // BUGFIX: Realtime's postgres_changes broadcast goes out to every
-      // subscribed client the instant a row is inserted, regardless of
-      // RLS — so without this check, a post scheduled for later would
-      // still pop up as a "Show 1 post" pill for everyone right away,
-      // fully readable once clicked, well before its scheduled time.
-      if (p.scheduled_at && new Date(p.scheduled_at).getTime() > Date.now()) return;
-      if (document.getElementById(`post-${p.id}`)) return;
-      if (activeTab !== 'foryou') return;
-      p.profile = await getProfile(p.author_id);
-      await attachQuotedPosts([p]);
-      pendingPosts.push(p);
-      showPendingPill();
-    })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, async payload => {
-      const p = payload.new;
-      const card = document.getElementById(`post-${p.id}`);
-      if (card) {
-        p.profile = await getProfile(p.author_id);
-        // This UPDATE fires on ANY change to the row — a like, a
-        // bookmark, a view bump, a repost, all of it — since they're
-        // all just counter columns on `posts`. `payload.new` is the
-        // raw row, so a quote post needs its embedded original
-        // re-attached here too, or postCardHtml() renders it as if
-        // the original had been deleted. (Same reasoning as the
-        // INSERT handler above.)
-        await attachQuotedPosts([p]);
-        card.outerHTML = postCardHtml(p);
-      }
-    })
+  // Defensive: if this ever does get called twice, tear down the old
+  // channel first rather than stacking a second one on top of it.
+  if (feedChannel) {
+    sb.removeChannel(feedChannel);
+    feedChannel = null;
+  }
+  feedChannel = sb.channel('posts-feed')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, handleRealtimePostInsert)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reposts' }, handleRealtimeRepostInsert)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, handleRealtimePostUpdate)
     .subscribe();
 }
 

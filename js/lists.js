@@ -16,13 +16,22 @@ let discoverPreviewByList = new Map();
 let discoverExpanded = false;
 const DISCOVER_PREVIEW = 3;
 let listsSearchQuery = '';
+const LISTS_PAGE_SIZE = 10;
+let listsPage = { mine: 1, onthem: 1 }; // each tab tracks its own page independently
 
 function switchListsTab(tab) {
   if (tab === listsTab) return;
   listsTab = tab;
+  listsPage[tab] = 1; // switching to a tab always starts it back at page 1
   document.getElementById('ltab-mine').classList.toggle('active', tab === 'mine');
   document.getElementById('ltab-onthem').classList.toggle('active', tab === 'onthem');
   renderLists();
+}
+
+function gotoListsPage(n) {
+  listsPage[listsTab] = n;
+  renderLists();
+  document.getElementById('lists-list')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 async function loadFollowingIds() {
@@ -117,10 +126,17 @@ async function renderLists() {
 
   const q = listsSearchQuery.trim().toLowerCase();
   const matches = l => !q || l.name.toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q);
+  const page = listsPage[listsTab];
 
   if (listsTab === 'mine') {
     // "Your Lists" = Lists you own, unioned with Lists you follow —
-    // sorted by whichever happened more recently, newest first.
+    // sorted by whichever happened more recently, newest first. Both
+    // source queries are scoped to just this one user (owned lists,
+    // followed lists) so fetching each in full stays small — the
+    // *merge*, done in JS below, is what determines true recency
+    // order, so it can't be paginated server-side on either query
+    // alone. Only the already-merged-and-sorted result gets sliced
+    // to the current page's 10 rows.
     const [{ data: owned, error: ownErr }, { data: followedRows, error: folErr }] = await Promise.all([
       sb.from('lists').select('*').eq('owner_id', currentSession.user.id).order('created_at', { ascending: false }),
       sb.from('list_followers').select('followed_at, list:lists(*)').eq('follower_id', currentSession.user.id).order('followed_at', { ascending: false })
@@ -138,15 +154,19 @@ async function renderLists() {
       return;
     }
 
+    const totalPages = Math.max(1, Math.ceil(merged.length / LISTS_PAGE_SIZE));
+    const pageRows = merged.slice((page - 1) * LISTS_PAGE_SIZE, page * LISTS_PAGE_SIZE);
+
     let ownerById = new Map();
-    const followedOwnerIds = [...new Set(followedRowsClean.map(r => r.l.owner_id))];
-    if (followedOwnerIds.length) {
-      const { data: owners } = await sb.from('profiles').select('id,username,display_name,verified').in('id', followedOwnerIds);
+    const pageFollowedOwnerIds = [...new Set(pageRows.filter(r => r.following).map(r => r.l.owner_id))];
+    if (pageFollowedOwnerIds.length) {
+      const { data: owners } = await sb.from('profiles').select('id,username,display_name,verified').in('id', pageFollowedOwnerIds);
       ownerById = new Map((owners || []).map(o => [o.id, o]));
     }
     listEl.innerHTML = `<div class="list-list">` +
-      merged.map(r => listRowHtml(r.l, r.following ? ownerById.get(r.l.owner_id) : null, { following: r.following })).join('') +
-      `</div>`;
+      pageRows.map(r => listRowHtml(r.l, r.following ? ownerById.get(r.l.owner_id) : null, { following: r.following })).join('') +
+      `</div>` +
+      pagerHtml(page, totalPages, 'gotoListsPage');
     return;
   }
 
@@ -154,16 +174,24 @@ async function renderLists() {
   // joined back to its list. A plain by-id lookup (rather than a
   // nested list:lists(...) embed) keeps this working the moment
   // lists.sql is run, same reasoning as attachQuotedPosts()/
-  // loadUserReplies() elsewhere in the app.
+  // loadUserReplies() elsewhere in the app. There's no merge step
+  // here (just one source table), so this can paginate for real —
+  // .range() straight on the query, with an exact count alongside it
+  // for the pager's total-page math.
   const { data: memberRows, error: memErr } = await sb.from('list_members')
     .select('list_id').eq('member_id', currentSession.user.id);
   if (memErr) { listEl.innerHTML = `<div class="errmsg">${esc(memErr.message)}</div>`; return; }
   const listIds = [...new Set((memberRows || []).map(r => r.list_id))];
-  let list = [];
+  let list = [], totalCount = 0;
   if (listIds.length) {
-    const { data, error } = await sb.from('lists').select('*').in('id', listIds).order('created_at', { ascending: false });
+    let query = sb.from('lists').select('*', { count: 'exact' }).in('id', listIds);
+    if (q) query = query.or(`name.ilike.%${listsSearchQuery.trim()}%,description.ilike.%${listsSearchQuery.trim()}%`);
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range((page - 1) * LISTS_PAGE_SIZE, page * LISTS_PAGE_SIZE - 1);
     if (error) { listEl.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
-    list = (data || []).filter(matches);
+    list = data || [];
+    totalCount = count || 0;
   }
 
   if (!list.length) {
@@ -173,12 +201,14 @@ async function renderLists() {
     return;
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / LISTS_PAGE_SIZE));
   const ownerIds = [...new Set(list.map(l => l.owner_id))];
   const { data: owners } = await sb.from('profiles').select('id,username,display_name,verified').in('id', ownerIds);
   const ownerById = new Map((owners || []).map(o => [o.id, o]));
   listEl.innerHTML = `<div class="list-list">` +
     list.map(l => listRowHtml(l, ownerById.get(l.owner_id))).join('') +
-    `</div>`;
+    `</div>` +
+    pagerHtml(page, totalPages, 'gotoListsPage');
 }
 
 // Debounced so every keystroke doesn't refetch — 250ms feels instant
@@ -192,6 +222,7 @@ function wireListsSearch() {
     clearTimeout(_listsSearchDebounce);
     _listsSearchDebounce = setTimeout(() => {
       listsSearchQuery = input.value;
+      listsPage[listsTab] = 1; // new search — start the current tab back at page 1, leave the other tab's page alone
       renderDiscoverBody();
       renderLists();
     }, 250);
