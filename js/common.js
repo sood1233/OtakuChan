@@ -346,18 +346,20 @@ const NAV_ICON = {
 // means "Match device" — the default for everyone who's never opened
 // the picker — which follows the OS/browser's prefers-color-scheme,
 // live: flipping the phone from light to dark (or back) updates the
-// site immediately, no reload, without ever touching localStorage. ──
+// site immediately, no reload, without ever touching localStorage.
+// Device dark → the "dark" (Lights out) theme, not "dim". ──
 const THEME_KEY = 'oc-theme';
 function systemPrefersDark() {
   try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
   catch (e) { return false; }
 }
 // System dark mode is a single boolean, but this app has two dark
-// looks (Dim vs. Lights out); "Dim" is the one used for auto/system
-// dark, same choice Twitter/X's own "Match device" setting makes.
+// looks (Dim vs. Lights out); "Lights out" (dark) is the one used for
+// auto/system dark, so someone whose phone is set to dark mode lands
+// on the true dark theme rather than the in-between Dim look.
 function resolveTheme(stored) {
   if (stored === 'light' || stored === 'dim' || stored === 'dark') return stored;
-  return systemPrefersDark() ? 'dim' : 'light';
+  return systemPrefersDark() ? 'dark' : 'light';
 }
 function getStoredTheme() {
   try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
