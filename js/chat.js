@@ -168,6 +168,7 @@ async function loadThread(session, root) {
   sizeChatThread();
   scrollChatToBottom();
   renderSeenReceipt(msgs || [], session.user.id);
+  applyChatPrefill();
 
   const unreadIds = (msgs || []).filter(m => m.recipient_id === session.user.id && !m.read).map(m => m.id);
   if (unreadIds.length) {
@@ -179,6 +180,25 @@ async function loadThread(session, root) {
   }
 
   subscribeChatRealtime(session.user.id, other.id);
+}
+
+// Picks up a one-shot prefill dropped into sessionStorage by another
+// page's "Send via Chat" action (see listMenuSendChat() in list.js) —
+// there's no in-app recipient picker yet, so the flow is: stash the
+// text, land on the inbox (or straight into a thread if the link
+// already named a recipient), and whichever thread opens first
+// consumes it. Cleared immediately after use so it doesn't leak into
+// an unrelated later message.
+function applyChatPrefill() {
+  let text;
+  try { text = sessionStorage.getItem('oc-chat-prefill'); } catch (e) { return; }
+  if (!text) return;
+  try { sessionStorage.removeItem('oc-chat-prefill'); } catch (e) {}
+  const bodyEl = document.getElementById('chat-body');
+  if (!bodyEl) return;
+  bodyEl.value = text;
+  autoGrowChatInput(bodyEl);
+  bodyEl.focus();
 }
 
 // Grows the composer textarea to fit its content (up to the CSS

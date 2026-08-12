@@ -19,7 +19,7 @@ const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_n
 const listId = currentListId();
 let list = null;       // the loaded list row
 let isOwner = false;
-let isFollowing = false; // is the viewer following this List (non-owner only)
+let isListFollowed = false; // is the viewer following this List (non-owner only) — named to avoid colliding with common.js's isFollowing(userId) helper, which silently killed this whole script (SyntaxError: Identifier 'isFollowing' has already been declared) and left the page stuck on the initial "Loading…" spinner forever
 let listTab = 'posts';   // 'posts' | 'members' | 'followers'
 let listMembers = [];    // [{id, username, display_name, avatar_url}], loaded once
 let listFollowers = [];  // same shape, loaded lazily on first visit to the Followers tab
@@ -50,7 +50,7 @@ async function loadList() {
   if (currentSession && !isOwner) {
     const { data: fRow } = await sb.from('list_followers')
       .select('list_id').eq('list_id', list.id).eq('follower_id', currentSession.user.id).maybeSingle();
-    isFollowing = !!fRow;
+    isListFollowed = !!fRow;
   }
 
   const { data: owner } = await sb.from('profiles').select('username,display_name').eq('id', list.owner_id).maybeSingle();
@@ -82,7 +82,9 @@ function renderHero() {
     </div>`
     : (currentSession && !list.is_private) ? `
     <div class="list-hero-actions">
-      <button type="button" class="${isFollowing ? 'list-following-pill' : 'list-follow-pill'}" onclick="listToggleFollow('${list.id}', this, ${isFollowing})">${isFollowing ? 'Following' : 'Follow'}</button>
+      ${listShareMenuHtml(list)}
+      ${listOptionsMenuHtml(list)}
+      <button type="button" class="${isListFollowed ? 'list-following-pill' : 'list-follow-pill'}" onclick="listToggleFollow('${list.id}', this, ${isListFollowed})">${isListFollowed ? 'Following' : 'Follow'}</button>
     </div>` : '';
   const bannerPick = isOwner ? `
     <label class="list-banner-pick" for="list-banner-file" title="Change List banner">
@@ -112,6 +114,140 @@ function renderHero() {
       </div>
       ${actions}
     </div>`;
+
+  if (!isOwner && currentSession) {
+    isBlocked(list.owner_id).then(b => {
+      const btn = document.getElementById('list-block-btn');
+      if (btn && b) btn.textContent = `Unblock @${list._owner?.username || 'user'}`;
+    });
+  }
+}
+
+// ── "···" (list options) and share-icon menus in the hero — mirrors
+// X's own List page: the share icon (left) opens Post this / Send via
+// Chat / Copy link / Share List, and "···" (right) opens Report List /
+// Block the owner / hide this List's posts from For You. Both reuse
+// the same .pc-menu-wrap/togglePostMenu() component post cards and the
+// profile page already use — see profileMenuItemsHtml() in profile.js
+// for the near-identical profile-page version of this pattern.
+function listShareMenuHtml(l) {
+  // togglePostMenu() (common.js) looks the wrap up by id `pmenu-${key}` —
+  // same convention postMenuHtml()/profileMenuItemsHtml() use — so the
+  // key passed to it ('list-share-<id>') must match this element's id
+  // minus that prefix.
+  return `
+    <div class="pc-menu-wrap" id="pmenu-list-share-${l.id}">
+      <button class="pc-menu-btn" onclick="togglePostMenu('list-share-${l.id}', event)" aria-label="Share this List" title="Share">${ICON.share}</button>
+      <div class="pc-menu-dd">
+        <button onclick="listMenuPostThis(event)">Post this</button>
+        <button onclick="listMenuSendChat(event)">Send via Chat</button>
+        <button onclick="listMenuCopyLink(event)">Copy link to List</button>
+        <button onclick="listMenuShareList(event)">Share List</button>
+      </div>
+    </div>`;
+}
+function listOptionsMenuHtml(l) {
+  const uname = l._owner?.username || '';
+  return `
+    <div class="pc-menu-wrap" id="pmenu-list-opts-${l.id}">
+      <button class="pc-menu-btn" onclick="togglePostMenu('list-opts-${l.id}', event)" aria-label="More options" title="More">${ICON.menu}</button>
+      <div class="pc-menu-dd">
+        <button onclick="listMenuReport(event)">Report List</button>
+        <button id="list-block-btn" class="pc-menu-danger" onclick="listMenuBlockOwner(event)">Block @${esc(uname)}</button>
+        <button onclick="listMenuHideForYou(event)">Don&rsquo;t show these posts in For you</button>
+      </div>
+    </div>`;
+}
+
+function closeListMenus(ev) {
+  if (ev) ev.stopPropagation();
+  document.querySelectorAll('.pc-menu-wrap.open').forEach(w => w.classList.remove('open'));
+  document.body.classList.remove('oc-sheet-open');
+}
+
+// "Post this" — drops the List's link straight into the global
+// composer, same idea as X attaching the List card to a new Tweet
+// (this app's composer doesn't support embedding a List card, so the
+// link stands in for it, same as how a quoted post's link works).
+function listMenuPostThis(ev) {
+  closeListMenus(ev);
+  if (!requireLogin()) return;
+  openGlobalCompose(`${location.origin}${listUrl(list.id)}`);
+}
+
+// "Send via Chat" — no in-app recipient picker exists yet, so this
+// stashes the link for chat.js's applyChatPrefill() to pick up the
+// moment a thread (existing or newly started) actually opens.
+function listMenuSendChat(ev) {
+  closeListMenus(ev);
+  if (!requireLogin()) return;
+  try { sessionStorage.setItem('oc-chat-prefill', `${location.origin}${listUrl(list.id)}`); } catch (e) {}
+  location.href = 'chat.html';
+}
+
+function listMenuCopyLink(ev) {
+  closeListMenus(ev);
+  const url = `${location.origin}${listUrl(list.id)}`;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => toast('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
+  } else {
+    prompt('Copy link:', url);
+  }
+}
+
+function listMenuShareList(ev) {
+  closeListMenus(ev);
+  const url = `${location.origin}${listUrl(list.id)}`;
+  if (navigator.share) {
+    navigator.share({ url, title: list.name }).catch(() => {});
+  } else if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => toast('Link copied to clipboard.')).catch(() => prompt('Copy link:', url));
+  } else {
+    prompt('Copy link:', url);
+  }
+}
+
+function listMenuReport(ev) {
+  closeListMenus(ev);
+  openReportUser(list.owner_id);
+}
+
+async function listMenuBlockOwner(ev) {
+  closeListMenus(ev);
+  if (!requireLogin()) return;
+  const btn = document.getElementById('list-block-btn');
+  const uname = list._owner?.username || 'user';
+  const currentlyBlocked = btn && btn.textContent.startsWith('Unblock');
+  if (!currentlyBlocked) {
+    const ok = await ocConfirm({
+      title: `Block @${uname}?`,
+      desc: `This prevents @${uname} from including you in any of their Lists, including this one. They won't be able to follow or message you, and you'll stop following each other.`,
+      confirmLabel: 'Block',
+      danger: true
+    });
+    if (!ok) return;
+  }
+  try {
+    if (currentlyBlocked) {
+      await unblockUser(list.owner_id);
+      if (btn) btn.textContent = `Block @${uname}`;
+      toast(`Unblocked @${uname}.`);
+    } else {
+      await blockUser(list.owner_id);
+      if (btn) btn.textContent = `Unblock @${uname}`;
+      toast(`Blocked @${uname}.`);
+    }
+  } catch (e) { toast(e.message || 'Could not update block status.', 'error'); }
+}
+
+// Hiding one List's posts from your own For You feed would need the
+// get_for_you_feed RPC (server-side) to accept a per-viewer excluded-
+// Lists set, which isn't part of this build yet — same "not available
+// yet" honesty as the Mute/Report stubs elsewhere rather than a button
+// that looks like it works but silently does nothing.
+function listMenuHideForYou(ev) {
+  closeListMenus(ev);
+  toast(`Hiding a List's posts from For you isn't available on InteractInk yet.`);
 }
 
 // Called by listToggleFollow() (common.js) after a follow/unfollow of
@@ -119,7 +255,7 @@ function renderHero() {
 // sync without a full reload.
 function onListFollowChanged(id, following) {
   if (!list || id !== list.id) return;
-  isFollowing = following;
+  isListFollowed = following;
   list.follower_count = Math.max(0, (list.follower_count || 0) + (following ? 1 : -1));
   renderHero();
   if (listTab === 'followers') loadListFollowers().then(renderFollowers);

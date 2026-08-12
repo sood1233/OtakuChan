@@ -810,7 +810,13 @@ select {
 .list-hero-meta { font-size:13px; color:var(--muted); margin-top:8px; }
 .list-hero-owner { font-size:13px; color:var(--muted); margin-top:2px; }
 .list-hero-owner a { color:inherit; font-weight:700; }
-.list-hero-actions { flex:none; display:flex; gap:8px; }
+.list-hero-actions { flex:none; display:flex; align-items:center; gap:8px; }
+/* The share/"···" icon buttons reuse .pc-menu-wrap (post-card menu
+   component) — its default margin-left:auto is for pinning a lone
+   menu to the right edge of a card; here they sit inline alongside
+   the Follow/Following pill instead, same override profile.html
+   already uses for its own header actions row. */
+.list-hero-actions .pc-menu-wrap { margin-left:0; }
 .list-edit-btn, .list-delete-btn {
   font-size:14px; font-weight:800; padding:8px 18px; border-radius:999px; cursor:pointer;
   background:none; color:var(--ink); border:1px solid var(--line); transition:background-color .12s ease, transform .1s ease;

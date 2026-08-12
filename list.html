@@ -79,6 +79,24 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modal-report">
+  <div class="modal">
+    <a class="modal-close" href="#" onclick="closeReport();return false;">&#10005;</a>
+    <h2>Report Post</h2>
+    <label>Reason</label>
+    <select id="report-reason">
+      <option value="illegal">Illegal content</option>
+      <option value="spam">Spam</option>
+      <option value="doxxing">Doxxing / personal info</option>
+      <option value="harassment">Harassment</option>
+      <option value="other">Other</option>
+    </select>
+    <label>Details (optional)</label>
+    <textarea id="report-details" rows="3" maxlength="500"></textarea>
+    <button class="modal-btn" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/i18n.js"></script>

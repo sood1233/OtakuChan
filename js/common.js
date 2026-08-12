@@ -804,7 +804,12 @@ function updateGcBtnState() {
 // matching how the real X app's Post button behaves on every screen.
 function mobileCompose() { openGlobalCompose(); }
 
-function openGlobalCompose() {
+// `prefillText` is optional — used by "Post this" on a List's share
+// menu (see listMenuPostThis() in list.js) to drop the List's link
+// straight into the composer, same idea as X dropping a quoted card
+// in. Every other caller (the FAB, sidebar/mobile "Post" button)
+// leaves it undefined, so the composer opens empty as before.
+function openGlobalCompose(prefillText) {
   if (!requireLogin()) return;
   const el = gcModalEl();
   if (el.classList.contains('open')) return; // already open — ignore a double tap of the FAB/pill
@@ -813,6 +818,13 @@ function openGlobalCompose() {
   resetReplyAudience('gc');
   el.classList.add('open');
   lockScroll();
+  const bodyEl = document.getElementById('gc-body');
+  if (bodyEl) {
+    bodyEl.value = prefillText || '';
+    bodyEl.style.height = 'auto';
+    bodyEl.style.height = Math.max(64, bodyEl.scrollHeight) + 'px';
+    updateGcBtnState();
+  }
   setTimeout(() => document.getElementById('gc-body')?.focus(), 50);
 }
 
