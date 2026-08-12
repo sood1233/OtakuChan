@@ -1,57 +1,53 @@
 {
-  "cleanUrls": false,
-  "trailingSlash": false,
   "functions": {
     "api/prerender.js": {
       "includeFiles": "*.html"
     }
   },
-  "headers": [
-    {
-      "source": "/admin",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }]
-    },
-    {
-      "source": "/admin.html",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }]
-    }
-  ],
-  "rewrites": [
-    { "source": "/robots.txt",   "destination": "/api/robots" },
-    { "source": "/sitemap.xml",  "destination": "/api/sitemap" },
+  "routes": [
+    { "src": "^/(.+)/$", "status": 308, "headers": { "Location": "/$1" } },
 
-    { "source": "/admin",              "destination": "/admin.html" },
+    { "src": "^/$", "dest": "/api/prerender?type=home" },
 
-    { "source": "/",                   "destination": "/api/prerender?type=home" },
-    { "source": "/home",               "destination": "/api/prerender?type=home" },
+    { "src": "^/admin$", "dest": "/admin.html", "headers": { "X-Robots-Tag": "noindex, nofollow, noarchive" } },
+    { "src": "^/admin\\.html$", "headers": { "X-Robots-Tag": "noindex, nofollow, noarchive" }, "continue": true },
 
-    { "source": "/notifications",      "destination": "/notifications.html" },
-    { "source": "/bookmarks",          "destination": "/bookmarks.html" },
-    { "source": "/settings",           "destination": "/settings.html" },
-    { "source": "/search",             "destination": "/search.html" },
-    { "source": "/rules",              "destination": "/rules.html" },
-    { "source": "/about",              "destination": "/about.html" },
-    { "source": "/contact",            "destination": "/contact.html" },
-    { "source": "/privacy",            "destination": "/privacy.html" },
-    { "source": "/terms",              "destination": "/terms.html" },
-    { "source": "/login",              "destination": "/login.html" },
-    { "source": "/signup",             "destination": "/signup.html" },
-    { "source": "/communities",        "destination": "/communities.html" },
-    { "source": "/communities/:slug",  "destination": "/community.html" },
+    { "src": "^/ads\\.txt$", "headers": { "Content-Type": "text/plain; charset=utf-8" }, "continue": true },
 
-    { "source": "/lists",              "destination": "/lists.html" },
-    { "source": "/i/lists/:id",        "destination": "/list.html" },
-    { "source": "/:username/lists",    "destination": "/profilelists.html" },
+    { "handle": "filesystem" },
 
-    { "source": "/messages",           "destination": "/chat.html" },
-    { "source": "/messages/:username", "destination": "/chat.html" },
+    { "src": "^/robots\\.txt$",  "dest": "/api/robots" },
+    { "src": "^/sitemap\\.xml$", "dest": "/api/sitemap" },
 
-    { "source": "/:username/followers",  "destination": "/followlist.html" },
-    { "source": "/:username/following",  "destination": "/followlist.html" },
+    { "src": "^/home$",               "dest": "/api/prerender?type=home" },
 
-    { "source": "/i/status/:id",         "destination": "/api/prerender?type=thread&id=:id" },
-    { "source": "/:username/status/:id", "destination": "/api/prerender?type=thread&username=:username&id=:id" },
+    { "src": "^/notifications$",      "dest": "/notifications.html" },
+    { "src": "^/bookmarks$",          "dest": "/bookmarks.html" },
+    { "src": "^/settings$",           "dest": "/settings.html" },
+    { "src": "^/search$",             "dest": "/search.html" },
+    { "src": "^/rules$",              "dest": "/rules.html" },
+    { "src": "^/about$",              "dest": "/about.html" },
+    { "src": "^/contact$",            "dest": "/contact.html" },
+    { "src": "^/privacy$",            "dest": "/privacy.html" },
+    { "src": "^/terms$",              "dest": "/terms.html" },
+    { "src": "^/login$",              "dest": "/login.html" },
+    { "src": "^/signup$",             "dest": "/signup.html" },
+    { "src": "^/communities$",        "dest": "/communities.html" },
+    { "src": "^/communities/(?<slug>[^/]+)$", "dest": "/community.html" },
 
-    { "source": "/:username",          "destination": "/api/prerender?type=profile&username=:username" }
+    { "src": "^/lists$",              "dest": "/lists.html" },
+    { "src": "^/i/lists/(?<id>[^/]+)$", "dest": "/list.html" },
+    { "src": "^/(?<username>[^/]+)/lists$", "dest": "/profilelists.html" },
+
+    { "src": "^/messages$",           "dest": "/chat.html" },
+    { "src": "^/messages/(?<username>[^/]+)$", "dest": "/chat.html" },
+
+    { "src": "^/(?<username>[^/]+)/followers$", "dest": "/followlist.html" },
+    { "src": "^/(?<username>[^/]+)/following$", "dest": "/followlist.html" },
+
+    { "src": "^/i/status/(?<id>[^/]+)$", "dest": "/api/prerender?type=thread&id=$id" },
+    { "src": "^/(?<username>[^/]+)/status/(?<id>[^/]+)$", "dest": "/api/prerender?type=thread&username=$username&id=$id" },
+
+    { "src": "^/(?<username>[^/]+)$", "dest": "/api/prerender?type=profile&username=$username" }
   ]
 }

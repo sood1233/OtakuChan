@@ -54,12 +54,26 @@ function esc(str) {
 
 async function sbGet(tbl, query) {
   const url = `${SUPABASE_URL}/rest/v1/${tbl}?${query}`;
-  const resp = await fetch(url, {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-  });
-  if (!resp.ok) return null;
+  let resp;
+  try {
+    resp = await fetch(url, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+  } catch (e) {
+    console.error(`sbGet(${tbl}) network error:`, e.message, '| url:', url);
+    return null;
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '<unreadable body>');
+    console.error(`sbGet(${tbl}) failed: ${resp.status} ${resp.statusText} | url: ${url} | body: ${body}`);
+    return null;
+  }
   const data = await resp.json();
-  return Array.isArray(data) ? data : null;
+  if (!Array.isArray(data)) {
+    console.error(`sbGet(${tbl}) unexpected non-array response | url: ${url} | body:`, data);
+    return null;
+  }
+  return data;
 }
 
 // Row-count-only query (no rows fetched) via PostgREST's exact-count
@@ -68,15 +82,28 @@ async function sbGet(tbl, query) {
 // runs server-side without the supabase-js client.
 async function sbCount(tbl, query) {
   const url = `${SUPABASE_URL}/rest/v1/${tbl}?${query}&select=id&limit=1`;
-  const resp = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      Prefer: 'count=exact',
-    },
-  });
-  if (!resp.ok) return 0;
+  let resp;
+  try {
+    resp = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: 'count=exact',
+      },
+    });
+  } catch (e) {
+    console.error(`sbCount(${tbl}) network error:`, e.message, '| url:', url);
+    return 0;
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '<unreadable body>');
+    console.error(`sbCount(${tbl}) failed: ${resp.status} ${resp.statusText} | url: ${url} | body: ${body}`);
+    return 0;
+  }
   const range = resp.headers.get('content-range'); // "0-0/42"
   const total = range && range.split('/')[1];
+  if (!total || total === '*') {
+    console.error(`sbCount(${tbl}) missing/unparseable content-range header | url: ${url} | header: ${range}`);
+  }
   return total && total !== '*' ? parseInt(total, 10) || 0 : 0;
 }
 
@@ -387,6 +414,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
     res.status(result.status).send(result.html);
   } catch (e) {
+    console.error(`prerender handler failed | type=${type} username=${username} id=${id} origin=${origin}:`, e.stack || e.message);
     res.status(502).send('Render failed: ' + e.message);
   }
 }
