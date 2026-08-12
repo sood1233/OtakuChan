@@ -51,6 +51,13 @@
         <a href="#" class="back" onclick="openCreateListModal();return false;">+ Create</a>
       </div>
 
+      <div class="xsearch" id="lists-searchbox" style="margin:12px 16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="lists-search" placeholder="Search Lists" autocomplete="off">
+      </div>
+
+      <div id="list-discover" style="display:none;"></div>
+
       <div id="board-hdr">
         <div class="xtabs" id="lists-tabs">
           <button class="xtab active" id="ltab-mine" onclick="switchListsTab('mine');return false;">Your Lists</button>

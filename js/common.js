@@ -490,6 +490,7 @@ function toggleMoreMenu() { document.getElementById('more-wrap')?.classList.togg
 // auth.js alongside renderSideNav() any time session/profile/unread
 // state changes, so the avatar, counts, and badge never go stale. ──
 const PLUS_ICON = '<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>';
+const CHECK_ICON = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
 const ICON_COMPOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
 function mchrome() {
@@ -2290,23 +2291,124 @@ function listAvatarInner(l) {
   return l.avatar_url ? `<img src="${esc(l.avatar_url)}" alt="">` : `<span class="list-avatar-glyph">${NAV_ICON.list}</span>`;
 }
 
+// Deterministic accent color for a list's square glyph avatar (only
+// applied when it has no custom picture) — purely cosmetic, keeps a
+// browse list from reading as a wall of identical maroon squares,
+// matching Twitter's own varied List icon colors.
+function listAvatarColorClass(id) {
+  const n = String(id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return `list-avatar-c${(n % 5) + 1}`;
+}
+function listAvatarClass(l) {
+  return `list-avatar${l.avatar_url ? '' : ' ' + listAvatarColorClass(l.id)}`;
+}
+
 // Compact list-row markup — used by lists.html's Your Lists/Lists
-// you're on tabs and by the sidebar "My Lists" box.
-function listRowHtml(l, ownerProfile = null) {
+// you're on tabs, profilelists.js, and the sidebar "My Lists" box.
+// `opts.following` marks a row as a followed-not-owned List (see
+// lists.js), which swaps in a small "Following" pill so it can be
+// unfollowed right from the row.
+function listRowHtml(l, ownerProfile = null, opts = {}) {
   const privacyTag = l.is_private
     ? `<span class="list-privacy-tag">${ICON_LOCK}Private</span>`
     : '';
-  const byLine = ownerProfile ? `<span class="who-row-handle">by @${esc(ownerProfile.username)}</span>` : '';
+  const byLine = ownerProfile ? `<span class="who-row-handle">by @${esc(ownerProfile.username)}${vBadge(ownerProfile)}</span>` : '';
+  const unfollowBtn = opts.following
+    ? `<button type="button" class="list-row-unfollow" onclick="event.preventDefault();listToggleFollow('${l.id}', this, true)">Following</button>`
+    : '';
   return `
     <a class="who-row list-row" href="${listUrl(l.id)}">
-      <span class="list-avatar">${listAvatarInner(l)}</span>
+      <span class="${listAvatarClass(l)}">${listAvatarInner(l)}</span>
       <span class="who-row-txt">
         <span class="who-row-name">${esc(l.name)} ${privacyTag}</span>
         ${l.description ? `<span class="comm-desc">${esc(l.description)}</span>` : ''}
         <span class="who-row-handle">${fmtCount(l.member_count)} member${l.member_count === 1 ? '' : 's'}</span>
         ${byLine}
       </span>
+      ${unfollowBtn}
     </a>`;
+}
+
+// Small overlapping avatar stack + "N followers including @user"
+// caption under a Discover row — mirrors the line Twitter's own List
+// Discover screen shows under the member count.
+function listFollowerPreviewHtml(followerProfiles, followerCount) {
+  if (!followerCount) return '';
+  const stack = (followerProfiles || []).slice(0, 3)
+    .map(p => `<img class="list-fp-avatar" src="${esc(avatarUrl(p.avatar_url))}" alt="" loading="lazy">`).join('');
+  const first = (followerProfiles || [])[0];
+  return `<span class="list-fp-row">
+      ${stack ? `<span class="list-fp-stack">${stack}</span>` : ''}
+      <span class="list-fp-txt">${fmtCount(followerCount)} follower${followerCount === 1 ? '' : 's'}${first ? ` including @${esc(first.username)}` : ''}</span>
+    </span>`;
+}
+
+// Discover-section row — richer than listRowHtml: shows who owns it,
+// a follower preview, and a circular Follow button instead of just
+// linking through. Used only by lists.html's "Discover new Lists".
+function listDiscoverRowHtml(l, ownerProfile, following, followerProfiles) {
+  const followBtn = `<button type="button" class="list-follow-btn${following ? ' list-following-btn' : ''}"
+      onclick="event.preventDefault();listToggleFollow('${l.id}', this, ${following})"
+      aria-label="${following ? 'Unfollow' : 'Follow'} this List">${following ? CHECK_ICON : PLUS_ICON}</button>`;
+  return `
+    <a class="list-discover-row" href="${listUrl(l.id)}">
+      <span class="${listAvatarClass(l)}">${listAvatarInner(l)}</span>
+      <span class="list-discover-body">
+        <span class="list-discover-name">${esc(l.name)}</span>
+        <span class="list-discover-meta">${fmtCount(l.member_count)} member${l.member_count === 1 ? '' : 's'}${ownerProfile ? ` &middot; by @${esc(ownerProfile.username)}` : ''}</span>
+        ${listFollowerPreviewHtml(followerProfiles, l.follower_count || 0)}
+      </span>
+      ${followBtn}
+    </a>`;
+}
+
+// Shared follow/unfollow for a public List — distinct from
+// list_members (who's curated ONTO a List, owner-only). Following a
+// List just pins it into the follower's own /lists "Your Lists"
+// section, same as Twitter's own List-follow button. Used by
+// lists.html's Discover section, its "Your Lists" row pill, and
+// list.html's own header.
+async function followList(listId) {
+  if (!requireLogin()) return { error: new Error('not logged in') };
+  const { error } = await sb.from('list_followers')
+    .insert({ list_id: listId, follower_id: currentSession.user.id });
+  return { error };
+}
+async function unfollowList(listId) {
+  if (!requireLogin()) return { error: new Error('not logged in') };
+  const { error } = await sb.from('list_followers')
+    .delete().eq('list_id', listId).eq('follower_id', currentSession.user.id);
+  return { error };
+}
+
+async function listToggleFollow(listId, btn, currentlyFollowing) {
+  if (!requireLogin()) return;
+  btn.disabled = true;
+  try {
+    const { error } = currentlyFollowing ? await unfollowList(listId) : await followList(listId);
+    if (error) throw error;
+    const nowFollowing = !currentlyFollowing;
+    btn.setAttribute('onclick', `event.preventDefault();listToggleFollow('${listId}', this, ${nowFollowing})`);
+    if (btn.classList.contains('list-follow-btn')) {
+      // circular Discover-row button
+      btn.classList.toggle('list-following-btn', nowFollowing);
+      btn.setAttribute('aria-label', `${nowFollowing ? 'Unfollow' : 'Follow'} this List`);
+      btn.innerHTML = nowFollowing ? CHECK_ICON : PLUS_ICON;
+    } else if (btn.classList.contains('list-row-unfollow')) {
+      // "Following" pill on a Your-Lists row — the row itself drops
+      // out once unfollowed, handled by onListFollowChanged() below.
+    } else {
+      // Follow/Following pill on the single-list page header
+      btn.textContent = nowFollowing ? 'Following' : 'Follow';
+      btn.classList.toggle('list-follow-pill', !nowFollowing);
+      btn.classList.toggle('list-following-pill', nowFollowing);
+    }
+    btn.disabled = false;
+    if (typeof onListFollowChanged === 'function') onListFollowChanged(listId, nowFollowing);
+  } catch (e) {
+    btn.disabled = false;
+    toast(e.message || 'Could not update that List.', 'error');
+  }
 }
 
 const ICON_LOCK = '<svg class="list-lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5.5" y="10.5" width="13" height="9" rx="1.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
@@ -2551,13 +2653,19 @@ async function renderMyLists() {
     return;
   }
 
-  const { data, error } = await sb.from('lists')
-    .select('*')
-    .eq('owner_id', currentSession.user.id)
-    .order('created_at', { ascending: false })
-    .limit(4);
+  // "My Lists" now means owned-or-followed, same as the "Your Lists"
+  // tab on lists.html — merge both, newest activity first.
+  const [{ data: owned, error: ownErr }, { data: followedRows, error: folErr }] = await Promise.all([
+    sb.from('lists').select('*').eq('owner_id', currentSession.user.id).order('created_at', { ascending: false }).limit(4),
+    sb.from('list_followers').select('followed_at, list:lists(*)').eq('follower_id', currentSession.user.id).order('followed_at', { ascending: false }).limit(4)
+  ]);
+  const ownedRows = (ownErr ? [] : owned || []).map(l => ({ l, t: l.created_at }));
+  const followedRowsClean = (folErr ? [] : followedRows || []).filter(r => r.list).map(r => ({ l: r.list, t: r.followed_at }));
+  const mine = [...ownedRows, ...followedRowsClean]
+    .sort((a, b) => new Date(b.t) - new Date(a.t))
+    .slice(0, 4)
+    .map(r => r.l);
 
-  const mine = error ? [] : (data || []);
   box.innerHTML = header + createRow +
     mine.map(l => listRowHtml(l)).join('') +
     `<a class="show-more" href="lists.html">${mine.length ? 'See all' : 'Browse Lists'}</a>`;

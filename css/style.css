@@ -714,6 +714,61 @@ select {
 .list-list .list-avatar-glyph { width:22px; height:22px; }
 .list-list .who-row-name { font-size:15px; }
 
+/* Deterministic accent colors for a list's square glyph avatar (only
+   applied when it has no custom picture) — keeps a browse list from
+   reading as a wall of identical maroon squares. */
+.list-avatar-c1 { background:#F59E0B; }
+.list-avatar-c2 { background:#DB2777; }
+.list-avatar-c3 { background:#2563EB; }
+.list-avatar-c4 { background:#059669; }
+.list-avatar-c5 { background:#7C3AED; }
+
+/* "Following" pill on a "Your Lists" row (lists.html/sidebar) — lets
+   you unfollow a List you don't own without opening it. */
+.list-row-unfollow { flex:none; align-self:center; background:none; color:var(--muted); border:1px solid var(--line); font-size:12px; font-weight:800; padding:5px 12px; border-radius:999px; cursor:pointer; transition:background-color .12s ease, color .12s ease, border-color .12s ease; }
+.list-row-unfollow:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.4); }
+
+/* ── LIST DISCOVER SECTION (lists.html) — Twitter-style "Discover new
+   Lists": public Lists the current user doesn't already own or
+   follow, each with a circular Follow (+) button and a small
+   overlapping avatar stack of a few of its followers. ── */
+.list-sec-hdr { font-size:20px; font-weight:800; color:var(--ink); padding:14px 16px 8px; }
+.list-discover-list { display:flex; flex-direction:column; }
+.list-discover-row { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); text-decoration:none; color:var(--ink); transition:background-color .12s ease; animation:oc-fade-in .2s ease both; }
+.list-discover-row:hover { background:rgba(15,20,25,.03); text-decoration:none; }
+.list-discover-row .list-avatar { width:44px; height:44px; margin-top:1px; }
+.list-discover-body { flex:1; min-width:0; }
+.list-discover-name { display:block; font-size:15px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.list-discover-meta { display:block; font-size:13px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.list-fp-row { display:flex; align-items:center; gap:6px; margin-top:6px; min-width:0; }
+.list-fp-stack { display:flex; flex:none; }
+.list-fp-avatar { width:20px; height:20px; border-radius:50%; object-fit:cover; border:2px solid var(--bg); margin-left:-8px; background:var(--hover-bg); }
+.list-fp-stack .list-fp-avatar:first-child { margin-left:0; }
+.list-fp-txt { font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.list-follow-btn {
+  flex:none; width:32px; height:32px; margin-top:1px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--bg); color:var(--ink); border:1px solid var(--line); cursor:pointer; transition:background-color .12s ease, transform .1s ease;
+}
+.list-follow-btn svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2.4; }
+.list-follow-btn:hover { background:var(--hover-bg); }
+.list-follow-btn:active { transform:scale(.9); }
+.list-follow-btn.list-following-btn { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+.list-discover-showmore { display:block; padding:12px 16px; font-size:15px; color:var(--link); text-decoration:none; border-bottom:1px solid var(--line); }
+.list-discover-showmore:hover { background:rgba(15,20,25,.03); text-decoration:none; }
+
+/* Follow/Following pill on the single-list page header (list.html),
+   shown to a logged-in non-owner viewing a public List — same visual
+   language as .comm-join-btn/.comm-leave-btn. */
+.list-follow-pill, .list-following-pill {
+  font-size:14px; font-weight:800; padding:8px 18px; border-radius:999px; cursor:pointer; transition:background-color .12s ease, color .12s ease, border-color .12s ease, transform .1s ease;
+}
+.list-follow-pill { background:var(--ink); color:var(--bg); border:none; }
+.list-follow-pill:hover { filter:brightness(.85); }
+.list-following-pill { background:none; color:var(--ink); border:1px solid var(--line); }
+.list-following-pill:hover { background:rgba(220,38,38,.08); color:#dc2626; border-color:rgba(220,38,38,.4); }
+.list-follow-pill:active, .list-following-pill:active { transform:scale(.96); }
+.list-follow-pill:disabled, .list-following-pill:disabled { opacity:.6; cursor:default; }
+
 /* Create/edit-list modal — same .modal shell as the create-community
    modal, just a little taller to fit the Private toggle row. */
 .cl-modal { width:380px; }

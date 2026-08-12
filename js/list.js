@@ -1,21 +1,29 @@
 // ─────────────────────────────────────────────────────────────
 // SINGLE LIST PAGE — /i/lists/<uuid> (also reachable via the legacy
 // list.html?id=<uuid> form — see currentListId() in common.js).
-// Shows the list's header (name, description, member count,
-// Edit/Delete for the owner), a Posts tab (a timeline merged from
-// every member's posts, same idea as a community's feed) and a
-// Members tab (who's on it, with a Remove button for the owner).
-// Adding someone to a list happens from *their* profile's "···" menu
-// (openAddToListModal() in common.js), not from this page — same
-// division as Twitter, where "Add to Lists" lives on the profile.
+// Shows the list's header (name, description, member/follower count,
+// Edit/Delete for the owner or a Follow/Following pill for anyone
+// else on a public List), a Posts tab (a timeline merged from every
+// member's posts, same idea as a community's feed), a Members tab
+// (who's curated onto it, with a Remove button for the owner) and a
+// Followers tab (who's following it). Both people-tabs show each
+// row's own personal Follow button too (follow the person, not the
+// List — see listPersonRowHtml()), same as Twitter's List sub-pages.
+// Adding someone to a list as a *member* happens from *their*
+// profile's "···" menu (openAddToListModal() in common.js), not from
+// this page — same division as Twitter, where "Add to Lists" lives
+// on the profile. Following the List itself happens right here.
 // ─────────────────────────────────────────────────────────────
 const POST_SELECT = '*, profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)';
 
 const listId = currentListId();
 let list = null;       // the loaded list row
 let isOwner = false;
-let listTab = 'posts';   // 'posts' | 'members'
+let isFollowing = false; // is the viewer following this List (non-owner only)
+let listTab = 'posts';   // 'posts' | 'members' | 'followers'
 let listMembers = [];    // [{id, username, display_name, avatar_url}], loaded once
+let listFollowers = [];  // same shape, loaded lazily on first visit to the Followers tab
+let listMyFollowing = new Set(); // ids of people the *viewer* personally follows — drives each row's own Follow button
 
 async function loadList() {
   const heroEl = document.getElementById('list-hero');
@@ -39,14 +47,29 @@ async function loadList() {
   });
 
   isOwner = !!(currentSession && list.owner_id === currentSession.user.id);
+  if (currentSession && !isOwner) {
+    const { data: fRow } = await sb.from('list_followers')
+      .select('list_id').eq('list_id', list.id).eq('follower_id', currentSession.user.id).maybeSingle();
+    isFollowing = !!fRow;
+  }
 
   const { data: owner } = await sb.from('profiles').select('username,display_name').eq('id', list.owner_id).maybeSingle();
   list._owner = owner;
 
   renderHero();
   document.getElementById('board-hdr').style.display = '';
-  await loadListMembers();
+  await Promise.all([loadListMembers(), loadListMyFollowing()]);
   renderTabContent();
+}
+
+// The viewer's own personal follows (not List-follows) — drives the
+// per-row Follow button on the Members/Followers tabs, same as
+// followlist.js's flLoadMyFollowing().
+async function loadListMyFollowing() {
+  listMyFollowing = new Set();
+  if (!currentSession) return;
+  const { data } = await sb.from('follows').select('followee_id').eq('follower_id', currentSession.user.id);
+  listMyFollowing = new Set((data || []).map(r => r.followee_id));
 }
 
 function renderHero() {
@@ -56,6 +79,10 @@ function renderHero() {
     <div class="list-hero-actions">
       <button type="button" class="list-edit-btn" onclick="openCreateListModal(list)">Edit</button>
       <button type="button" class="list-delete-btn" onclick="deleteListConfirm(list.id, list.name)">Delete</button>
+    </div>`
+    : (currentSession && !list.is_private) ? `
+    <div class="list-hero-actions">
+      <button type="button" class="${isFollowing ? 'list-following-pill' : 'list-follow-pill'}" onclick="listToggleFollow('${list.id}', this, ${isFollowing})">${isFollowing ? 'Following' : 'Follow'}</button>
     </div>` : '';
   const bannerPick = isOwner ? `
     <label class="list-banner-pick" for="list-banner-file" title="Change List banner">
@@ -81,10 +108,21 @@ function renderHero() {
         <div class="list-hero-name">${esc(list.name)} ${privacyTag}</div>
         ${list._owner ? `<div class="list-hero-owner">by <a href="${profileUrl(list._owner.username)}">@${esc(list._owner.username)}</a></div>` : ''}
         ${list.description ? `<div class="list-hero-desc">${esc(list.description)}</div>` : ''}
-        <div class="list-hero-meta">${fmtCount(list.member_count)} member${list.member_count === 1 ? '' : 's'}</div>
+        <div class="list-hero-meta">${fmtCount(list.member_count)} member${list.member_count === 1 ? '' : 's'} &middot; ${fmtCount(list.follower_count || 0)} follower${(list.follower_count || 0) === 1 ? '' : 's'}</div>
       </div>
       ${actions}
     </div>`;
+}
+
+// Called by listToggleFollow() (common.js) after a follow/unfollow of
+// this List completes — keeps the hero's follower count and pill in
+// sync without a full reload.
+function onListFollowChanged(id, following) {
+  if (!list || id !== list.id) return;
+  isFollowing = following;
+  list.follower_count = Math.max(0, (list.follower_count || 0) + (following ? 1 : -1));
+  renderHero();
+  if (listTab === 'followers') loadListFollowers().then(renderFollowers);
 }
 
 // Owner-only, same pattern as changeCommunityAvatar/Banner: crop
@@ -145,6 +183,7 @@ function switchListTab(tab) {
   listTab = tab;
   document.getElementById('tab-posts').classList.toggle('active', tab === 'posts');
   document.getElementById('tab-members').classList.toggle('active', tab === 'members');
+  document.getElementById('tab-followers').classList.toggle('active', tab === 'followers');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   renderTabContent();
 }
@@ -163,7 +202,20 @@ async function loadListMembers() {
 
 function renderTabContent() {
   if (listTab === 'posts') loadListFeed();
+  else if (listTab === 'followers') { loadListFollowers().then(renderFollowers); document.getElementById('list-content').innerHTML = skeletonFeedHtml(); }
   else renderMembers();
+}
+
+async function loadListFollowers() {
+  const { data: rows, error } = await sb.from('list_followers')
+    .select('follower_id, followed_at').eq('list_id', list.id).order('followed_at', { ascending: false });
+  if (error) { listFollowers = []; return; }
+  const ids = (rows || []).map(r => r.follower_id);
+  if (!ids.length) { listFollowers = []; return; }
+  const { data: profiles } = await sb.from('profiles')
+    .select('id,username,display_name,avatar_url,verified').in('id', ids);
+  const byId = new Map((profiles || []).map(p => [p.id, p]));
+  listFollowers = rows.map(r => byId.get(r.follower_id)).filter(Boolean);
 }
 
 async function loadListFeed() {
@@ -188,21 +240,67 @@ async function loadListFeed() {
   el.innerHTML = data.map(p => postCardHtml(p)).join('');
 }
 
+// Shared row for both the Members and Followers tabs — a person's
+// avatar/name/handle plus their OWN personal Follow button (follow
+// that person, not the List — see followlist.js's near-identical
+// flRowHtml()), and optionally a Remove button for the List owner.
+function listPersonRowHtml(profile, removable) {
+  const uname = profile?.username || 'unknown';
+  const viewerIsThem = currentSession && profile.id === currentSession.user.id;
+  const following = listMyFollowing.has(profile.id);
+  const locked = following && isProtectedFollowUsername(uname);
+  const followBtn = (!currentSession || viewerIsThem) ? '' : locked
+    ? `<button class="follow-btn following locked" disabled title="You can't unfollow this account." aria-label="You can't unfollow this account.">${ICON_LOCK_SM}${t('action.following')}</button>`
+    : `<button class="follow-btn${following ? ' following' : ''}" onclick="listPersonToggleFollow('${profile.id}', this)">${following ? t('action.following') : t('action.follow')}</button>`;
+  const removeBtn = removable
+    ? `<button type="button" class="list-member-remove" onclick="event.preventDefault();removeListMember('${profile.id}', '${u_(uname)}')">Remove</button>`
+    : '';
+  return `
+  <div class="fl-row">
+    <a class="ulrow" style="flex:1;min-width:0;" href="${profileUrl(uname)}">
+      <img class="avatar pfp-md" src="${esc(avatarUrl(profile?.avatar_url))}" alt="" loading="lazy" decoding="async">
+      <div class="ulrow-txt">
+        <span class="ulrow-name">${esc(profile?.display_name || uname)}${vBadge(profile)}</span>
+        <span class="ulrow-handle">@${esc(uname)}</span>
+      </div>
+    </a>
+    ${followBtn}
+    ${removeBtn}
+  </div>`;
+}
+
+async function listPersonToggleFollow(userId, btn) {
+  if (!requireLogin()) return;
+  const following = btn.classList.contains('following');
+  btn.disabled = true;
+  try {
+    const { error } = following ? await unfollowUser(userId) : await followUser(userId);
+    if (error) throw error;
+    if (following) { listMyFollowing.delete(userId); btn.classList.remove('following'); btn.textContent = t('action.follow'); }
+    else { listMyFollowing.add(userId); btn.classList.add('following'); btn.textContent = t('action.following'); }
+  } catch (e) {
+    toast(e.message || 'Could not update follow status.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderMembers() {
   const el = document.getElementById('list-content');
   if (!listMembers.length) {
     el.innerHTML = `<div id="feed-empty">No one's on this List yet. Add people from their profile's &ldquo;&middot;&middot;&middot;&rdquo; menu.</div>`;
     return;
   }
-  el.innerHTML = `<div class="comm-list">` + listMembers.map(m => `
-    <a class="who-row comm-row" href="${profileUrl(m.username)}">
-      <img class="avatar" src="${esc(avatarUrl(m.avatar_url))}" alt="" loading="lazy" decoding="async">
-      <span class="who-row-txt">
-        <span class="who-row-name">${esc(m.display_name || m.username)}</span>
-        <span class="who-row-handle">@${esc(m.username)}</span>
-      </span>
-      ${isOwner ? `<button type="button" class="list-member-remove" onclick="event.preventDefault();removeListMember('${m.id}', '${u_(m.username)}')">Remove</button>` : ''}
-    </a>`).join('') + `</div>`;
+  el.innerHTML = listMembers.map(m => listPersonRowHtml(m, isOwner)).join('');
+}
+
+function renderFollowers() {
+  const el = document.getElementById('list-content');
+  if (!listFollowers.length) {
+    el.innerHTML = `<div id="feed-empty">No one's following this List yet.</div>`;
+    return;
+  }
+  el.innerHTML = listFollowers.map(f => listPersonRowHtml(f, false)).join('');
 }
 
 async function removeListMember(memberId, username) {

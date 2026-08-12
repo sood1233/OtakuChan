@@ -302,6 +302,32 @@ owner-only-editable groups of people:
   timeline of everyone on the List, newest first) and a **Members**
   tab (with a Remove button for the owner).
 
+Run `supabase/list_followers.sql` after `lists.sql` to add
+Twitter-style List *following*, on top of the above — a separate
+concept from being a List's member:
+- **`list_followers`** — a join table; anyone can follow (or unfollow)
+  a **public** List to pin it into their own `/lists` "Your Lists"
+  section, the same way following a List works on Twitter. This never
+  makes them a `list_members` row — they're not added as a content
+  source, they're just subscribed to see it. A denormalized
+  `lists.follower_count` tracks the total, kept in sync by a trigger.
+- **`/lists`** now opens with a **Discover new Lists** section — public
+  Lists the current account doesn't already own or follow, each with a
+  circular Follow button and a small avatar-stack preview of a few of
+  its existing followers ("12 followers including @user") — plus a
+  "Search Lists" box that filters both Discover and whichever tab is
+  open. The **Your Lists** tab is now owned-Lists ∪ followed-Lists,
+  merged by most-recent activity; a followed (not owned) row shows a
+  small "Following" pill to unfollow right from the row. **Lists
+  you're on** is unchanged (`list_members`-based).
+- A List's own page (`/i/lists/<id>`) gains a **Follow/Following**
+  pill in its header (shown to any logged-in non-owner on a public
+  List) and a third **Followers** tab alongside Posts/Members. Both
+  the Members and Followers tabs show each person's own personal
+  Follow button too (follow that person, not the List), reusing the
+  same row shape as `/`<username>`/followers` — see
+  `listPersonRowHtml()` in `js/list.js`.
+
 ## Post detail page
 `thread.html` (tapping into a post) uses its own larger layout —
 `.op-detail` in `css/style.css`, built by `loadThread()` in
