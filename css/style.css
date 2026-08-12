@@ -246,7 +246,8 @@ html[data-theme="dim"] .logo-mark-light, html[data-theme="dark"] .logo-mark-ligh
 html[data-theme="dim"] .logo-mark-dark, html[data-theme="dark"] .logo-mark-dark { display:block; }
 
 /* ═══════════════════════════════════════════════════════════════
-   APP SHELL — #hdr is the sticky left sidebar (Twitter nav column),
+   APP SHELL — #hdr is the fixed left sidebar (Twitter nav column),
+   pinned to the viewport so it never moves while scrolling.
    #main is the flex row of [center column, right column].
    ═══════════════════════════════════════════════════════════════ */
 .xshell {
@@ -257,12 +258,23 @@ html[data-theme="dim"] .logo-mark-dark, html[data-theme="dark"] .logo-mark-dark 
   align-items:flex-start;
 }
 
-/* ── LEFT SIDEBAR ── */
+/* ── LEFT SIDEBAR ──
+   position:fixed (not sticky) — sticky still lets the sidebar drift
+   by a pixel or two in some browsers depending on how the sticky
+   containing block/ancestor stacking resolves; fixed pins it to the
+   viewport with zero ambiguity, so it truly never moves while the
+   page scrolls. Because fixed elements are pulled out of normal
+   flow, "left" is computed to land exactly where the in-flow sidebar
+   used to sit — .xshell centers itself at max-width:1265px via
+   margin:0 auto, so its own left edge is max(0, (viewport-1265)/2);
+   the sidebar mirrors that. #main picks up a matching margin-left
+   below so its content starts exactly where it used to. */
 #hdr {
   width:275px;
   flex:none;
-  position:sticky;
+  position:fixed;
   top:0;
+  left:max(0px, calc(50% - 632.5px));
   height:100vh;
   display:flex;
   flex-direction:column;
@@ -272,6 +284,7 @@ html[data-theme="dim"] .logo-mark-dark, html[data-theme="dark"] .logo-mark-dark 
   box-shadow:none;
   background:var(--bg);
   color:var(--ink);
+  z-index:50;
 }
 #hdr .sb-top { display:flex; flex-direction:column; gap:2px; }
 
@@ -486,7 +499,7 @@ select {
 .sec-bar a.back:hover { text-decoration:underline; }
 
 /* ── MAIN LAYOUT ── */
-#main { display:flex; gap:0; padding:0; max-width:none; margin:0; align-items:flex-start; flex:1; min-width:0; }
+#main { display:flex; gap:0; padding:0; max-width:none; margin:0 0 0 275px; align-items:flex-start; flex:1; min-width:0; }
 #feed { flex:1 1 600px; max-width:600px; min-width:0; border-left:1px solid var(--line); border-right:1px solid var(--line); min-height:100vh; }
 #sidebar { flex:0 0 350px; min-width:0; padding:8px 16px; position:sticky; top:0; max-height:100vh; overflow-y:auto; scrollbar-width:none; }
 #sidebar::-webkit-scrollbar { display:none; }
@@ -1525,6 +1538,7 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 
 @media (max-width:1150px) {
   #hdr { width:88px; align-items:center; padding:8px 6px; }
+  #main { margin-left:88px; }
   #hdr .sb-top { align-items:center; width:100%; }
   .logo { padding:10px; width:auto; }
   .logo .wordmark { display:none; }
@@ -1584,7 +1598,7 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 
 @media (max-width:700px) {
   #hdr { display:none; }
-  #main { padding-top:53px; padding-bottom:calc(50px + env(safe-area-inset-bottom)); }
+  #main { margin-left:0; padding-top:53px; padding-bottom:calc(50px + env(safe-area-inset-bottom)); }
   #sidebar, .xright { display:none; }
 
   #m-topbar {
