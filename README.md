@@ -407,6 +407,29 @@ as before (see "NOTIFICATIONS" section of `schema.sql`); this only
 adds a plain aggregate counter, the same way `like_count`/
 `reply_count`/`repost_count` already work.
 
+## Editing your own posts & comments
+Run `supabase/edit_own_post.sql` in the SQL Editor after `schema.sql`
+(additive/idempotent like the others) to let people fix a typo in
+their own post or reply shortly after posting it:
+- A post or comment can be edited by its author for **15 minutes**
+  after it's posted — after that the Edit option disappears from its
+  "···" menu. Unlike Delete, Edit is author-only: a community creator
+  can still remove someone else's post in their own space, but can't
+  rewrite it.
+- The 15-minute window is enforced **in the database**, inside the
+  `edit_own_post`/`edit_own_reply` SECURITY DEFINER functions this
+  file adds — the same pattern `delete_own_post`/`delete_own_reply`
+  already use, since this app's client talks to Supabase with the
+  public anon key and a client-only check can always be skipped by
+  calling the RPC directly. The client-side copy of the same check
+  (`withinEditWindow()` in `js/common.js`) exists only to give an
+  instant "the edit window has passed" message instead of a round
+  trip that fails.
+- Adds an `updated_at` column to `posts` and `replies`. Once a post or
+  comment has been edited, every place it's rendered (feed, thread,
+  profile, search, lightbox) shows a small "· Edited" tag next to its
+  timestamp — see `editedSuffix()` in `js/common.js`.
+
 ## Customizing
 - SEO/indexing: `api/sitemap.js`, `api/robots.js`, `api/prerender.js`
   (bot-only server render), plus `setCanonical()`/`setPageImage()`/

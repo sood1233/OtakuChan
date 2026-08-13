@@ -13,6 +13,20 @@ const REPLY_SELECT  = '*, profile:profiles(username,display_name,avatar_url,veri
 let allReplies = []; // flat list, kept around so inline "reply to this comment" forms can insert without a refetch
 let currentPost = null; // the OP post, kept around so hash-driven re-renders don't need to refetch it
 
+// Optional hook called by applyEditToDom() in common.js right after a
+// successful edit — applyEditToDom() already patched every rendered
+// copy of the post/reply directly, this just keeps allReplies/
+// currentPost in sync so a later re-render (hash nav, changing
+// comment sort) doesn't revert to the pre-edit body.
+function onPostBodyEdited(id, newBody, updatedAt) {
+  if (currentPost && currentPost.id === id) {
+    currentPost.body = newBody;
+    currentPost.updated_at = updatedAt;
+  }
+  const r = allReplies.find(x => x.id === id);
+  if (r) { r.body = newBody; r.updated_at = updatedAt; }
+}
+
 // ── COMMENT SORT ──
 // Only the top-level comment order changes — each comment's own
 // children always stay in chronological order underneath it (same as
@@ -256,14 +270,14 @@ function opBlockHtml(p) {
           <span class="op-name-line"><a class="nm" href="${profileUrl(p.profile?.username || 'unknown')}">${esc(p.profile?.display_name || p.profile?.username || 'unknown')}</a>${vBadge(p.profile)}</span>
           <span class="pc-handle">@${esc(p.profile?.username || 'unknown')}</span>
         </div>
-        ${postMenuHtml(p.id, null, p.author_id, p.community_id)}
+        ${postMenuHtml(p.id, null, p.author_id, p.community_id, p.created_at)}
       </div>
-      <div class="op-detail-body">${renderBody(p.body)}</div>
+      <div class="op-detail-body" data-pb="${p.id}">${renderBody(p.body)}</div>
       ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
       ${p.article_id ? articleCardHtml(p._promoArticle) : ''}
       ${renderMedia(p.media_url, p.media_type, '', p)}
       ${pollHtml(p)}
-      <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
+      <div class="op-detail-meta"><span data-dt="${p.id}">${fullDateTime(p.created_at)}${editedSuffix(p)}</span> &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
       <div class="op-detail-divider"></div>
       ${opDetailActionsHtml(p, "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();")}
       <div class="op-detail-divider"></div>
@@ -293,8 +307,8 @@ function ancestorRowHtml(r) {
     <div class="pc-row">
       ${pcAvatarHtml(r.profile)}
       <div class="pc-main">
-        <div class="ph">${pcNameHtml(r.profile)}<span class="dt">${timeAgo(r.created_at)}</span></div>
-        <div class="pb">${renderBody(r.body)}</div>
+        <div class="ph">${pcNameHtml(r.profile)}<span class="dt" data-dt="${r.id}">${timeAgo(r.created_at)}${editedSuffix(r)}</span></div>
+        <div class="pb" data-pb="${r.id}">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type, '', r)}
       </div>
     </div>
@@ -353,11 +367,11 @@ function renderConversation() {
           <span class="op-name-line"><a class="nm" href="${profileUrl(focused.profile?.username || 'unknown')}">${esc(focused.profile?.display_name || focused.profile?.username || 'unknown')}</a>${vBadge(focused.profile)}</span>
           <span class="pc-handle">@${esc(focused.profile?.username || 'unknown')}</span>
         </div>
-        ${postMenuHtml(postId, focused.id, focused.author_id)}
+        ${postMenuHtml(postId, focused.id, focused.author_id, null, focused.created_at)}
       </div>
-      <div class="op-detail-body">${renderBody(focused.body)}</div>
+      <div class="op-detail-body" data-pb="${focused.id}">${renderBody(focused.body)}</div>
       ${renderMedia(focused.media_url, focused.media_type, '', focused)}
-      <div class="op-detail-meta">${fullDateTime(focused.created_at)}</div>
+      <div class="op-detail-meta"><span data-dt="${focused.id}">${fullDateTime(focused.created_at)}${editedSuffix(focused)}</span></div>
       <div class="op-detail-divider"></div>
       ${postActionsHtml(focused, {
         replyOnclick: "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();",
@@ -443,10 +457,10 @@ function replyHtml(r, depth) {
         ${parent ? `<div class="rc-reply-tag">Replying to ${pcNameHtml(parent.profile)}</div>` : ''}
         <div class="ph">
           ${pcNameHtml(r.profile)}
-          <span class="dt">${timeAgo(r.created_at)}</span>
-          ${postMenuHtml(postId, r.id, r.author_id)}
+          <span class="dt" data-dt="${r.id}">${timeAgo(r.created_at)}${editedSuffix(r)}</span>
+          ${postMenuHtml(postId, r.id, r.author_id, null, r.created_at)}
         </div>
-        <div class="pb">${renderBody(r.body)}</div>
+        <div class="pb" data-pb="${r.id}">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type, '', r)}
         ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false, repostable: false })}
       </div>

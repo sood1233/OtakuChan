@@ -1684,6 +1684,25 @@ html[data-theme="dim"] .errmsg, html[data-theme="dark"] .errmsg { background:rgb
 .dc-btn-primary { background:var(--maroon); color:#fff; }
 .dc-btn-primary:hover { background:var(--maroon-hover, var(--maroon)); filter:brightness(.92); }
 
+/* ── EDIT POST/REPLY MODAL — same .modal/.dc-* shell as the delete
+   confirm modal (dc-modal), just wider and text-aligned left to fit
+   a textarea comfortably. ── */
+.modal.ec-modal { width:420px; max-width:92vw; padding:20px 20px 16px; text-align:left; }
+.ec-modal .dc-title { text-align:left; }
+.ec-modal textarea#ec-body {
+  width:100%; min-height:110px; resize:vertical; font:inherit; font-size:15px;
+  line-height:1.4; padding:10px 12px; border-radius:var(--r-sm); border:1px solid var(--div);
+  background:var(--bg); color:var(--ink); margin:0;
+}
+.ec-modal textarea#ec-body:focus { outline:none; border-color:var(--maroon); }
+.ec-count { font-size:12px; color:var(--muted); text-align:right; margin:4px 0 10px; }
+.ec-modal .errmsg { margin:0 0 10px; }
+
+/* "· Edited" tag shown next to a post/reply's timestamp once it's
+   been changed via the Edit flow — see editedSuffix()/markEditedTag()
+   in js/common.js. */
+.edited-tag { color:var(--muted); font-weight:400; }
+
 /* ── TOAST — replaces alert() for routine confirmations ── */
 .oc-toast {
   position:fixed; left:50%; bottom:28px; transform:translate(-50%, 16px);

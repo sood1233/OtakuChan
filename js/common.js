@@ -1709,12 +1709,17 @@ function opDetailActionsHtml(p, replyOnclick) {
 // leave null for replies) additionally shows Delete when the current
 // user created that community, even if they didn't author the post —
 // same as a moderator being able to remove posts in their own space.
-function postMenuHtml(postId, replyId = null, authorId = null, communityId = null) {
+function postMenuHtml(postId, replyId = null, authorId = null, communityId = null, createdAt = null) {
   const target = replyId ? `'${postId}','${replyId}'` : `'${postId}'`;
   const isAuthor = currentSession && authorId && currentSession.user.id === authorId;
   const isCommunityCreator = !replyId && currentSession && communityId && ownedCommunities.has(communityId);
   const isOwner = isAuthor || isCommunityCreator;
   const deleteArgs = replyId ? `'${replyId}', event, true` : `'${postId}', event`;
+  // Edit is author-only (never a community-mod thing like Delete is —
+  // rewriting someone else's words isn't the same as removing them),
+  // and only within EDIT_WINDOW_MS of posting — see withinEditWindow().
+  const editArgs = replyId ? `'${replyId}', event, true` : `'${postId}', event`;
+  const canEdit = isAuthor && withinEditWindow(createdAt);
   // Pin/unpin only makes sense for your own top-level posts (not
   // replies, not posts you can only delete as a community mod).
   const canPin = !replyId && isAuthor;
@@ -1724,6 +1729,7 @@ function postMenuHtml(postId, replyId = null, authorId = null, communityId = nul
       <button class="pc-menu-btn" onclick="togglePostMenu('${replyId || postId}', event)">${ICON.menu}</button>
       <div class="pc-menu-dd">
         ${canPin ? `<button onclick="togglePin('${postId}', event)">${isPinned ? 'Unpin from profile' : 'Pin to your profile'}</button>` : ''}
+        ${canEdit ? `<button onclick="editPost(${editArgs})">Edit</button>` : ''}
         ${isOwner ? `<button class="pc-menu-danger" onclick="deletePost(${deleteArgs})">Delete</button>` : ''}
         <button onclick="openReport(${target})">${t('action.report')}</button>
       </div>
@@ -1899,6 +1905,170 @@ async function confirmDeletePost() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// EDIT OWN POST/REPLY — a post or comment can be edited by its
+// author for a short window after posting, same idea as X letting
+// you fix a typo right after tweeting but not rewrite history days
+// later. postMenuHtml() above only shows the Edit button while
+// withinEditWindow() is true; the real gate is the 15-minute check
+// inside the edit_own_post/edit_own_reply RPCs (see
+// supabase/edit_own_post.sql) — this client-side copy just gives an
+// immediate, friendly message instead of a round trip that fails.
+// ─────────────────────────────────────────────────────────────
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
+function withinEditWindow(createdAt) {
+  return !!createdAt && (Date.now() - new Date(createdAt).getTime()) < EDIT_WINDOW_MS;
+}
+
+// Appended next to a timestamp wherever updated_at differs from
+// created_at (they're set by the same INSERT's `now()`, so they land
+// exactly equal until an edit changes updated_at — see
+// supabase/edit_own_post.sql) — same "· Edited" pattern article.js
+// already uses on the Article detail page.
+function editedSuffix(p) {
+  return (p && p.updated_at && p.updated_at !== p.created_at)
+    ? ` · <span class="edited-tag">Edited</span>` : '';
+}
+
+let pendingEditId = null;
+let pendingEditIsReply = false;
+
+function ecModalEl() {
+  let el = document.getElementById('ec-modal-bg');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'ec-modal-bg';
+  el.className = 'modal-bg';
+  el.addEventListener('click', e => { if (e.target === el) closeEditPost(); });
+  el.innerHTML = `
+    <div class="modal ec-modal">
+      <h2 class="dc-title">Edit</h2>
+      <textarea id="ec-body" maxlength="500" rows="5"></textarea>
+      <div class="ec-count" id="ec-count">0 / 500</div>
+      <div class="errmsg" id="ec-err" style="display:none;"></div>
+      <div class="dc-actions">
+        <button type="button" class="dc-btn dc-btn-primary" id="ec-save-btn" onclick="confirmEditPost()">Save</button>
+        <button type="button" class="dc-btn dc-btn-cancel" onclick="closeEditPost()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && el.classList.contains('open')) closeEditPost();
+  });
+  const ta = el.querySelector('#ec-body');
+  const count = el.querySelector('#ec-count');
+  ta.addEventListener('input', () => { count.textContent = `${ta.value.length} / 500`; });
+  return el;
+}
+
+// Opens the edit modal for one of the current user's own posts/replies,
+// prefilled from postCache — every post/reply card caches itself when
+// rendered (see cachePost() above), so this needs no extra fetch.
+// `isReply` = true means `id` is a reply id (matches deletePost()'s
+// signature/shape above). The 15-minute check here is just a fast,
+// friendly guard for a stale menu left open past the window — the
+// edit_own_post/edit_own_reply RPC is the real, authoritative check.
+function editPost(id, ev, isReply = false) {
+  if (ev) { ev.stopPropagation(); togglePostMenu(id, ev); }
+  if (!requireLogin()) return;
+  const cached = postCache[id];
+  if (!cached || !withinEditWindow(cached.created_at)) {
+    toast('The 15-minute edit window for this has passed.', 'error');
+    return;
+  }
+  pendingEditId = id;
+  pendingEditIsReply = isReply;
+  const el = ecModalEl();
+  const ta = el.querySelector('#ec-body');
+  const errEl = el.querySelector('#ec-err');
+  ta.value = cached.body || '';
+  el.querySelector('#ec-count').textContent = `${ta.value.length} / 500`;
+  clearErr(errEl);
+  if (!el.classList.contains('open')) {
+    el.classList.add('open');
+    lockScroll();
+  }
+  setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 50);
+}
+
+function closeEditPost() {
+  const el = document.getElementById('ec-modal-bg');
+  if (el?.classList.contains('open')) { el.classList.remove('open'); unlockScroll(); }
+  pendingEditId = null;
+  pendingEditIsReply = false;
+}
+
+// Saves the edit via the edit_own_post/edit_own_reply RPC (same
+// SECURITY-DEFINER-does-the-ownership-check pattern as
+// confirmDeletePost() above), then patches every rendered copy of
+// this post/reply on the page and tags it "Edited" — see
+// applyEditToDom() below.
+async function confirmEditPost() {
+  const id = pendingEditId;
+  const isReply = pendingEditIsReply;
+  if (!id || !requireLogin()) return;
+  const el = document.getElementById('ec-modal-bg');
+  const ta = el.querySelector('#ec-body');
+  const errEl = el.querySelector('#ec-err');
+  clearErr(errEl);
+  const body = ta.value.trim();
+  if (!body) { showErr(errEl, isReply ? 'Reply cannot be empty.' : 'Post cannot be empty.'); return; }
+  if (body.length > 500) { showErr(errEl, 'Too long (max 500 chars).'); return; }
+
+  const btn = document.getElementById('ec-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    // Same re-check-the-real-session-first move as confirmDeletePost()
+    // above, for the same reason: currentSession is only ever set once
+    // at page load, so an expired/signed-out-elsewhere session would
+    // otherwise surface as a confusing RPC error instead of this.
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      alert('Your session has expired. Please log in again and retry.');
+      closeEditPost();
+      location.href = 'login.html';
+      return;
+    }
+    const { data, error } = await sb.rpc(isReply ? 'edit_own_reply' : 'edit_own_post',
+      isReply ? { reply_id: id, new_body: body } : { post_id: id, new_body: body });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    const updatedAt = row?.updated_at || new Date().toISOString();
+    applyEditToDom(id, body, updatedAt);
+    closeEditPost();
+    toast('Saved.');
+  } catch (e) {
+    console.error('editPost failed:', e);
+    showErr(errEl, e.message || 'Could not save changes.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+function markEditedTag(dtEl) {
+  if (dtEl && !dtEl.querySelector('.edited-tag')) {
+    dtEl.insertAdjacentHTML('beforeend', ` · <span class="edited-tag">Edited</span>`);
+  }
+}
+
+// Patches every rendered copy of a post/reply on the current page
+// (feed card, thread OP, focused-comment view, reply tree, profile
+// Replies tab, lightbox sidebar — anywhere data-pb/data-dt was
+// stamped with this id in the markup, since the same post can appear
+// more than once, e.g. reposted into a feed) after a successful edit,
+// no refetch needed. Also updates postCache, and — if thread.js
+// happens to be loaded on this page — its own in-memory copies via
+// the optional onPostBodyEdited() hook, so a later re-render (hash
+// nav, changing comment sort) doesn't revert to the pre-edit body.
+function applyEditToDom(id, newBody, updatedAt) {
+  if (postCache[id]) { postCache[id].body = newBody; postCache[id].updated_at = updatedAt; }
+  document.querySelectorAll(`[data-pb="${id}"]`).forEach(elx => { elx.innerHTML = renderBody(newBody); });
+  document.querySelectorAll(`[data-dt="${id}"]`).forEach(markEditedTag);
+  if (typeof onPostBodyEdited === 'function') onPostBodyEdited(id, newBody, updatedAt);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -3005,10 +3175,10 @@ function postCardHtml(p, flash = false) {
       <div class="pc-main">
         <div class="ph">
           ${pcNameHtml(p.profile)}
-          <span class="dt">${timeAgo(p.created_at)}</span>
-          ${postMenuHtml(p.id, null, p.author_id, p.community_id)}
+          <span class="dt" data-dt="${p.id}">${timeAgo(p.created_at)}${editedSuffix(p)}</span>
+          ${postMenuHtml(p.id, null, p.author_id, p.community_id, p.created_at)}
         </div>
-        ${p.body ? `<div class="pb">${renderBody(p.body)}</div>` : ''}
+        ${p.body ? `<div class="pb" data-pb="${p.id}">${renderBody(p.body)}</div>` : ''}
         ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
         ${p.article_id ? articleCardHtml(p._promoArticle) : ''}
         ${renderMedia(p.media_url, p.media_type, '', p)}
@@ -3829,10 +3999,10 @@ function renderLbSidebar(owner) {
         <span class="op-name-line"><a class="nm" href="${profileUrl(uname)}">${esc(owner.profile?.display_name || uname)}</a>${vBadge(owner.profile)}</span>
         <span class="pc-handle">@${esc(uname)}</span>
       </div>
-      ${postMenuHtml(isReply ? owner.post_id : owner.id, isReply ? owner.id : null, owner.author_id, isReply ? null : owner.community_id)}
+      ${postMenuHtml(isReply ? owner.post_id : owner.id, isReply ? owner.id : null, owner.author_id, isReply ? null : owner.community_id, owner.created_at)}
     </div>
-    <div class="op-detail-body">${renderBody(owner.body || '')}</div>
-    <div class="op-detail-meta">${fullDateTime(owner.created_at)} &middot; <b>${fmtCount(owner.view_count)}</b> Views</div>
+    <div class="op-detail-body" data-pb="${owner.id}">${renderBody(owner.body || '')}</div>
+    <div class="op-detail-meta"><span data-dt="${owner.id}">${fullDateTime(owner.created_at)}${editedSuffix(owner)}</span> &middot; <b>${fmtCount(owner.view_count)}</b> Views</div>
     <div class="op-detail-divider"></div>
     ${actions}
     <div class="op-detail-divider"></div>

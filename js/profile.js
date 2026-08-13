@@ -439,10 +439,10 @@ function replyCardHtml(r, replyingToProfile, opUsername = null) {
         ${uname ? `<div class="rc-reply-tag">Replying to <a href="${profileUrl(uname)}" onclick="event.stopPropagation()">@${esc(uname)}</a></div>` : ''}
         <div class="ph">
           ${pcNameHtml(r.profile)}
-          <span class="dt">${timeAgo(r.created_at)}</span>
-          ${postMenuHtml(r.post_id, r.id, r.author_id)}
+          <span class="dt" data-dt="${r.id}">${timeAgo(r.created_at)}${editedSuffix(r)}</span>
+          ${postMenuHtml(r.post_id, r.id, r.author_id, null, r.created_at)}
         </div>
-        <div class="pb">${renderBody(r.body)}</div>
+        <div class="pb" data-pb="${r.id}">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type, '', r)}
         ${postActionsHtml(r, { replyHref: threadHref, bookmarkable: false, repostable: false })}
       </div>
