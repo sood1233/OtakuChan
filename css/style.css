@@ -1249,8 +1249,10 @@ body.oc-sheet-open { overflow:hidden; }
   position:absolute; top:calc(100% + 6px); left:0; z-index:20;
   background:var(--cream-card); border:1px solid var(--line); border-radius:12px;
   box-shadow:0 4px 18px rgba(0,0,0,.18); padding:6px; min-width:160px;
-  display:flex; flex-direction:column; gap:2px;
+  flex-direction:column; gap:2px;
 }
+.op-relevant-menu[hidden] { display:none; }
+.op-relevant-menu:not([hidden]) { display:flex; }
 .op-relevant-opt {
   display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer;
   font:inherit; font-size:14px; font-weight:600; color:var(--ink); padding:9px 10px; border-radius:8px;
