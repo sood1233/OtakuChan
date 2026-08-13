@@ -13,6 +13,76 @@ const REPLY_SELECT  = '*, profile:profiles(username,display_name,avatar_url,veri
 let allReplies = []; // flat list, kept around so inline "reply to this comment" forms can insert without a refetch
 let currentPost = null; // the OP post, kept around so hash-driven re-renders don't need to refetch it
 
+// ── COMMENT SORT ──
+// Only the top-level comment order changes — each comment's own
+// children always stay in chronological order underneath it (same as
+// X: sort applies to which top-level replies surface first, not to
+// nested conversations).
+const COMMENT_SORT_LABELS = { relevant: 'Relevant', latest: 'Latest', liked: 'Most Liked' };
+let commentSort = 'relevant';
+
+// "Relevant" = a lightweight score blending engagement (likes weighted
+// above raw reply count, since a like is a lower-friction signal that
+// still means something) with a recency decay so a strong older
+// comment doesn't bury everything newer forever, but a comment still
+// needs actual engagement to rank above simple recency — matches the
+// spirit of _for_you_score in supabase/for_you_feed.sql without
+// needing a DB round trip, since these are already all loaded client-side.
+function relevanceScore(r) {
+  const ageHours = Math.max(0, (Date.now() - new Date(r.created_at).getTime()) / 3600000);
+  const recency = 100 / (1 + ageHours / 6); // ~6h half-life-ish decay
+  const likes = Math.log(1 + Math.max(0, r.like_count || 0)) * 4;
+  const kids = Math.log(1 + childrenOf(r.id).length) * 3;
+  return recency + likes + kids;
+}
+
+function sortTopLevel(list) {
+  const sorted = list.slice();
+  if (commentSort === 'latest') {
+    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  } else if (commentSort === 'liked') {
+    sorted.sort((a, b) => (b.like_count || 0) - (a.like_count || 0) || new Date(b.created_at) - new Date(a.created_at));
+  } else {
+    sorted.sort((a, b) => relevanceScore(b) - relevanceScore(a));
+  }
+  return sorted;
+}
+
+function setCommentSort(mode, ev) {
+  if (ev) ev.preventDefault();
+  closeCommentSortMenu();
+  if (commentSort === mode) return;
+  commentSort = mode;
+  const btnLabel = document.querySelector('.op-relevant-btn span');
+  if (btnLabel) btnLabel.textContent = COMMENT_SORT_LABELS[mode];
+  document.querySelectorAll('.op-relevant-opt').forEach(opt => opt.classList.remove('active'));
+  const menu = document.getElementById('op-relevant-menu');
+  const activeOpt = menu && Array.from(menu.children).find(el => el.textContent.trim() === COMMENT_SORT_LABELS[mode]);
+  if (activeOpt) activeOpt.classList.add('active');
+  const list = document.getElementById('replies-list');
+  if (list) list.innerHTML = renderReplyTree();
+}
+
+function toggleCommentSortMenu(ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  const menu = document.getElementById('op-relevant-menu');
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  closeCommentSortMenu();
+  if (willOpen) {
+    menu.hidden = false;
+    document.addEventListener('click', commentSortOutsideClick);
+  }
+}
+function closeCommentSortMenu() {
+  const menu = document.getElementById('op-relevant-menu');
+  if (menu) menu.hidden = true;
+  document.removeEventListener('click', commentSortOutsideClick);
+}
+function commentSortOutsideClick(ev) {
+  if (!ev.target.closest('.op-relevant')) closeCommentSortMenu();
+}
+
 // ── FOCUSED-REPLY VIEW ──
 // Clicking any comment opens a Twitter-style "detail" view of just
 // that comment: the OP and the chain of ancestors above it (compact),
@@ -120,10 +190,14 @@ function afterRender() {
   refreshPostGates();
   const rfBody = document.getElementById('rf-body');
   if (rfBody) {
-    rfBody.addEventListener('input', () => {
+    const resize = () => {
       rfBody.style.height = 'auto';
       rfBody.style.height = Math.max(40, rfBody.scrollHeight) + 'px';
-    });
+    };
+    resize(); // run once immediately — otherwise the box sits at its
+              // unresized CSS height (previously too short and cut off
+              // the "Post your reply" placeholder) until the first keystroke
+    rfBody.addEventListener('input', resize);
   }
 }
 
@@ -194,7 +268,14 @@ function opBlockHtml(p) {
       ${opDetailActionsHtml(p, "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();")}
       <div class="op-detail-divider"></div>
       <div class="op-relevant">
-        <button type="button" class="op-relevant-btn" onclick="return false;"><span>Relevant</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="op-relevant-wrap">
+          <button type="button" class="op-relevant-btn" onclick="toggleCommentSortMenu(event)"><span>${COMMENT_SORT_LABELS[commentSort]}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div class="op-relevant-menu" id="op-relevant-menu" hidden>
+            ${Object.entries(COMMENT_SORT_LABELS).map(([mode, label]) => `
+              <button type="button" class="op-relevant-opt${commentSort === mode ? ' active' : ''}" onclick="setCommentSort('${mode}', event)">${label}</button>
+            `).join('')}
+          </div>
+        </div>
         <a href="#" id="op-quotes-toggle" hidden onclick="toggleQuotesList(event)">View quotes &rsaquo;</a>
       </div>
       <div class="op-quotes-list" id="op-quotes-list" hidden></div>
@@ -343,7 +424,7 @@ async function toggleQuotesList(ev) {
 // its own children replying to it) out of the flat `allReplies` list.
 function renderReplyTree() {
   if (!allReplies.length) return '<div class="no-t">No replies yet. Be the first to reply.</div>';
-  const topLevel = allReplies.filter(r => !r.parent_reply_id);
+  const topLevel = sortTopLevel(allReplies.filter(r => !r.parent_reply_id));
   return topLevel.map(r => replyHtml(r, 0)).join('') || '<div class="no-t">No replies yet. Be the first to reply.</div>';
 }
 
