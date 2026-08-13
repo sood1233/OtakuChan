@@ -2649,7 +2649,12 @@ async function deleteArticleConfirm(articleId, title) {
   });
   if (!ok) return;
   try {
-    const { error } = await sb.from('articles').update({ is_deleted: true }).eq('id', articleId);
+    // Goes through a SECURITY DEFINER RPC (see
+    // supabase/fix_delete_article_via_rpc.sql) instead of a raw client
+    // UPDATE — same fix already used for posts/replies in
+    // confirmDeletePost() above, since the direct update is at the
+    // mercy of the articles table's RLS WITH CHECK re-validation.
+    const { error } = await sb.rpc('delete_own_article', { article_id: articleId });
     if (error) throw error;
     toast('Article deleted.');
     location.href = 'articles.html';
