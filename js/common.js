@@ -444,10 +444,19 @@ function currentNavKey() {
   return null;
 }
 
+// Current page is under /es/? Prefix internal links to the static
+// pages so a visitor browsing the Spanish pages stays on the Spanish
+// versions instead of being bounced back to English by the shared
+// nav (see js/i18n.js getLang() for the matching URL-is-truth rule).
+function esPrefix() {
+  try { return /^\/es(\/|$)/.test(location.pathname) ? '/es' : ''; } catch (e) { return ''; }
+}
+
 function renderSideNav() {
   const el = document.getElementById('side-nav');
   if (!el) return;
-  const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : 'login.html';
+  const lp = esPrefix();
+  const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : `${lp}/login`;
   const notifBadge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
   const chatBadge = unreadChatCount > 0 ? `<span class="navbadge">${unreadChatCount > 20 ? '20+' : unreadChatCount}</span>` : '';
   const here = currentNavKey();
@@ -457,27 +466,27 @@ function renderSideNav() {
   const morePage = here === 'settings' || here === 'rules' || here === 'about' || here === 'contact' || here === 'privacy' || here === 'terms';
   const postBtn = currentSession
     ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>${t('nav.post')}</span></button>`
-    : `<a class="sidebar-post-btn" href="signup.html">${ICON_COMPOSE}<span>${t('nav.post')}</span></a>`;
+    : `<a class="sidebar-post-btn" href="${lp}/signup">${ICON_COMPOSE}<span>${t('nav.post')}</span></a>`;
   el.innerHTML =
-    item('/home', NAV_ICON.home, t('nav.home'), 'home') +
+    item(lp ? '/es/home' : '/home', NAV_ICON.home, t('nav.home'), 'home') +
     item('/search', NAV_ICON.search, t('nav.explore'), 'search') +
     item('/notifications', NAV_ICON.bell, t('nav.notifications'), 'notifications', notifBadge) +
     item('/messages', NAV_ICON.chat, t('nav.chat'), 'messages', chatBadge) +
     item('/bookmarks', NAV_ICON.bookmark, t('nav.bookmarks'), 'bookmarks') +
     item('/lists', NAV_ICON.list, t('nav.lists'), 'lists') +
-    item('/communities', NAV_ICON.people, t('nav.communities'), 'communities') +
+    item(`${lp}/communities`, NAV_ICON.people, t('nav.communities'), 'communities') +
     item(ownHref, NAV_ICON.user, t('nav.profile'), 'profile') +
     `<div class="acct" id="more-wrap">
        <button class="navmore-btn"${morePage ? ' style="font-weight:800;"' : ''} onclick="toggleMoreMenu();return false;">
          <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">${t('nav.more')}</span>
        </button>
        <div class="acct-menu navmore-menu" id="more-menu">
-         <a href="settings.html">${NAV_ICON.gear}${t('nav.settings')}</a>
-         <a href="rules.html">${NAV_ICON.doc}${t('nav.rules')}</a>
-         <a href="about.html">${NAV_ICON.info}${t('nav.about')}</a>
-         <a href="contact.html">${NAV_ICON.mail}${t('nav.contact')}</a>
-         <a href="privacy.html">${NAV_ICON.shield}${t('nav.privacy')}</a>
-         <a href="terms.html">${NAV_ICON.doc}${t('nav.terms')}</a>
+         <a href="/settings">${NAV_ICON.gear}${t('nav.settings')}</a>
+         <a href="${lp}/rules">${NAV_ICON.doc}${t('nav.rules')}</a>
+         <a href="${lp}/about">${NAV_ICON.info}${t('nav.about')}</a>
+         <a href="${lp}/contact">${NAV_ICON.mail}${t('nav.contact')}</a>
+         <a href="${lp}/privacy">${NAV_ICON.shield}${t('nav.privacy')}</a>
+         <a href="${lp}/terms">${NAV_ICON.doc}${t('nav.terms')}</a>
        </div>
      </div>` +
     postBtn;

@@ -223,6 +223,13 @@ const I18N_DICT = {
 };
 
 function getLang() {
+  // URL is the source of truth for the language-prefixed static pages
+  // (/es/...) — a Spanish-language page should render as Spanish for
+  // every visitor (and every bot) that lands on it, not just users who
+  // happen to have previously picked Spanish in Settings.
+  try {
+    if (typeof location !== 'undefined' && /^\/es(\/|$)/.test(location.pathname)) return 'es';
+  } catch (e) {}
   try {
     const stored = localStorage.getItem('site_lang');
     if (stored && I18N_DICT[stored]) return stored;

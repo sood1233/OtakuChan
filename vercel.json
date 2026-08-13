@@ -33,6 +33,17 @@
     { "src": "^/login$",              "dest": "/login.html" },
     { "src": "^/signup$",             "dest": "/signup.html" },
     { "src": "^/communities$",        "dest": "/communities.html" },
+
+    { "src": "^/es$",                 "dest": "/es/index.html" },
+    { "src": "^/es/home$",            "dest": "/es/index.html" },
+    { "src": "^/es/rules$",           "dest": "/es/rules.html" },
+    { "src": "^/es/about$",           "dest": "/es/about.html" },
+    { "src": "^/es/contact$",         "dest": "/es/contact.html" },
+    { "src": "^/es/privacy$",         "dest": "/es/privacy.html" },
+    { "src": "^/es/terms$",           "dest": "/es/terms.html" },
+    { "src": "^/es/login$",           "dest": "/es/login.html" },
+    { "src": "^/es/signup$",          "dest": "/es/signup.html" },
+    { "src": "^/es/communities$",     "dest": "/es/communities.html" },
     { "src": "^/communities/(?<slug>[^/]+)$", "dest": "/api/prerender?type=community&slug=$slug" },
 
     { "src": "^/lists$",              "dest": "/lists.html" },
