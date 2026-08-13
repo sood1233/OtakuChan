@@ -1474,15 +1474,32 @@ function quotedPostHtml(qp) {
 async function attachQuotedPosts(posts) {
   const list = Array.isArray(posts) ? posts : [posts];
   const ids = [...new Set(list.map(p => p?.quote_of).filter(Boolean))];
-  if (!ids.length) return;
-  try {
-    const { data } = await sb.from('posts')
-      .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)')
-      .in('id', ids);
-    const byId = Object.fromEntries((data || []).map(qp => [qp.id, qp]));
-    list.forEach(p => { if (p?.quote_of) p.quoted = byId[p.quote_of] || null; });
-  } catch (e) {
-    console.warn('Could not load quoted posts (has supabase/quotes_and_reposts.sql been run yet?)', e);
+  if (ids.length) {
+    try {
+      const { data } = await sb.from('posts')
+        .select('id,body,media_url,media_type,created_at,is_deleted,author_id,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)')
+        .in('id', ids);
+      const byId = Object.fromEntries((data || []).map(qp => [qp.id, qp]));
+      list.forEach(p => { if (p?.quote_of) p.quoted = byId[p.quote_of] || null; });
+    } catch (e) {
+      console.warn('Could not load quoted posts (has supabase/quotes_and_reposts.sql been run yet?)', e);
+    }
+  }
+  // Same batch-lookup shape, for posts that are promoting an article
+  // (post.article_id set — see submitArticle()/openShareArticleModal()
+  // in js/editarticle.js and js/article.js) — attached as p._promoArticle
+  // and rendered by articleCardHtml() inside postCardHtml().
+  const articleIds = [...new Set(list.map(p => p?.article_id).filter(Boolean))];
+  if (articleIds.length) {
+    try {
+      const { data } = await sb.from('articles')
+        .select('id,title,body,cover_url,is_deleted')
+        .in('id', articleIds);
+      const byId = Object.fromEntries((data || []).map(a => [a.id, a]));
+      list.forEach(p => { if (p?.article_id) p._promoArticle = byId[p.article_id] || null; });
+    } catch (e) {
+      console.warn('Could not load promoted articles (has supabase/articles_rich_and_promo.sql been run yet?)', e);
+    }
   }
 }
 
@@ -2641,6 +2658,97 @@ async function deleteArticleConfirm(articleId, title) {
   }
 }
 
+// ── ARTICLE RICH CONTENT ── the editarticle.html editor is a plain
+// contenteditable div (document.execCommand-driven — see
+// js/editarticle.js), so what it produces is arbitrary HTML that
+// has to be treated as untrusted input no differently than a post
+// body, regardless of what the editor's own toolbar allows. This
+// whitelist-based sanitizer is the thing that actually enforces
+// that, both when an article is saved (defense in depth) and every
+// time one is rendered (the real backstop — RLS only checks
+// author_id, so nothing stops someone from writing raw HTML into
+// content_html directly against the API, bypassing the editor
+// entirely).
+const ARTICLE_ALLOWED_TAGS = new Set([
+  'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S',
+  'H2', 'H3', 'BLOCKQUOTE', 'UL', 'OL', 'LI', 'A', 'IMG', 'DIV'
+]);
+function sanitizeArticleHtml(html) {
+  const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  // Post-order: clean a node's children before deciding the node's
+  // own fate, so an unwrapped disallowed element's children (which
+  // may themselves be disallowed) have already been cleaned by the
+  // time they're spliced into the parent.
+  function walk(el) {
+    [...el.childNodes].forEach(child => {
+      if (child.nodeType === Node.TEXT_NODE) return;
+      if (child.nodeType !== Node.ELEMENT_NODE) { child.remove(); return; }
+      walk(child);
+      const tag = child.tagName;
+      if (!ARTICLE_ALLOWED_TAGS.has(tag)) {
+        while (child.firstChild) el.insertBefore(child.firstChild, child);
+        el.removeChild(child);
+        return;
+      }
+      [...child.attributes].forEach(attr => {
+        const name = attr.name.toLowerCase();
+        if (tag === 'A' && name === 'href') {
+          if (!/^https?:\/\//i.test(attr.value.trim())) child.removeAttribute(attr.name);
+          return;
+        }
+        if (tag === 'IMG' && name === 'src') {
+          if (!/^https?:\/\//i.test(attr.value.trim())) child.removeAttribute(attr.name);
+          return;
+        }
+        if (tag === 'IMG' && name === 'alt') return;
+        child.removeAttribute(attr.name);
+      });
+      if (tag === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener noreferrer nofollow'); }
+      if (tag === 'IMG') {
+        if (!child.getAttribute('src')) { el.removeChild(child); return; }
+        child.setAttribute('loading', 'lazy');
+        child.setAttribute('decoding', 'async');
+      }
+    });
+  }
+  walk(doc.body);
+  return doc.body.innerHTML;
+}
+
+// The actual rendered body of an article's own page (article.html)
+// and, when quoted inline (not currently done, but kept generic),
+// anywhere else. Rich HTML (bold/headings/quotes/inline images) for
+// anything written since the content_html column shipped; falls
+// back to plain-text rendering (same treatment a post body gets)
+// for older articles that only have the plain `body` column.
+function renderArticleContent(article) {
+  if (article.content_html && article.content_html.trim()) {
+    return `<div class="article-rich">${sanitizeArticleHtml(article.content_html)}</div>`;
+  }
+  return renderBody(article.body || '');
+}
+
+// The "X Article"-style card a post embeds when it's promoting an
+// article (post.article_id set — see attachQuotedPosts() below for
+// how `article` gets attached as post._promoArticle). Clicking it
+// opens the article itself rather than the post's own thread, same
+// stopPropagation pattern quotedPostHtml() uses for its embed.
+function articleCardHtml(article) {
+  if (!article) return `<div class="qp-embed-gone">This Article is no longer available.</div>`;
+  return `
+  <div class="article-embed" onclick="event.stopPropagation();location.href='${articleUrl(article.id)}'" onpointerover="prefetchHref('${articleUrl(article.id)}')">
+    ${article.cover_url ? `
+    <div class="article-embed-media">
+      <img src="${esc(article.cover_url)}" alt="" loading="lazy" decoding="async">
+      <span class="article-embed-badge">${NAV_ICON.article}Article</span>
+    </div>` : `<span class="article-embed-badge article-embed-badge-standalone">${NAV_ICON.article}Article</span>`}
+    <div class="article-embed-text">
+      <div class="article-embed-title">${esc(article.title)}</div>
+      <div class="article-embed-excerpt">${esc(articleExcerpt(article.body, 120))}</div>
+    </div>
+  </div>`;
+}
+
 // ── ADD/REMOVE-FROM-LIST MODAL ── opened from a profile's "···" menu
 // with the profile being added/removed (`targetId`/`targetUsername`).
 function almModalEl() {
@@ -2895,8 +3003,9 @@ function postCardHtml(p, flash = false) {
           <span class="dt">${timeAgo(p.created_at)}</span>
           ${postMenuHtml(p.id, null, p.author_id, p.community_id)}
         </div>
-        <div class="pb">${renderBody(p.body)}</div>
+        ${p.body ? `<div class="pb">${renderBody(p.body)}</div>` : ''}
         ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
+        ${p.article_id ? articleCardHtml(p._promoArticle) : ''}
         ${renderMedia(p.media_url, p.media_type, '', p)}
         ${pollHtml(p)}
         ${postActionsHtml(p, { replyOnclick: `openReplyPopup('${p.id}')` })}

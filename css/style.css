@@ -899,6 +899,67 @@ select {
 .article-hero-actions { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
 .article-body { font-size:17px; line-height:1.65; color:var(--ink); white-space:pre-wrap; word-wrap:break-word; padding:18px 16px 24px; }
 
+/* Rich content rendered from an article's content_html (sanitized
+   by sanitizeArticleHtml() before this ever reaches the page) —
+   sits inside .article-body, so it doesn't need its own font-size
+   baseline, just spacing/weight for the handful of tags the editor
+   toolbar can produce. */
+.article-rich { white-space:normal; }
+.article-rich p { margin:0 0 14px; }
+.article-rich p:last-child { margin-bottom:0; }
+.article-rich b, .article-rich strong { font-weight:800; }
+.article-rich h2 { font-size:22px; font-weight:800; margin:26px 0 10px; line-height:1.3; }
+.article-rich h3 { font-size:19px; font-weight:800; margin:22px 0 8px; line-height:1.3; }
+.article-rich blockquote {
+  margin:14px 0; padding:2px 0 2px 14px; border-left:3px solid var(--maroon);
+  color:var(--muted); font-style:italic;
+}
+.article-rich ul, .article-rich ol { margin:0 0 14px; padding-left:24px; }
+.article-rich li { margin:4px 0; }
+.article-rich a { color:var(--link); text-decoration:none; }
+.article-rich a:hover { text-decoration:underline; }
+.article-rich img { max-width:100%; height:auto; border-radius:var(--r-md); display:block; margin:16px 0; }
+
+/* ── write/edit article rich-text editor (js/editarticle.js) ── */
+.ea-toolbar {
+  display:flex; align-items:center; gap:2px; padding:6px 12px; margin:0 16px;
+  border:1px solid var(--border-input); border-bottom:none; border-radius:10px 10px 0 0;
+  background:var(--hover-bg); flex-wrap:wrap;
+}
+.ea-tb-btn {
+  display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+  border:none; background:transparent; border-radius:6px; color:var(--ink); cursor:pointer; font-size:14px; font-weight:700;
+}
+.ea-tb-btn svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; }
+.ea-tb-btn:hover { background:var(--maroon-tint); color:var(--maroon); }
+.ea-tb-btn.active { background:var(--maroon-tint); color:var(--maroon); }
+.ea-tb-sep { width:1px; height:20px; background:var(--line); margin:0 4px; flex:none; }
+.ea-editor {
+  min-height:320px; margin:0 16px; padding:14px; font-size:16px; line-height:1.6; color:var(--ink);
+  border:1px solid var(--border-input); border-radius:0 0 10px 10px; background:var(--input-bg);
+  outline:none; word-wrap:break-word;
+}
+.ea-editor:focus { border-color:var(--maroon); }
+.ea-editor:empty::before { content:attr(data-placeholder); color:var(--muted); pointer-events:none; }
+.ea-editor p { margin:0 0 14px; }
+.ea-editor h2 { font-size:21px; font-weight:800; margin:18px 0 8px; }
+.ea-editor h3 { font-size:18px; font-weight:800; margin:16px 0 6px; }
+.ea-editor blockquote { margin:10px 0; padding-left:14px; border-left:3px solid var(--maroon); color:var(--muted); font-style:italic; }
+.ea-editor ul, .ea-editor ol { padding-left:24px; margin:0 0 14px; }
+.ea-editor img { max-width:100%; height:auto; border-radius:var(--r-md); display:block; margin:12px 0; }
+.ea-editor img.ea-img-uploading { opacity:.4; }
+.ea-cover-row { display:flex; gap:8px; }
+.ea-cover-row input { flex:1; }
+.ea-cover-upload-btn {
+  flex:none; padding:0 14px; border-radius:8px; border:1px solid var(--border-input);
+  background:var(--hover-bg); color:var(--ink); font-size:13px; font-weight:700; cursor:pointer;
+}
+.ea-cover-upload-btn:hover { background:var(--maroon-tint); color:var(--maroon); border-color:var(--maroon); }
+.ea-share-field { border-top:1px solid var(--line); margin-top:6px; padding-top:14px; }
+.ea-check { display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:600; color:var(--ink); cursor:pointer; }
+.ea-check input { width:16px; height:16px; accent-color:var(--maroon); }
+.ea-share-field textarea { margin-top:8px; min-height:60px; }
+
 .ea-field { padding:12px 16px; display:flex; flex-direction:column; gap:6px; }
 .ea-field label { font-size:12.5px; font-weight:700; color:var(--muted); }
 .ea-field input, .ea-field textarea {
@@ -1195,6 +1256,31 @@ body.oc-sheet-open { overflow:hidden; }
 .qp-embed .pb { font-size:14.5px; }
 .qp-embed .pm img, .qp-embed .pm video { max-height:220px; }
 .qp-embed-gone { border:1px solid var(--line); border-radius:var(--r-md); padding:10px 12px; margin-top:8px; color:var(--muted); font-size:13.5px; }
+
+/* ── article embed (a post that's "promoting" an Article — see
+   articleCardHtml() in common.js) — same X/Twitter-style article
+   card shape as the qp-embed above: full-bleed cover image with a
+   small pill overlay, bold title + a couple lines of excerpt. ── */
+.article-embed {
+  border:1px solid var(--line); border-radius:var(--r-lg,16px); margin-top:8px; cursor:pointer;
+  overflow:hidden; transition:background-color .12s ease, border-color .12s ease;
+}
+.article-embed:hover { border-color:var(--muted); }
+.article-embed-media { position:relative; width:100%; aspect-ratio:2/1; background:var(--hover-bg); }
+.article-embed-media img { width:100%; height:100%; object-fit:cover; display:block; }
+.article-embed-badge {
+  display:inline-flex; align-items:center; gap:4px; position:absolute; left:10px; bottom:10px;
+  background:rgba(15,20,25,.75); color:#fff; font-size:11.5px; font-weight:700; letter-spacing:.2px;
+  padding:4px 9px; border-radius:999px; backdrop-filter:blur(2px);
+}
+.article-embed-badge svg { width:12px; height:12px; fill:none; stroke:#fff; stroke-width:2; }
+.article-embed-badge-standalone { position:static; margin:10px 0 0 10px; background:var(--hover-bg); color:var(--muted); }
+.article-embed-text { padding:10px 12px 12px; }
+.article-embed-title { font-size:15.5px; font-weight:800; color:var(--ink); line-height:1.3; }
+.article-embed-excerpt {
+  font-size:13.5px; color:var(--muted); margin-top:3px; line-height:1.4;
+  overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+}
 
 /* ── quote-post modal (compose a comment on top of an embedded post) ── */
 .qm-body { display:flex; gap:12px; align-items:flex-start; padding:12px 16px 0; }

@@ -49,11 +49,11 @@ async function loadArticle() {
 
 function renderArticle() {
   const contentEl = document.getElementById('article-content');
-  const actions = isArticleAuthor ? `
-    <div class="article-hero-actions">
-      <button type="button" class="list-edit-btn" onclick="location.href='editarticle.html?id=${encodeURIComponent(article.id)}'">Edit</button>
-      <button type="button" class="list-delete-btn" onclick="deleteArticleConfirm(article.id, article.title)">Delete</button>
-    </div>` : '';
+  const authorActions = isArticleAuthor ? `
+    <button type="button" class="list-edit-btn" onclick="location.href='editarticle.html?id=${encodeURIComponent(article.id)}'">Edit</button>
+    <button type="button" class="list-delete-btn" onclick="deleteArticleConfirm(article.id, article.title)">Delete</button>` : '';
+  const shareBtn = currentSession
+    ? `<button type="button" class="list-edit-btn" onclick="openShareArticleModal()">Post</button>` : '';
 
   contentEl.innerHTML = `
     <div class="article-hero">
@@ -73,11 +73,67 @@ function renderArticle() {
           <div class="article-hero-meta">${fullDateTime(article.created_at)}${article.updated_at && article.updated_at !== article.created_at ? ' · Edited' : ''}</div>
           ` : ''}
         </div>
-        ${actions}
+        <div class="article-hero-actions">${shareBtn}${authorActions}</div>
       </div>
     </div>
-    <div class="article-body">${renderBody(article.body)}</div>`;
+    <div class="article-body">${renderArticleContent(article)}</div>`;
 }
+
+// ── SHARE-AS-POST MODAL — lets anyone logged in (not just the
+// author) post this Article to their own followers, same idea as
+// Quote Post (js/common.js's openQuoteModal()) but embedding an
+// Article card (articleCardHtml()) instead of another post. ──
+function openShareArticleModal() {
+  if (!requireLogin() || !article) return;
+  const modal = document.getElementById('modal-share-article');
+  if (!modal) return;
+  const bodyEl = document.getElementById('sa-body');
+  bodyEl.value = '';
+  bodyEl.oninput = saUpdateCount;
+  saUpdateCount();
+  document.getElementById('sa-err').style.display = 'none';
+  document.getElementById('sa-preview').innerHTML = articleCardHtml(article);
+  const avEl = document.getElementById('sa-avatar');
+  if (avEl) avEl.innerHTML = `<img src="${esc(avatarUrl(currentProfile?.avatar_url))}" alt="">`;
+  modal.classList.add('open');
+  bodyEl.focus();
+}
+function closeShareArticleModal() {
+  document.getElementById('modal-share-article')?.classList.remove('open');
+}
+function saUpdateCount() {
+  const bodyEl = document.getElementById('sa-body');
+  const countEl = document.getElementById('sa-count');
+  if (!bodyEl || !countEl) return;
+  const left = 250 - bodyEl.value.length;
+  countEl.textContent = left;
+  countEl.classList.toggle('qm-count-warn', left <= 20 && left >= 0);
+  countEl.classList.toggle('qm-count-over', left < 0);
+}
+async function submitShareArticle() {
+  if (!article || !requireLogin()) return;
+  const bodyEl = document.getElementById('sa-body');
+  const errEl = document.getElementById('sa-err');
+  const btn = document.getElementById('sa-btn');
+  const body = bodyEl.value.trim();
+  if (body.length > 250) { showErr(errEl, 'Comment too long (max 250 chars).'); return; }
+  btn.disabled = true;
+  try {
+    const { error } = await sb.from('posts').insert({
+      author_id: currentSession.user.id,
+      body,
+      article_id: article.id
+    });
+    if (error) throw error;
+    closeShareArticleModal();
+    toast('Posted.');
+  } catch (e) {
+    showErr(errEl, e.message || 'Could not post this Article.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+wireStaticModalDismiss('modal-share-article', closeShareArticleModal);
 
 document.addEventListener('DOMContentLoaded', async () => {
   await authReady; // see auth.js — otherwise isArticleAuthor can't be known yet

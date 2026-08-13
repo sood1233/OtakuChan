@@ -186,6 +186,7 @@ function opBlockHtml(p) {
       </div>
       <div class="op-detail-body">${renderBody(p.body)}</div>
       ${p.quote_of ? quotedPostHtml(p.quoted) : ''}
+      ${p.article_id ? articleCardHtml(p._promoArticle) : ''}
       ${renderMedia(p.media_url, p.media_type, '', p)}
       ${pollHtml(p)}
       <div class="op-detail-meta">${fullDateTime(p.created_at)} &middot; <b>${fmtCount(p.view_count)}</b> Views</div>
