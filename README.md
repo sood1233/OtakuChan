@@ -189,47 +189,6 @@ resubmit `https://yourdomain/sitemap.xml` in Google Search Console
 (and Bing Webmaster Tools) once it's live, so it actually gets crawled
 instead of waiting to be discovered organically.
 
-## Spanish pages (`/es/...`)
-The nine static, fully-server-content pages that are actually indexable
-(see "SEO / indexing" above — everything else is either behind login,
-`noindex`, or purely user-generated) now have hand-translated Spanish
-twins under `es/`: `es/index.html` (`/es`), `es/about.html`,
-`es/contact.html`, `es/privacy.html`, `es/terms.html`, `es/rules.html`,
-`es/communities.html`, `es/login.html`, `es/signup.html`. Each pair
-carries `<link rel="alternate" hreflang="...">` tags pointing at the
-other language and at `x-default`, both are listed in `sitemap.xml`,
-and both are `Allow`ed in `robots.txt` (nothing extra needed there —
-`/es/*` isn't in the personal/utility disallow list).
-
-Two small, shared-across-both-languages changes make this work without
-duplicating any JS:
-- `getLang()` in `js/i18n.js` treats any `/es/...` URL as Spanish by
-  default (URL is the source of truth for these pages), so the same
-  `t()`-driven strings the app already uses elsewhere (nav labels,
-  toasts, the `data-i18n` attributes on `login.html`/`signup.html`)
-  render in Spanish automatically on the Spanish pages — no separate
-  Spanish JS files.
-- `renderSideNav()` in `js/common.js` prefixes the sidebar's links to
-  the static pages with `/es` when the current page is under `/es/`
-  (see the `esPrefix()` helper), so navigating from a Spanish page
-  keeps you on the Spanish site instead of bouncing back to English.
-  Account-gated/`noindex` pages (Search, Notifications, Messages,
-  Bookmarks, Lists, Settings) aren't duplicated in Spanish and are
-  intentionally left pointing at the single English version.
-
-Deliberately **not** duplicated in `/es/`: profile pages, threads,
-individual communities, and lists. Their content is whatever a real
-user posted, in whatever language they wrote it in — translating only
-the surrounding chrome around unchanged user text wouldn't produce a
-genuinely Spanish page, and duplicating the URL without duplicating
-the substance risks looking like thin/duplicate content to a search
-engine rather than helping. If you want those localized too at some
-point, the pattern above (URL prefix + `hreflang` pair + sitemap
-entry) extends cleanly — it's just a bigger lift because
-`profile.js`/`thread.js`/`community.js`/`list.js` and `api/prerender.js`
-would all need a Spanish code path for the parts of the page that
-*are* static chrome.
-
 ## How accounts work
 - `js/auth.js` handles sign up, log in, log out, session state, and
   renders the header's login/signup links vs. avatar-and-username menu.

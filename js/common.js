@@ -516,7 +516,8 @@ function renderMobileChrome() {
   const cur = key => key === here ? ' cur' : '';
   const badge = unreadNotifCount > 0 ? `<span class="navbadge">${unreadNotifCount > 99 ? '99+' : unreadNotifCount}</span>` : '';
   const chatBadge = unreadChatCount > 0 ? `<span class="navbadge">${unreadChatCount > 20 ? '20+' : unreadChatCount}</span>` : '';
-  const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : 'login.html';
+  const lp = esPrefix();
+  const ownHref = (currentSession && currentProfile) ? profileUrl(currentProfile.username) : `${lp}/login`;
   const avatar = currentSession ? avatarUrl(currentProfile?.avatar_url) : DEFAULT_AVATAR;
 
   // On the chat page the floating "+" FAB just detours to the board's
@@ -533,14 +534,14 @@ function renderMobileChrome() {
       <button class="m-avatar-btn" onclick="openMobileDrawer();return false;" aria-label="Open menu">
         <img class="avatar" src="${esc(avatar)}" alt="">
       </button>
-      <a class="m-logo" href="index.html">
+      <a class="m-logo" href="${lp || '/'}">
         <img class="logo-mark logo-mark-light" src="img/logo-light.png" alt="" width="26" height="26">
         <img class="logo-mark logo-mark-dark" src="img/logo-dark.png" alt="" width="26" height="26">
       </a>
     </div>
 
     <div id="m-tabbar">
-      <a class="${cur('home')}" href="index.html">${NAV_ICON.home}</a>
+      <a class="${cur('home')}" href="${lp || '/'}">${NAV_ICON.home}</a>
       <a class="${cur('search')}" href="search.html">${NAV_ICON.search}</a>
       <a class="${cur('bookmarks')}" href="bookmarks.html">${NAV_ICON.bookmark}</a>
       <a class="${cur('notifications')}" href="notifications.html">${NAV_ICON.bell}${badge}</a>
@@ -566,14 +567,14 @@ function renderMobileChrome() {
             <a href="${ownHref}">${NAV_ICON.user}Profile</a>
             <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
             <a href="lists.html">${NAV_ICON.list}Lists</a>
-            <a href="communities.html">${NAV_ICON.people}Communities</a>
+            <a href="${lp}/communities">${NAV_ICON.people}Communities</a>
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
-            <a href="settings.html">${NAV_ICON.gear}Settings and privacy</a>
-            <a href="rules.html">${NAV_ICON.doc}Rules</a>
-            <a href="about.html">${NAV_ICON.info}About</a>
-            <a href="contact.html">${NAV_ICON.mail}Contact</a>
-            <a href="privacy.html">${NAV_ICON.shield}Privacy Policy</a>
-            <a href="terms.html">${NAV_ICON.doc}Terms of Service</a>
+            <a href="/settings">${NAV_ICON.gear}Settings and privacy</a>
+            <a href="${lp}/rules">${NAV_ICON.doc}Rules</a>
+            <a href="${lp}/about">${NAV_ICON.info}About</a>
+            <a href="${lp}/contact">${NAV_ICON.mail}Contact</a>
+            <a href="${lp}/privacy">${NAV_ICON.shield}Privacy Policy</a>
+            <a href="${lp}/terms">${NAV_ICON.doc}Terms of Service</a>
           </div>
           <hr>
           <button class="m-drawer-logout" onclick="closeMobileDrawer();logOut();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h3"/><path d="M15.5 16.5 20 12l-4.5-4.5"/><path d="M20 12H9"/></svg>Log out</button>
@@ -583,16 +584,16 @@ function renderMobileChrome() {
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
             <a href="lists.html">${NAV_ICON.list}Lists</a>
-            <a href="communities.html">${NAV_ICON.people}Communities</a>
-            <a href="rules.html">${NAV_ICON.doc}Rules</a>
-            <a href="about.html">${NAV_ICON.info}About</a>
-            <a href="contact.html">${NAV_ICON.mail}Contact</a>
-            <a href="privacy.html">${NAV_ICON.shield}Privacy Policy</a>
-            <a href="terms.html">${NAV_ICON.doc}Terms of Service</a>
+            <a href="${lp}/communities">${NAV_ICON.people}Communities</a>
+            <a href="${lp}/rules">${NAV_ICON.doc}Rules</a>
+            <a href="${lp}/about">${NAV_ICON.info}About</a>
+            <a href="${lp}/contact">${NAV_ICON.mail}Contact</a>
+            <a href="${lp}/privacy">${NAV_ICON.shield}Privacy Policy</a>
+            <a href="${lp}/terms">${NAV_ICON.doc}Terms of Service</a>
           </div>
           <div class="m-drawer-cta">
-            <a class="cta-primary" href="signup.html">Sign up</a>
-            <a class="cta-ghost" href="login.html">Log in</a>
+            <a class="cta-primary" href="${lp}/signup">Sign up</a>
+            <a class="cta-ghost" href="${lp}/login">Log in</a>
           </div>
         `}
       </div>

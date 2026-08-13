@@ -122,19 +122,6 @@ module.exports = async function handler(req, res) {
     urlTag(`${origin}/terms`, fileLastmod('terms.html'), 'monthly', '0.2'),
     urlTag(`${origin}/login`, fileLastmod('login.html'), 'yearly', '0.1'),
     urlTag(`${origin}/signup`, fileLastmod('signup.html'), 'yearly', '0.2'),
-    // Spanish versions (/es/...) of the static pages above — see
-    // es/*.html. Kept as their own entries (not folded into the
-    // loop above) since they're a fixed, hand-translated set rather
-    // than something generated per-row like the profile/post URLs.
-    urlTag(`${origin}/es`, fileLastmod('es/index.html'), 'hourly', '0.9'),
-    urlTag(`${origin}/es/communities`, fileLastmod('es/communities.html'), 'daily', '0.4'),
-    urlTag(`${origin}/es/rules`, fileLastmod('es/rules.html'), 'monthly', '0.25'),
-    urlTag(`${origin}/es/about`, fileLastmod('es/about.html'), 'monthly', '0.25'),
-    urlTag(`${origin}/es/contact`, fileLastmod('es/contact.html'), 'monthly', '0.15'),
-    urlTag(`${origin}/es/privacy`, fileLastmod('es/privacy.html'), 'monthly', '0.15'),
-    urlTag(`${origin}/es/terms`, fileLastmod('es/terms.html'), 'monthly', '0.15'),
-    urlTag(`${origin}/es/login`, fileLastmod('es/login.html'), 'yearly', '0.1'),
-    urlTag(`${origin}/es/signup`, fileLastmod('es/signup.html'), 'yearly', '0.15'),
   ];
 
   const profileUrls = profiles.map(p =>

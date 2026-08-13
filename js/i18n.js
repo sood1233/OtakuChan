@@ -237,9 +237,37 @@ function getLang() {
   return 'en';
 }
 
+// Pages that exist as a dedicated, hand-translated Spanish page under
+// /es/... — the marketing/auth pages a logged-out visitor (or a search
+// bot) lands on. Everything else (the logged-in app screens) has no
+// Spanish twin, so switching language there just re-renders in place
+// using the dictionary above instead of navigating.
+const I18N_ES_PAGES = ['/', '/home', '/about', '/communities', '/contact', '/login', '/privacy', '/rules', '/signup', '/terms'];
+
+// Maps the current URL to its Spanish (or English) equivalent, if one
+// exists. Returns null when the current page has no /es/... twin.
+function esEquivalentPath(lang) {
+  try {
+    let path = location.pathname.replace(/\/+$/, '') || '/';
+    path = path.replace(/\.html$/, '');
+    const isEs = /^\/es(\/|$)/.test(path);
+    const bare = isEs ? (path.slice(3) || '/') : path;
+    if (!I18N_ES_PAGES.includes(bare)) return null;
+    return lang === 'es' ? (bare === '/' ? '/es' : `/es${bare}`) : bare;
+  } catch (e) { return null; }
+}
+
 function setLang(lang) {
   if (!I18N_DICT[lang]) return;
   try { localStorage.setItem('site_lang', lang); } catch (e) {}
+  // If the page you're on has a real Spanish/English twin, navigate
+  // there so the site actually reloads into that language's version
+  // instead of just re-rendering nav labels on the same English page.
+  const target = esEquivalentPath(lang);
+  if (target && target !== location.pathname) {
+    location.href = target;
+    return;
+  }
   location.reload();
 }
 
