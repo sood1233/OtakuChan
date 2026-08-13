@@ -632,6 +632,8 @@ async function submitCommunityPost() {
   const body = bodyEl.value.trim();
   if (!body) { showErr(errEl, "Comment can't be empty."); return; }
   if (body.length > 500) { showErr(errEl, 'Comment too long (max 500 chars).'); return; }
+  if (!enforceCooldown(errEl)) return;
+  if (!(await verifyHuman('cf-captcha', errEl))) return;
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';
@@ -644,7 +646,7 @@ async function submitCommunityPost() {
     } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
-      ({ media_url, media_type } = await uploadMedia(file));
+      ({ media_url, media_type } = await uploadMedia(file, msg => stEl.textContent = msg));
     }
     const { data, error } = await sb.from('posts').insert({
       author_id: currentSession.user.id,
@@ -668,6 +670,8 @@ async function submitCommunityPost() {
       if (empty) feedEl.innerHTML = '';
       feedEl.insertAdjacentHTML('afterbegin', postCardHtml(data, true));
     }
+    markPosted();
+    startCooldownCountdown(btn, 'Post');
   } catch (e) {
     showErr(errEl, e.message || 'Failed to post.');
     stEl.textContent = '';
@@ -680,6 +684,7 @@ function updateCommunityPostBtnState() {
   const bodyEl = document.getElementById('cf-body');
   const btn = document.getElementById('cf-btn');
   if (!bodyEl || !btn) return;
+  if (postCooldownRemainingMs() > 0) return; // cooldown countdown owns disabled/label right now
   btn.disabled = bodyEl.value.trim().length === 0;
 }
 

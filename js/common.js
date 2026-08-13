@@ -195,6 +195,7 @@ function messagesUrl(username = null) { return username ? `/messages/${u_(userna
 function communityUrl(slug) { return `/communities/${u_(slug)}`; }
 function listUrl(id) { return `/i/lists/${u_(id)}`; }
 function profileListsUrl(username) { return `/${u_(username)}/lists`; }
+function articleUrl(id) { return `/i/articles/${u_(id)}`; }
 
 // Kept as prettyXxx() aliases too — profile.js/thread.js/followlist.js/
 // chat.js/common.js's sharePost() already call these names directly
@@ -273,7 +274,7 @@ function currentStatusId() {
 // "profile.html" itself as the first path segment, treated it as
 // the username to look up, and always failed with "No user found",
 // even for your own profile link.
-const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i','communities','lists']);
+const RESERVED_TOP_LEVEL = new Set(['home','notifications','messages','bookmarks','settings','search','login','signup','rules','i','communities','lists','articles']);
 
 // Reads the community slug out of the current URL on community.html,
 // whether it arrived as a pretty path (/communities/some-slug) or the
@@ -291,6 +292,16 @@ function currentCommunitySlug() {
 // Same idea as currentStatusId()/currentCommunitySlug().
 function currentListId() {
   const m = location.pathname.match(/\/lists\/([^/]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('id');
+}
+// Reads the article id out of the current URL on article.html/
+// editarticle.html, whether it arrived as a pretty path
+// (/i/articles/<uuid>) or the legacy query form
+// (article.html?id=<uuid> — local dev without Vercel's rewrite
+// engine). Same idea as currentListId().
+function currentArticleId() {
+  const m = location.pathname.match(/\/articles\/([^/]+)/);
   if (m) return decodeURIComponent(m[1]);
   return new URLSearchParams(location.search).get('id');
 }
@@ -331,6 +342,7 @@ const NAV_ICON = {
   dots:     '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></svg>',
   people:   '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.3" r="3.3"/><path d="M2.8 20c.9-3.7 3.2-5.6 6.2-5.6s5.3 1.9 6.2 5.6"/><path d="M15.6 5.3a3.2 3.2 0 0 1 0 6.1"/><path d="M16.2 14.8c2.4.5 4.1 2.2 4.9 5.2"/></svg>',
   list:     '<svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="3" height="3" rx="0.8"/><rect x="4" y="10.5" width="3" height="3" rx="0.8"/><rect x="4" y="15.5" width="3" height="3" rx="0.8"/><path d="M10 7h10M10 12h10M10 17h10"/></svg>',
+  article:  '<svg viewBox="0 0 24 24"><path d="M5.5 4.5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1Z"/><path d="M8 8.5h8M8 12h8M8 15.5h5"/></svg>',
   info:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"/></svg>',
   mail:     '<svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.3 6.7 7.7 6 7.7-6"/></svg>',
   shield:   '<svg viewBox="0 0 24 24"><path d="M12 3.3 5.3 5.9v5.4c0 4.7 2.9 7.9 6.7 8.9 3.8-1 6.7-4.2 6.7-8.9V5.9Z"/><path d="m9 12 2 2 4-4"/></svg>'
@@ -433,6 +445,7 @@ function currentNavKey() {
   if (path === '/messages' || path.startsWith('/messages/') || path.endsWith('/chat.html')) return 'messages';
   if (path === '/bookmarks' || path.endsWith('/bookmarks.html')) return 'bookmarks';
   if (path === '/communities' || path.startsWith('/communities/') || path.endsWith('/communities.html') || path.endsWith('/community.html')) return 'communities';
+  if (path === '/articles' || path.startsWith('/i/articles/') || path.endsWith('/articles.html') || path.endsWith('/article.html') || path.endsWith('/editarticle.html')) return 'articles';
   if (path === '/lists' || path.startsWith('/i/lists/') || path.endsWith('/lists.html') || path.endsWith('/list.html')) return 'lists';
   if (path === '/settings' || path.endsWith('/settings.html')) return 'settings';
   if (path === '/rules' || path.endsWith('/rules.html')) return 'rules';
@@ -463,7 +476,7 @@ function renderSideNav() {
   const item = (href, icon, label, key, extra = '') => {
     return `<a href="${href}"${key === here ? ' class="cur"' : ''}><span class="navicon">${icon}${extra}</span><span class="navlabel">${label}</span></a>`;
   };
-  const morePage = here === 'settings' || here === 'rules' || here === 'about' || here === 'contact' || here === 'privacy' || here === 'terms';
+  const morePage = here === 'settings' || here === 'rules' || here === 'about' || here === 'contact' || here === 'privacy' || here === 'terms' || here === 'lists';
   const postBtn = currentSession
     ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>${t('nav.post')}</span></button>`
     : `<a class="sidebar-post-btn" href="${lp}/signup">${ICON_COMPOSE}<span>${t('nav.post')}</span></a>`;
@@ -473,7 +486,7 @@ function renderSideNav() {
     item('/notifications', NAV_ICON.bell, t('nav.notifications'), 'notifications', notifBadge) +
     item('/messages', NAV_ICON.chat, t('nav.chat'), 'messages', chatBadge) +
     item('/bookmarks', NAV_ICON.bookmark, t('nav.bookmarks'), 'bookmarks') +
-    item('/lists', NAV_ICON.list, t('nav.lists'), 'lists') +
+    item('/articles', NAV_ICON.article, t('nav.articles'), 'articles') +
     item(`${lp}/communities`, NAV_ICON.people, t('nav.communities'), 'communities') +
     item(ownHref, NAV_ICON.user, t('nav.profile'), 'profile') +
     `<div class="acct" id="more-wrap">
@@ -481,6 +494,7 @@ function renderSideNav() {
          <span class="navicon">${NAV_ICON.dots}</span><span class="navlabel">${t('nav.more')}</span>
        </button>
        <div class="acct-menu navmore-menu" id="more-menu">
+         <a href="/lists"${here === 'lists' ? ' class="cur"' : ''}>${NAV_ICON.list}${t('nav.lists')}</a>
          <a href="/settings">${NAV_ICON.gear}${t('nav.settings')}</a>
          <a href="${lp}/rules">${NAV_ICON.doc}${t('nav.rules')}</a>
          <a href="${lp}/about">${NAV_ICON.info}${t('nav.about')}</a>
@@ -566,10 +580,11 @@ function renderMobileChrome() {
           <div class="m-drawer-menu">
             <a href="${ownHref}">${NAV_ICON.user}Profile</a>
             <a href="bookmarks.html">${NAV_ICON.bookmark}Bookmarks</a>
-            <a href="lists.html">${NAV_ICON.list}Lists</a>
+            <a href="articles.html">${NAV_ICON.article}Articles</a>
             <a href="${lp}/communities">${NAV_ICON.people}Communities</a>
             <a href="editprofile.html">${NAV_ICON.doc}Edit profile</a>
             <a href="/settings">${NAV_ICON.gear}Settings and privacy</a>
+            <a href="lists.html">${NAV_ICON.list}Lists</a>
             <a href="${lp}/rules">${NAV_ICON.doc}Rules</a>
             <a href="${lp}/about">${NAV_ICON.info}About</a>
             <a href="${lp}/contact">${NAV_ICON.mail}Contact</a>
@@ -583,8 +598,9 @@ function renderMobileChrome() {
           <span class="m-drawer-name">Welcome to InteractInk</span>
           <span class="m-drawer-handle">Log in to follow, post, and reply.</span>
           <div class="m-drawer-menu" style="margin-top:8px;">
-            <a href="lists.html">${NAV_ICON.list}Lists</a>
+            <a href="articles.html">${NAV_ICON.article}Articles</a>
             <a href="${lp}/communities">${NAV_ICON.people}Communities</a>
+            <a href="lists.html">${NAV_ICON.list}Lists</a>
             <a href="${lp}/rules">${NAV_ICON.doc}Rules</a>
             <a href="${lp}/about">${NAV_ICON.info}About</a>
             <a href="${lp}/contact">${NAV_ICON.mail}Contact</a>
@@ -872,7 +888,7 @@ async function submitGlobalCompose() {
     } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
-      ({ media_url, media_type } = await uploadMedia(file));
+      ({ media_url, media_type } = await uploadMedia(file, msg => stEl.textContent = msg));
     }
     const poll = collectPoll('gc');
     const scheduled_at = collectSchedule('gc');
@@ -1050,7 +1066,7 @@ async function submitReplyPopup() {
     } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
-      ({ media_url, media_type } = await uploadMedia(file));
+      ({ media_url, media_type } = await uploadMedia(file, msg => stEl.textContent = msg));
     }
     const { data, error } = await sb.from('replies').insert({
       post_id: targetPostId,
@@ -2571,6 +2587,60 @@ async function deleteListConfirm(listId, name) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// ARTICLES — long-form posts any account can write (see
+// supabase/articles.sql). Unlike Lists there's no owner/curator
+// split: every article has exactly one author, who's the only one
+// who can edit or delete it. Used by js/articles.js (browse),
+// js/article.js (single view), and js/editarticle.js (write/edit).
+// ─────────────────────────────────────────────────────────────
+
+// A short, plain-text preview of an article's body for its row card
+// — strips extra whitespace and caps length, same idea as a blog
+// index page's excerpt.
+function articleExcerpt(body, max = 140) {
+  const flat = String(body || '').replace(/\s+/g, ' ').trim();
+  return flat.length > max ? flat.slice(0, max).trim() + '…' : flat;
+}
+
+// Compact row — used by articles.html's All/Your Articles tabs.
+function articleRowHtml(a, authorProfile = null) {
+  const byLine = authorProfile
+    ? `<span class="who-row-handle">by @${esc(authorProfile.username)}${vBadge(authorProfile)}</span>`
+    : '';
+  const cover = a.cover_url
+    ? `<span class="article-row-cover"><img src="${esc(a.cover_url)}" alt="" loading="lazy"></span>`
+    : '';
+  return `
+    <a class="who-row article-row" href="${articleUrl(a.id)}">
+      <span class="who-row-txt">
+        <span class="who-row-name">${esc(a.title)}</span>
+        <span class="comm-desc">${esc(articleExcerpt(a.body))}</span>
+        <span class="who-row-handle">${timeAgo(a.created_at)}</span>
+        ${byLine}
+      </span>
+      ${cover}
+    </a>`;
+}
+
+async function deleteArticleConfirm(articleId, title) {
+  const ok = await ocConfirm({
+    title: `Delete "${title}"?`,
+    desc: `This can't be undone.`,
+    confirmLabel: 'Delete',
+    danger: true
+  });
+  if (!ok) return;
+  try {
+    const { error } = await sb.from('articles').update({ is_deleted: true }).eq('id', articleId);
+    if (error) throw error;
+    toast('Article deleted.');
+    location.href = 'articles.html';
+  } catch (e) {
+    toast(e.message || 'Could not delete that Article.', 'error');
+  }
+}
+
 // ── ADD/REMOVE-FROM-LIST MODAL ── opened from a profile's "···" menu
 // with the profile being added/removed (`targetId`/`targetUsername`).
 function almModalEl() {
@@ -3166,17 +3236,175 @@ function clearErr(el) {
   el.classList.remove('auth-ok');
 }
 
-// Re-encodes a still image to WebP at a very high quality setting
-// before it ever reaches the network. WebP's lossy mode at this
-// quality is visually indistinguishable from the source but usually
-// runs 25–50% smaller, and it also strips EXIF/metadata bloat as a
-// side effect of the canvas round-trip. Animated GIFs are skipped —
-// drawing one to a canvas only captures its first frame, which would
-// silently kill the animation. Falls back to the original file
-// untouched if the browser can't decode it, or if re-encoding
-// somehow comes out larger (e.g. an already-optimized WebP/AVIF).
+// ── "I'm not a robot" CAPTCHA (Google reCAPTCHA v2 checkbox) ──
+// Gates sign up, log in, and every posting action (new post, community
+// post, top-level reply, inline comment reply). Shared across all of
+// them instead of duplicated per-page so there's exactly one place
+// that knows how to render/verify a widget and one place to update if
+// the site ever swaps providers.
+//
+// SETUP REQUIRED — this ships disabled-safe (fails OPEN, not closed)
+// until you fill in a real site key here, so the site keeps working
+// out of the box:
+//   1. Create a reCAPTCHA v2 ("I'm not a robot" checkbox) key pair at
+//      https://www.google.com/recaptcha/admin for your domain(s).
+//   2. Paste the SITE key below.
+//   3. Set the SECRET key as the RECAPTCHA_SECRET_KEY environment
+//      variable in your Vercel project (Settings → Environment
+//      Variables) — see api/verify-captcha.js. Never put the secret
+//      key in client code.
+// Until both are done, renderCaptchaIfNeeded()/verifyHuman() silently
+// no-op (widgets stay hidden, checks pass) so nothing breaks — but
+// posting/signup/login are NOT actually bot-protected yet.
+const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY_HERE';
+function captchaConfigured() {
+  return !!RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('YOUR_');
+}
+
+// Passing one checkbox re-verifies the person for a little while
+// instead of demanding a fresh checkbox on every single post/reply —
+// same tradeoff most sites make between "annoying" and "bot-proof".
+const HUMAN_VERIFIED_MINUTES = 20;
+const HUMAN_VERIFIED_KEY = 'oc-human-verified-until';
+function isHumanVerified() {
+  try { return Date.now() < (+sessionStorage.getItem(HUMAN_VERIFIED_KEY) || 0); }
+  catch (e) { return false; }
+}
+function markHumanVerified() {
+  try { sessionStorage.setItem(HUMAN_VERIFIED_KEY, String(Date.now() + HUMAN_VERIFIED_MINUTES * 60000)); }
+  catch (e) {}
+}
+
+const _captchaWidgets = {}; // containerId -> grecaptcha widget id
+
+// Renders (once) the checkbox into #<containerId> if a check is
+// actually still needed right now; hides/no-ops otherwise. Safe to
+// call every time a composer opens.
+function renderCaptchaIfNeeded(containerId, _attempt = 0) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!captchaConfigured() || isHumanVerified()) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  if (_captchaWidgets[containerId] != null) return;
+  if (window.grecaptcha?.render) {
+    _captchaWidgets[containerId] = grecaptcha.render(containerId, { sitekey: RECAPTCHA_SITE_KEY });
+  } else if (_attempt < 20) {
+    // google's recaptcha script loads async — it may not be ready yet
+    // the first time a composer/auth form appears, so retry briefly.
+    setTimeout(() => renderCaptchaIfNeeded(containerId, _attempt + 1), 250);
+  }
+}
+// Passed as ?onload=initAllCaptchas to the recaptcha <script> tag on
+// every page that has one or more containers below — each call is a
+// no-op for any id not present on the current page.
+function initAllCaptchas() {
+  ['su-captcha', 'li-captcha', 'pf-captcha', 'cf-captcha', 'rf-captcha'].forEach(renderCaptchaIfNeeded);
+}
+
+// Resolves true once the person is verified human (already verified
+// recently, or just solved the checkbox in containerId and it passed
+// server-side verification). Shows an error in errEl and returns
+// false otherwise. Call this right before the network request a
+// captcha is meant to gate (sign up, log in, submit post/reply).
+async function verifyHuman(containerId, errEl) {
+  if (!captchaConfigured() || isHumanVerified()) return true;
+  renderCaptchaIfNeeded(containerId);
+  const widgetId = _captchaWidgets[containerId];
+  const token = widgetId != null && window.grecaptcha ? grecaptcha.getResponse(widgetId) : '';
+  if (!token) {
+    showErr(errEl, "Please check the box to confirm you're not a robot.");
+    return false;
+  }
+  try {
+    const res = await fetch('/api/verify-captcha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const out = await res.json();
+    if (!out.success) {
+      showErr(errEl, 'Captcha check failed — please try again.');
+      if (widgetId != null) grecaptcha.reset(widgetId);
+      return false;
+    }
+    markHumanVerified();
+    return true;
+  } catch (e) {
+    showErr(errEl, 'Could not verify the captcha right now — please try again.');
+    return false;
+  }
+}
+
+// ── 30s POSTING COOLDOWN — client-side spam brake shared by every
+// "create a post/reply" action. Kept in localStorage (not a JS
+// variable) so it survives this site's real full-page navigations —
+// see supabase/post_cooldown.sql for the server-side trigger that
+// actually enforces this (client-side alone can always be bypassed by
+// someone calling the Supabase API directly). ──
+const POST_COOLDOWN_MS = 30000;
+function postCooldownRemainingMs() {
+  try {
+    const rem = POST_COOLDOWN_MS - (Date.now() - (+localStorage.getItem('oc-last-post-at') || 0));
+    return rem > 0 ? rem : 0;
+  } catch (e) { return 0; }
+}
+function markPosted() {
+  try { localStorage.setItem('oc-last-post-at', String(Date.now())); } catch (e) {}
+}
+// Returns true and does nothing if clear to post; otherwise shows the
+// remaining wait in errEl and returns false.
+function enforceCooldown(errEl) {
+  const rem = postCooldownRemainingMs();
+  if (rem > 0) {
+    showErr(errEl, `You're posting too fast — wait ${Math.ceil(rem / 1000)}s and try again.`);
+    return false;
+  }
+  return true;
+}
+// Disables btn and live-counts down its label until the cooldown
+// clears, then restores it. Call right after a successful post.
+function startCooldownCountdown(btn, restoreLabel) {
+  if (!btn) return;
+  const tick = () => {
+    const rem = postCooldownRemainingMs();
+    if (rem <= 0) { btn.disabled = false; btn.value = restoreLabel; return; }
+    btn.disabled = true;
+    btn.value = `Wait ${Math.ceil(rem / 1000)}s`;
+    setTimeout(tick, 250);
+  };
+  tick();
+}
+
+// ── AUTOMATIC MEDIA COMPRESSION ──
+// Every file a person attaches to a post/reply is re-encoded
+// client-side, before it ever reaches the network, so it takes as
+// little storage as possible with no visible loss in quality:
+//   • Still images  → re-encoded to WebP at a very high quality
+//     setting (compressImageFile).
+//   • Animated GIFs → losslessly re-packed with Gifsicle — same
+//     pixels, same frames, same timing, just a tighter encoding
+//     (compressGifFile).
+//   • Video (mp4/webm) → re-encoded at a visually-lossless CRF, which
+//     strips the huge bitrate overhead most phone/screen-recorder
+//     exports bake in without introducing visible artifacts
+//     (compressVideoFile).
+// Every step is best-effort and wrapped so it can never block a
+// post: on any failure (old browser, slow device, CDN hiccup, a file
+// that's already optimal) it silently falls back to the original,
+// untouched file.
+
+// Re-encodes a still image to WebP at a very high quality setting.
+// WebP's lossy mode at this quality is visually indistinguishable
+// from the source but usually runs 25–50% smaller, and it also
+// strips EXIF/metadata bloat as a side effect of the canvas
+// round-trip. Falls back to the original file untouched if the
+// browser can't decode it, or if re-encoding somehow comes out
+// larger (e.g. an already-optimized WebP/AVIF).
 const IMAGE_COMPRESS_QUALITY = 0.92;
 async function compressImageFile(file) {
+  // Defensive guard: drawing a GIF to a canvas only captures its
+  // first frame, which would silently kill the animation. GIFs are
+  // routed to compressGifFile() instead — see uploadMedia().
   if (file.type === 'image/gif') return file;
   try {
     const bitmap = await createImageBitmap(file);
@@ -3194,12 +3422,141 @@ async function compressImageFile(file) {
   }
 }
 
-// Uploads a file to the media bucket and returns { media_url, media_type }
-async function uploadMedia(file) {
-  if (mediaTypeFor(file) === 'image') {
-    file = await compressImageFile(file);
+// Gifsicle compiled to WASM (~150KB gzipped), loaded on demand the
+// first time someone actually uploads a GIF — pinned to a fixed
+// version so a CDN update can't silently change behavior.
+const GIFSICLE_CDN_URL = 'https://cdn.jsdelivr.net/npm/gifsicle-wasm-browser@1.5.19/dist/gifsicle.min.js';
+let _gifsiclePromise = null;
+function loadGifsicle() {
+  if (!_gifsiclePromise) _gifsiclePromise = import(GIFSICLE_CDN_URL).then(m => m.default);
+  return _gifsiclePromise;
+}
+
+// Losslessly re-optimizes an animated GIF with Gifsicle. `-O3` (or
+// `-O2` for bigger files — O3's cost grows sharply past ~10MB for
+// almost no extra savings) rebuilds the frame/LZW/color-table
+// encoding more efficiently; it never touches a pixel, a frame, or
+// the timing, so the output is the exact same animation, just packed
+// tighter. No `--lossy` flag is used anywhere — that's the flag that
+// would trade quality for size, and it's intentionally left off.
+async function compressGifFile(file) {
+  if (file.size > 40 * 1024 * 1024) return file; // too large to safely optimize in-tab
+  try {
+    const gifsicle = await loadGifsicle();
+    const level = file.size > 10 * 1024 * 1024 ? '-O2' : '-O3';
+    const [out] = await gifsicle.run({
+      input: [{ file, name: 'in.gif' }],
+      command: [`${level} in.gif -o /out/out.gif`]
+    });
+    if (!out || out.size >= file.size) return file;
+    return new File([out], file.name, { type: 'image/gif' });
+  } catch {
+    return file;
   }
+}
+
+// ffmpeg.wasm, loaded on demand the first time someone actually
+// uploads a video. Uses the single-threaded core (not core-mt), which
+// works without the site needing to send COOP/COEP headers — slower
+// than the multi-threaded build, but nothing to configure. Pinned
+// versions for the same reason as Gifsicle above.
+const FFMPEG_VERSION = '0.12.15';
+const FFMPEG_CORE_VERSION = '0.12.10';
+let _ffmpegPromise = null;
+async function loadFFmpeg() {
+  if (_ffmpegPromise) return _ffmpegPromise;
+  _ffmpegPromise = (async () => {
+    const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
+      import(`https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/index.js`),
+      import(`https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js`)
+    ]);
+    const ffmpeg = new FFmpeg();
+    const coreBase = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
+    const ffmpegBase = `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm`;
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, 'application/wasm'),
+      // The worker script has to be fetched into a same-origin blob:
+      // URL too — browsers won't spawn a Worker directly from a
+      // cross-origin CDN URL.
+      classWorkerURL: await toBlobURL(`${ffmpegBase}/worker.js`, 'text/javascript')
+    });
+    return ffmpeg;
+  })();
+  return _ffmpegPromise;
+}
+
+// Re-encodes video at a visually-lossless CRF (18 for H.264 — the
+// point past which x264's own guidance says artifacts stop being
+// perceptible; true mathematically-lossless is CRF 0 and produces
+// *bigger* files, not smaller) instead of whatever bitrate a phone or
+// screen recorder baked in, which is almost always far more than the
+// content needs. Audio is re-encoded at a high, transparent bitrate
+// rather than dropped. Skips anything too large to safely transcode
+// in a browser tab or that hangs past a couple of minutes, and always
+// falls back to the original file the instant anything goes wrong.
+const VIDEO_COMPRESS_CRF = 18;
+const VIDEO_COMPRESS_TIMEOUT_MS = 120000;
+async function compressVideoFile(file) {
+  if (file.size > 80 * 1024 * 1024) return file; // too large to safely transcode in-tab
+  try {
+    const [ffmpeg, { fetchFile }] = await Promise.all([
+      loadFFmpeg(),
+      import(`https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js`)
+    ]);
+    const isWebm = file.type === 'video/webm';
+    const inName = isWebm ? 'in.webm' : 'in.mp4';
+    const outName = isWebm ? 'out.webm' : 'out.mp4';
+    const codecArgs = isWebm
+      ? ['-c:v', 'libvpx-vp9', '-crf', String(VIDEO_COMPRESS_CRF + 12), '-b:v', '0', '-c:a', 'libopus']
+      : ['-c:v', 'libx264', '-crf', String(VIDEO_COMPRESS_CRF), '-preset', 'veryfast', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'];
+
+    await ffmpeg.writeFile(inName, await fetchFile(file));
+    const run = ffmpeg.exec(['-i', inName, ...codecArgs, outName]);
+    const timedOut = Symbol('timeout');
+    const result = await Promise.race([
+      run,
+      new Promise(resolve => setTimeout(() => resolve(timedOut), VIDEO_COMPRESS_TIMEOUT_MS))
+    ]);
+    if (result === timedOut) {
+      // Reset so the next attempt gets a fresh worker instead of one
+      // still stuck mid-encode.
+      try { ffmpeg.terminate(); } catch {}
+      _ffmpegPromise = null;
+      return file;
+    }
+
+    const data = await ffmpeg.readFile(outName);
+    ffmpeg.deleteFile(inName).catch(() => {});
+    ffmpeg.deleteFile(outName).catch(() => {});
+    const blob = new Blob([data.buffer], { type: file.type });
+    if (blob.size >= file.size) return file;
+    return new File([blob], file.name, { type: file.type });
+  } catch {
+    return file;
+  }
+}
+
+// Uploads a file to the media bucket and returns { media_url, media_type }.
+// `onStatus(message)`, if given, is called with a short human-readable
+// status as compression/upload progresses, for callers that want to
+// reflect it in the UI (e.g. "Compressing video…").
+async function uploadMedia(file, onStatus) {
+  const notify = onStatus || (() => {});
   const type = mediaTypeFor(file);
+  if (type === 'image') {
+    if (file.type === 'image/gif') {
+      notify('Optimizing GIF…');
+      file = await compressGifFile(file);
+    } else {
+      notify('Compressing image…');
+      file = await compressImageFile(file);
+    }
+  } else if (type === 'video') {
+    notify('Compressing video…');
+    file = await compressVideoFile(file);
+  }
+  notify('Uploading…');
   const ext = file.name.split('.').pop().toLowerCase();
   const path = `${crypto.randomUUID()}.${ext}`;
   const { error } = await sb.storage.from(MEDIA_BUCKET).upload(path, file, {
@@ -4031,7 +4388,13 @@ function closeReport() {
 // wrappers (.pc, .rc, .qp-embed, the mobile drawer backdrop, etc.) are
 // plain <div>s, so this selector naturally skips them too — bouncing
 // an entire feed card would look broken, not tactile. ──
-const OC_BOUNCE_SELECTOR = 'button, [role="button"], .accent-swatch, input[type="submit"], input[type="button"], img[onclick], a[href]:not(.body-link):not(.body-mention):not(.body-hashtag)';
+// .logo/.m-logo (the site logo, top of the sidebar / mobile topbar) are
+// excluded: they're plain <a href="/"> links with no client-side routing,
+// so a tap triggers a real full-page reload. That reload interrupts the
+// .22s scale animation mid-flight, which reads as the logo jumping off
+// position for a frame before the new page loads. Since the animation can
+// never finish on those links anyway, skip it rather than let it glitch.
+const OC_BOUNCE_SELECTOR = 'button, [role="button"], .accent-swatch, input[type="submit"], input[type="button"], img[onclick], a[href]:not(.body-link):not(.body-mention):not(.body-hashtag):not(.logo):not(.m-logo)';
 document.addEventListener('click', (e) => {
   const el = e.target.closest(OC_BOUNCE_SELECTOR);
   if (!el || el.disabled) return;

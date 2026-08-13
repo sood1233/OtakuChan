@@ -500,6 +500,84 @@ ${postsHtml}`;
   return { status: 200, html };
 }
 
+// ── ARTICLE ("/i/articles/:id") ──
+
+async function renderArticle(origin, id) {
+  let html = readTemplate('article.html');
+
+  const articles = await sbGet('articles', `id=eq.${encodeURIComponent(id)}&is_deleted=eq.false&select=*`);
+  const article = articles && articles[0];
+
+  if (!article) {
+    html = replaceLine(html, '<title>Article — InteractInk</title>', '<title>Article not found — InteractInk</title>');
+    html = replaceLine(html,
+      '<meta name="description" content="An article written by an InteractInk user.">',
+      '<meta name="description" content="No Article found with that id.">');
+    html = injectHead(html, '<meta name="robots" content="noindex">');
+    html = insertHiddenSeoBlock(html,
+      '<div id="article-content"><span class="spinner">Loading&hellip;</span></div>',
+      "<p>No Article found with that id.</p>");
+    return { status: 404, html };
+  }
+
+  const canonical = `${origin}/i/articles/${encodeURIComponent(article.id)}`;
+
+  const authors = await sbGet('profiles', `id=eq.${encodeURIComponent(article.author_id)}&select=username,display_name,avatar_url`);
+  const author = authors && authors[0];
+
+  const titleText = `${article.title} — InteractInk`;
+  const descText = (article.body || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const image = article.cover_url || '/img/logo-light.png';
+
+  const jsonLd = {
+    '@context': 'https://schema.org', '@type': 'Article',
+    headline: article.title, articleBody: article.body,
+    datePublished: article.created_at, dateModified: article.updated_at,
+    url: canonical, image: article.cover_url || undefined,
+    author: author ? { '@type': 'Person', name: author.display_name || author.username } : undefined,
+  };
+
+  const authorHref = author ? `${origin}/${encodeURIComponent(author.username)}` : null;
+  const articleRootHtml = `<article>
+  <h1>${esc(article.title)}</h1>
+  ${author ? `<p><a href="${authorHref}">${esc(author.display_name || author.username)} @${esc(author.username)}</a> &middot; <small>${new Date(article.created_at).toLocaleString()}</small></p>` : ''}
+  <div>${esc(article.body).split('\n').map(line => `<p>${line}</p>`).join('\n')}</div>
+</article>`;
+
+  html = replaceLine(html, '<title>Article — InteractInk</title>', `<title>${esc(titleText)}</title>`);
+  html = replaceLine(html,
+    '<meta name="description" content="An article written by an InteractInk user.">',
+    `<meta name="description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:title" content="Article — InteractInk">',
+    `<meta property="og:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:description" content="An article written by an InteractInk user.">',
+    `<meta property="og:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta property="og:image" content="/img/logo-light.png">',
+    `<meta property="og:image" content="${esc(image)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:title" content="Article — InteractInk">',
+    `<meta name="twitter:title" content="${esc(titleText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:description" content="An article written by an InteractInk user.">',
+    `<meta name="twitter:description" content="${esc(descText)}">`);
+  html = replaceLine(html,
+    '<meta name="twitter:image" content="/img/logo-light.png">',
+    `<meta name="twitter:image" content="${esc(image)}">`);
+  html = replaceLine(html, '<link rel="canonical">', `<link rel="canonical" href="${esc(canonical)}">`);
+  html = replaceLine(html, '<meta property="og:url" content="">', `<meta property="og:url" content="${esc(canonical)}">`);
+
+  html = injectHead(html, jsonLdScriptTag(jsonLd));
+
+  html = insertHiddenSeoBlock(html,
+    '<div id="article-content"><span class="spinner">Loading&hellip;</span></div>',
+    articleRootHtml);
+
+  return { status: 200, html };
+}
+
 // ── THREAD ("/i/status/:id", "/:username/status/:id") ──
 
 async function renderThread(origin, username, id) {
@@ -612,6 +690,8 @@ module.exports = async function handler(req, res) {
       result = await renderCommunity(origin, slug);
     } else if (type === 'list' && id) {
       result = await renderList(origin, id);
+    } else if (type === 'article' && id) {
+      result = await renderArticle(origin, id);
     } else {
       res.status(400).send('Bad request');
       return;

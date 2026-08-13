@@ -78,6 +78,7 @@
               </button>
             </div>
           </div>
+          <div id="li-captcha" class="auth-captcha" style="display:none;"></div>
           <input type="submit" id="li-btn" class="auth-submit" value="Iniciar sesión" data-i18n-value="auth.logIn">
         </form>
         <div class="auth-switch"><span data-i18n="auth.noAccount">¿Aún no tienes cuenta?</span> <a href="/es/signup" data-i18n="nav.signUp">Registrarse</a></div>
@@ -94,5 +95,6 @@
 <script src="/js/common.js"></script>
 <script src="/js/video-player.js"></script>
 <script src="/js/auth.js"></script>
+<script src="https://www.google.com/recaptcha/api.js?onload=initAllCaptchas&render=explicit" async defer></script>
 </body>
 </html>

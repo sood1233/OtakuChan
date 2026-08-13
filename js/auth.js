@@ -219,6 +219,7 @@ async function doSignUp(e) {
     showErr(errEl, 'Password must be at least 8 characters.');
     return;
   }
+  if (!(await verifyHuman('su-captcha', errEl))) return;
 
   btn.disabled = true; btn.value = 'Creating account…';
   try {
@@ -279,6 +280,8 @@ async function doLogIn(e) {
   const errEl = document.getElementById('li-err');
   clearErr(errEl);
 
+  if (!(await verifyHuman('li-captcha', errEl))) return;
+
   btn.disabled = true; btn.value = 'Logging in…';
   try {
     const { error } = await sb.auth.signInWithPassword({ email, password });
@@ -316,4 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
   sb.auth.onAuthStateChange((_event, _session) => {
     renderAuthArea();
   });
+  // Only one of these containers exists per page (signup vs login);
+  // renderCaptchaIfNeeded() no-ops for whichever id isn't present.
+  renderCaptchaIfNeeded('su-captcha');
+  renderCaptchaIfNeeded('li-captcha');
 });

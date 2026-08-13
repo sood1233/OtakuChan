@@ -30,7 +30,7 @@ const I18N_LANGS = {
 const I18N_DICT = {
   en: {
     'nav.home': 'Home', 'nav.explore': 'Explore', 'nav.notifications': 'Notifications',
-    'nav.chat': 'Chat', 'nav.bookmarks': 'Bookmarks', 'nav.lists': 'Lists',
+    'nav.chat': 'Chat', 'nav.bookmarks': 'Bookmarks', 'nav.lists': 'Lists', 'nav.articles': 'Articles',
     'nav.communities': 'Communities', 'nav.profile': 'Profile', 'nav.more': 'More',
     'nav.settings': 'Settings', 'nav.rules': 'Rules', 'nav.post': 'Post',
     'nav.about': 'About', 'nav.contact': 'Contact', 'nav.privacy': 'Privacy Policy', 'nav.terms': 'Terms of Service',
@@ -62,7 +62,7 @@ const I18N_DICT = {
   },
   es: {
     'nav.home': 'Inicio', 'nav.explore': 'Explorar', 'nav.notifications': 'Notificaciones',
-    'nav.chat': 'Chat', 'nav.bookmarks': 'Guardados', 'nav.lists': 'Listas',
+    'nav.chat': 'Chat', 'nav.bookmarks': 'Guardados', 'nav.lists': 'Listas', 'nav.articles': 'Artículos',
     'nav.communities': 'Comunidades', 'nav.profile': 'Perfil', 'nav.more': 'Más',
     'nav.settings': 'Configuración', 'nav.rules': 'Normas', 'nav.post': 'Publicar',
     'nav.about': 'Acerca de', 'nav.contact': 'Contacto', 'nav.privacy': 'Política de privacidad', 'nav.terms': 'Términos del servicio',
@@ -94,7 +94,7 @@ const I18N_DICT = {
   },
   fr: {
     'nav.home': 'Accueil', 'nav.explore': 'Explorer', 'nav.notifications': 'Notifications',
-    'nav.chat': 'Discussion', 'nav.bookmarks': 'Signets', 'nav.lists': 'Listes',
+    'nav.chat': 'Discussion', 'nav.bookmarks': 'Signets', 'nav.lists': 'Listes', 'nav.articles': 'Articles',
     'nav.communities': 'Communautés', 'nav.profile': 'Profil', 'nav.more': 'Plus',
     'nav.settings': 'Paramètres', 'nav.rules': 'Règles', 'nav.post': 'Publier',
     'nav.about': 'À propos', 'nav.contact': 'Contact', 'nav.privacy': 'Politique de confidentialité', 'nav.terms': "Conditions d'utilisation",
@@ -126,7 +126,7 @@ const I18N_DICT = {
   },
   de: {
     'nav.home': 'Start', 'nav.explore': 'Entdecken', 'nav.notifications': 'Benachrichtigungen',
-    'nav.chat': 'Chat', 'nav.bookmarks': 'Lesezeichen', 'nav.lists': 'Listen',
+    'nav.chat': 'Chat', 'nav.bookmarks': 'Lesezeichen', 'nav.lists': 'Listen', 'nav.articles': 'Artikel',
     'nav.communities': 'Communitys', 'nav.profile': 'Profil', 'nav.more': 'Mehr',
     'nav.settings': 'Einstellungen', 'nav.rules': 'Regeln', 'nav.post': 'Posten',
     'nav.about': 'Über uns', 'nav.contact': 'Kontakt', 'nav.privacy': 'Datenschutzerklärung', 'nav.terms': 'Nutzungsbedingungen',
@@ -158,7 +158,7 @@ const I18N_DICT = {
   },
   pt: {
     'nav.home': 'Início', 'nav.explore': 'Explorar', 'nav.notifications': 'Notificações',
-    'nav.chat': 'Chat', 'nav.bookmarks': 'Salvos', 'nav.lists': 'Listas',
+    'nav.chat': 'Chat', 'nav.bookmarks': 'Salvos', 'nav.lists': 'Listas', 'nav.articles': 'Artigos',
     'nav.communities': 'Comunidades', 'nav.profile': 'Perfil', 'nav.more': 'Mais',
     'nav.settings': 'Configurações', 'nav.rules': 'Regras', 'nav.post': 'Publicar',
     'nav.about': 'Sobre', 'nav.contact': 'Contato', 'nav.privacy': 'Política de Privacidade', 'nav.terms': 'Termos de Serviço',
@@ -190,7 +190,7 @@ const I18N_DICT = {
   },
   ja: {
     'nav.home': 'ホーム', 'nav.explore': '話題を検索', 'nav.notifications': '通知',
-    'nav.chat': 'チャット', 'nav.bookmarks': 'ブックマーク', 'nav.lists': 'リスト',
+    'nav.chat': 'チャット', 'nav.bookmarks': 'ブックマーク', 'nav.lists': 'リスト', 'nav.articles': '記事',
     'nav.communities': 'コミュニティ', 'nav.profile': 'プロフィール', 'nav.more': 'もっと見る',
     'nav.settings': '設定', 'nav.rules': 'ルール', 'nav.post': '投稿',
     'nav.about': 'InteractInkについて', 'nav.contact': 'お問い合わせ', 'nav.privacy': 'プライバシーポリシー', 'nav.terms': '利用規約',

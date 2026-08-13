@@ -100,7 +100,10 @@ This is a plain static site — no build step, no Node server required.
 - `/<username>` (`profile.html`) — a user's public profile (banner, avatar, bio, their posts). Your own profile shows an "Edit Profile" button that goes to `editprofile.html`; visiting your own profile no longer auto-opens an edit form.
 - `editprofile.html` — its own page (Twitter's "Edit profile" screen) for banner, avatar, display name, and bio; logged-in users only, always edits your own account
 - `/<username>/followers`, `/<username>/following` (`followlist.html`) — its own page (Twitter's followers/following screen) with tabs, a Follow/Following button per row, live counts
-- `/lists` (`lists.html`) — "Your Lists" / "Lists you're on" tabs, "+ Create" button
+- `/articles` (`articles.html`) — "All Articles" / "Your Articles" tabs, search box, "+ Write" button. Replaces Lists as the sidebar's second primary nav item — see "Articles" below.
+- `/i/articles/<uuid>` (`article.html`) — a single Article: cover image (optional), title, author byline, full body, Edit/Delete for the author only
+- `/editarticle.html` or `/editarticle.html?id=<uuid>` (`editarticle.html`) — write a new Article or edit one you own; logged-in users only
+- `/lists` (`lists.html`) — "Your Lists" / "Lists you're on" tabs, "+ Create" button. No longer a primary sidebar item — reachable from the "···" **More** menu instead (see `js/common.js`'s `renderSideNav()`)
 - `/i/lists/<uuid>` (`list.html`) — a single List: header (Edit/Delete for the owner), a Posts tab (merged timeline of every member) and a Members tab (Remove button for the owner)
 - `/<username>/lists` (`profilelists.html`) — Lists a given profile is a (visible) member of; reached from that profile's "···" menu → "View Lists"
 - `/search?q=<term>` (`search.html`) — search posts (body) or people (username/display name), tabbed
@@ -281,6 +284,33 @@ same mechanism as likes/replies/follows — a security-definer trigger
 on insert, gated by a `notify_mentions` toggle in `settings.html`
 (on by default), never something the client inserts directly.
 
+## Articles
+Run `supabase/articles.sql` in the SQL Editor after `schema.sql`
+(additive/idempotent like the others) to enable long-form Articles —
+now the sidebar's second primary nav item (Lists moved into the
+"···" **More** menu to make room; see "Lists" below):
+- **`articles`** — one row per Article (title, body, optional
+  `cover_url`, denormalized-free — no member/follower counts, since
+  an Article has exactly one author and nothing to curate). A soft
+  delete (`is_deleted = true`), same mechanism `posts` already uses.
+- **Any logged-in account can write one** — unlike Lists there's no
+  owner/curator split to configure; the RLS insert policy just
+  requires `author_id = auth.uid()`. Only the author can edit or
+  delete their own Article.
+- **`/articles`** — "All Articles" (everyone's, readable even
+  logged out) and "Your Articles" tabs, a search box (title/body
+  `ILIKE`, backed by the same `pg_trgm` approach `posts.body`
+  already uses), and a "+ Write" button that opens `editarticle.html`.
+- **`/i/articles/<id>`** (`article.html`) — the single-Article page:
+  cover image (if set), title, author byline with avatar, full body,
+  and Edit/Delete buttons shown only to the author.
+- **`editarticle.html`** / **`editarticle.html?id=<uuid>`** — one
+  form doubles as create and edit, same `?id=` pattern the
+  create/edit-List modal uses; editing someone else's Article
+  redirects away (RLS is the real backstop either way).
+- Indexed for SEO the same way profiles/posts/communities/Lists are —
+  see `api/prerender.js`'s `renderArticle()` and `api/sitemap.js`.
+
 ## Lists
 Run `supabase/lists.sql` in the SQL Editor after `schema.sql` (additive/
 idempotent like the others) to enable Twitter-style Lists — curated,
@@ -367,6 +397,8 @@ adds a plain aggregate counter, the same way `like_count`/
   `user_settings` toggle for that type is on
 - Mentions/hashtags/links: `linkifyText()` in `js/common.js` (rendering)
   and `supabase/mentions.sql` (the "mentioned you" notification)
+- Articles: `js/articles.js` (browse), `js/article.js` (single view),
+  `js/editarticle.js` (write/edit), `supabase/articles.sql` (schema/RLS)
 - Post detail page: `.op-detail` in `css/style.css`, `loadThread()` in
   `js/thread.js`, and `supabase/bookmark_count.sql` (the bookmark count
   it shows)

@@ -98,13 +98,14 @@ module.exports = async function handler(req, res) {
   const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0];
   const origin = `${proto}://${host}`;
 
-  let profiles = [], posts = [], communities = [], lists = [];
+  let profiles = [], posts = [], communities = [], lists = [], articles = [];
   try {
-    [profiles, posts, communities, lists] = await Promise.all([
+    [profiles, posts, communities, lists, articles] = await Promise.all([
       fetchAll('profiles', 'select=username,created_at&order=created_at.desc'),
       fetchAll('posts', 'select=id,created_at,is_deleted,scheduled_at,profile:profiles!posts_author_id_fkey(username)&is_deleted=eq.false&order=created_at.desc'),
       fetchAll('communities', 'select=slug,created_at&order=created_at.desc').catch(() => []),
       fetchAll('lists', 'select=id,created_at,is_private&order=created_at.desc').catch(() => []),
+      fetchAll('articles', 'select=id,created_at,is_deleted&is_deleted=eq.false&order=created_at.desc').catch(() => []),
     ]);
   } catch (e) {
     res.status(502).send('Failed to build sitemap: ' + e.message);
@@ -145,9 +146,12 @@ module.exports = async function handler(req, res) {
     .filter(l => !l.is_private)
     .map(l => urlTag(`${origin}/i/lists/${encodeURIComponent(l.id)}`, l.created_at, 'weekly', '0.4'));
 
+  const articleUrls = (articles || [])
+    .map(a => urlTag(`${origin}/i/articles/${encodeURIComponent(a.id)}`, a.created_at, 'weekly', '0.5'));
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${[...staticUrls, ...profileUrls, ...postUrls, ...communityUrls, ...listUrls].join('\n')}
+${[...staticUrls, ...profileUrls, ...postUrls, ...communityUrls, ...listUrls, ...articleUrls].join('\n')}
 </urlset>
 `;
 

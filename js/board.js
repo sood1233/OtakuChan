@@ -285,6 +285,8 @@ async function submitPost() {
   if (!body) { showErr(errEl, "Comment can't be empty."); return; }
   if (body.length > 500) { showErr(errEl, 'Comment too long (max 500 chars).'); return; }
   if (!validatePollAndSchedule('pf', errEl)) return;
+  if (!enforceCooldown(errEl)) return;
+  if (!(await verifyHuman('pf-captcha', errEl))) return;
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';
@@ -297,7 +299,7 @@ async function submitPost() {
     } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
-      ({ media_url, media_type } = await uploadMedia(file));
+      ({ media_url, media_type } = await uploadMedia(file, msg => stEl.textContent = msg));
     }
     const poll = collectPoll('pf');
     const scheduled_at = collectSchedule('pf');
@@ -328,6 +330,8 @@ async function submitPost() {
     } else if (activeTab === 'foryou') {
       addPostToFeed(data, true);
     }
+    markPosted();
+    startCooldownCountdown(btn, 'Post');
   } catch (e) {
     showErr(errEl, e.message || 'Failed to post.');
     stEl.textContent = '';
@@ -340,6 +344,7 @@ function updatePostBtnState() {
   const bodyEl = document.getElementById('pf-body');
   const btn = document.getElementById('pf-btn');
   if (!bodyEl || !btn) return;
+  if (postCooldownRemainingMs() > 0) return; // cooldown countdown owns disabled/label right now
   btn.disabled = bodyEl.value.trim().length === 0;
 }
 

@@ -151,6 +151,7 @@ function replyComposerHtml() {
         <div class="errmsg" id="rf-err" style="display:none;"></div>
         <textarea id="rf-body" maxlength="500" placeholder="${t('compose.reply')}" rows="1"></textarea>
         <div id="rf-fp" class="fp"></div>
+        <div id="rf-captcha" class="auth-captcha" style="display:none;"></div>
         <div class="rfm-row">
           <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('rf-file').click();return false;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></svg>
@@ -253,6 +254,7 @@ function renderConversation() {
       <div class="rw" id="replies-list">
         ${renderReplyTree()}
       </div>`;
+    renderCaptchaIfNeeded('rf-captcha');
     return;
   }
 
@@ -285,6 +287,7 @@ function renderConversation() {
     <div class="rw" id="replies-list">
       ${kids.length ? kids.map(k => replyHtml(k, 0)).join('') : '<div class="no-t">No replies yet. Be the first to reply.</div>'}
     </div>`;
+  renderCaptchaIfNeeded('rf-captcha');
 }
 
 // Fills in the reply composer's avatar once we know who's logged in
@@ -372,6 +375,7 @@ function replyHtml(r, depth) {
     <textarea id="rf-inline-body-${r.id}" maxlength="500" placeholder="${t('compose.reply')}"></textarea>
     <input type="file" id="rf-inline-file-${r.id}" accept="image/*,video/*">
     <div id="rf-inline-fp-${r.id}" class="fp"></div>
+    <div id="rf-inline-captcha-${r.id}" class="auth-captcha" style="display:none;"></div>
     <div class="rfm-row">
       <input type="submit" value="Reply" onclick="submitReply('${r.id}');return false;">
       <span id="rf-inline-st-${r.id}" style="font-size:11px;color:var(--muted);"></span>
@@ -397,6 +401,7 @@ function toggleReplyBox(replyId) {
       wireFilePreview(`rf-inline-file-${replyId}`, `rf-inline-fp-${replyId}`, null);
       box.dataset.wired = '1';
     }
+    renderCaptchaIfNeeded(`rf-inline-captcha-${replyId}`);
     box.querySelector('textarea')?.focus();
   }
 }
@@ -419,6 +424,9 @@ async function submitReply(parentReplyId = currentFocusedReplyId()) {
   const body = (bodyEl?.value || '').trim();
   if (!body) { showErr(errEl, 'Reply cannot be empty.'); return; }
   if (body.length > 500) { showErr(errEl, 'Reply too long (max 500 chars).'); return; }
+  if (!enforceCooldown(errEl)) return;
+  const captchaId = parentReplyId ? `rf-inline-captcha-${parentReplyId}` : 'rf-captcha';
+  if (!(await verifyHuman(captchaId, errEl))) return;
 
   btn.disabled = true;
   stEl.textContent = 'Posting…';
@@ -431,7 +439,7 @@ async function submitReply(parentReplyId = currentFocusedReplyId()) {
     } else if (file) {
       if (!validateFile(file, errEl)) { btn.disabled = false; stEl.textContent = ''; return; }
       stEl.textContent = 'Uploading file…';
-      ({ media_url, media_type } = await uploadMedia(file));
+      ({ media_url, media_type } = await uploadMedia(file, msg => stEl.textContent = msg));
     }
     const { data, error } = await sb.from('replies').insert({
       post_id: postId,
@@ -450,11 +458,13 @@ async function submitReply(parentReplyId = currentFocusedReplyId()) {
     if (parentReplyId) {
       document.getElementById(`rf-inline-${parentReplyId}`)?.classList.remove('open');
     }
+    markPosted();
+    startCooldownCountdown(btn, 'Reply');
   } catch (e) {
     showErr(errEl, e.message || 'Failed to post reply.');
     stEl.textContent = '';
   } finally {
-    btn.disabled = false;
+    if (postCooldownRemainingMs() <= 0) btn.disabled = false;
   }
 }
 
