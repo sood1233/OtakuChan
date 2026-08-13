@@ -235,10 +235,44 @@ build already sets up for you, and what's still on you:
 - Consider scanning uploads (e.g. via an Edge Function calling a hash-
   matching service like PhotoDNA/CSAI Match) before files go public,
   especially at any real scale.
-- Decide on a real username-squatting / impersonation policy and a
-  process for suspending abusive accounts (this schema doesn't include
-  a ban/suspend flag — add a `banned boolean` column to `profiles` and
-  check it in RLS if you need that).
+- Decide on a real username-squatting / impersonation policy — the
+  suspend/ban flow below covers enforcement once you've decided.
+
+## Admin panel
+Run `supabase/admin_panel_advanced.sql` in the SQL Editor (additive/
+idempotent like the others) to enable `/admin` — a real moderation
+console, not just the original verify/ban/delete-post page:
+- **Users** — verify/unverify, and Twitter-style **Suspend**: pick a
+  reason and a duration (1/3/7/30 days, or Permanent) and the account
+  is signed out immediately and blocked from posting, replying, or
+  writing Articles until it's unsuspended. A timed suspension lifts
+  itself automatically — `clear_expired_suspension()` runs the moment
+  that account next loads the site (see `js/auth.js`), backed up by a
+  best-effort `pg_cron` sweep every 5 minutes so the admin panel's
+  suspended list doesn't go stale even if they never come back.
+  **Unsuspend** reverses it immediately either way.
+- **Posts / Replies / Articles** — each has its own tab: recent feed
+  by default, search by body/title text or `@username`, and a Delete
+  button (soft delete, same `is_deleted` mechanism the site already
+  uses everywhere else).
+- **Reports** — the `reports` table `reports.sql` deliberately made
+  write-only from the browser (see above) is now readable *only*
+  through admin-gated, `SECURITY DEFINER` RPCs — no service_role key
+  ever goes near the browser. Filter by Open/Actioned/Dismissed/All,
+  jump straight to Suspend on the reported account (or the post/reply
+  author, if the report was against content rather than a person
+  directly), and mark a report Actioned or Dismissed once you've
+  handled it.
+- A stats bar (users, suspended count, posts, articles, open reports)
+  sits above the tabs for an at-a-glance read on the site.
+- Any account can be made an admin from the DB side — no more
+  hardcoding a single username:
+  ```sql
+  update public.profiles set is_admin = true where lower(username) = 'someusername';
+  ```
+  `is_admin()` still falls back to the original @marpe-only rule too,
+  so nothing breaks if you run this before flipping that flag on
+  anyone.
 
 ## Quotes & reposts
 Run `supabase/quotes_and_reposts.sql` in the SQL Editor after `schema.sql`

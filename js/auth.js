@@ -51,12 +51,24 @@ async function renderAuthArea() {
 
   currentProfile = await getProfile(session.user.id);
 
-  // Banned accounts get signed out the moment their profile loads,
-  // wherever they are on the site — admin_ban_user() (SQL) already
+  // A timed suspension (admin_suspend_user with a duration, rather
+  // than permanent) lifts itself the moment its expiry has passed —
+  // this is what actually applies that, right when the account next
+  // loads the site, rather than waiting on the best-effort pg_cron
+  // sweep. See clear_expired_suspension() in
+  // supabase/admin_panel_advanced.sql.
+  if (currentProfile?.banned && currentProfile?.suspended_until && new Date(currentProfile.suspended_until) <= new Date()) {
+    const { data: cleared } = await sb.rpc('clear_expired_suspension');
+    if (cleared) currentProfile = await getProfile(session.user.id);
+  }
+
+  // Suspended accounts get signed out the moment their profile loads,
+  // wherever they are on the site — admin_suspend_user() (SQL) already
   // stops them posting/replying at the RLS level, this just kicks
   // them out of the session too instead of leaving them logged in
-  // and confused. See supabase/admin_panel.sql.
+  // and confused. See supabase/admin_panel_advanced.sql.
   if (currentProfile?.banned) {
+    const suspendedUntil = currentProfile?.suspended_until;
     await sb.auth.signOut();
     currentSession = null;
     currentProfile = null;
@@ -65,7 +77,8 @@ async function renderAuthArea() {
     renderSideNav(); renderMobileChrome();
     if (el) el.innerHTML = `<div class="auth-cta"><a class="cta-primary" href="signup.html">Sign up</a><a class="cta-ghost" href="login.html">Log in</a></div>`;
     refreshPostGates();
-    alert('This account has been suspended.');
+    const until = suspendedUntil ? ` until ${new Date(suspendedUntil).toLocaleString()}` : '';
+    alert(`This account has been suspended${until}.`);
     return;
   }
 
