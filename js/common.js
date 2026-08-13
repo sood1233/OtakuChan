@@ -3370,7 +3370,7 @@ function clearErr(el) {
 // Until both are done, renderCaptchaIfNeeded()/verifyHuman() silently
 // no-op (widgets stay hidden, checks pass) so nothing breaks — but
 // posting/signup/login are NOT actually bot-protected yet.
-const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY_HERE';
+const RECAPTCHA_SITE_KEY = '6Ldp74MtAAAAAHHlqrPXLGfet7U30wpfsT85uO1B';
 function captchaConfigured() {
   return !!RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('YOUR_');
 }

@@ -215,14 +215,22 @@ function wirePostSearch() {
   });
 }
 
+let postShowDeleted = false;
+function togglePostShowDeleted() {
+  postShowDeleted = document.getElementById('adm-post-showdel').checked;
+  const q = document.getElementById('adm-post-q').value.trim();
+  q ? runPostSearch(q) : loadRecentPosts();
+}
+
 async function loadRecentPosts() {
   const box = document.getElementById('adm-post-results');
   box.innerHTML = `<div class="no-t">Loading&hellip;</div>`;
-  const { data, error } = await sb.from('posts')
+  let query = sb.from('posts')
     .select('id,body,created_at,author_id,is_deleted,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)')
-    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(20);
+  if (!postShowDeleted) query = query.eq('is_deleted', false);
+  const { data, error } = await query;
   if (error) { box.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
   box.innerHTML = (data || []).map(adminPostRowHtml).join('') || `<div class="no-t">No posts yet.</div>`;
 }
@@ -232,9 +240,9 @@ async function runPostSearch(q) {
   box.innerHTML = `<div class="no-t">Searching&hellip;</div>`;
   let query = sb.from('posts')
     .select('id,body,created_at,author_id,is_deleted,profile:profiles!posts_author_id_fkey(username,display_name,avatar_url,verified)')
-    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(30);
+  if (!postShowDeleted) query = query.eq('is_deleted', false);
 
   query = q.startsWith('@')
     ? query.ilike('profile.username', `%${q.slice(1)}%`)
@@ -250,14 +258,16 @@ function adminPostRowHtml(p) {
   const uname = p.profile?.username || 'unknown';
   const name = esc(p.profile?.display_name || uname);
   return `
-  <div class="adm-row adm-post-row" id="adm-post-${p.id}">
+  <div class="adm-row adm-post-row${p.is_deleted ? ' adm-row-deleted' : ''}" id="adm-post-${p.id}">
     <img class="avatar pfp-md" src="${esc(avatarUrl(p.profile?.avatar_url))}" alt="">
     <div class="adm-row-txt">
-      <span class="adm-row-name">${name}${vBadge(p.profile)} <span class="adm-row-handle">@${esc(uname)}</span> &middot; <span class="adm-row-dt">${timeAgo(p.created_at)}</span></span>
+      <span class="adm-row-name">${name}${vBadge(p.profile)} <span class="adm-row-handle">@${esc(uname)}</span> &middot; <span class="adm-row-dt">${timeAgo(p.created_at)}</span>${p.is_deleted ? '<span class="adm-tag adm-tag-banned">Deleted</span>' : ''}</span>
       <a class="adm-post-body" href="${postUrl(p)}" target="_blank" rel="noopener">${esc((p.body || '').slice(0, 200))}</a>
     </div>
     <div class="adm-row-acts">
-      <button class="adm-btn adm-btn-danger" onclick="adminDeletePost('${p.id}')">Delete</button>
+      ${p.is_deleted
+        ? `<button class="adm-btn adm-btn-primary" onclick="adminRestorePost('${p.id}')">Restore</button>`
+        : `<button class="adm-btn adm-btn-danger" onclick="adminDeletePost('${p.id}')">Delete</button>`}
     </div>
   </div>`;
 }
@@ -273,11 +283,29 @@ async function adminDeletePost(postId) {
   try {
     const { error } = await sb.rpc('admin_delete_post', { post_id: postId });
     if (error) throw error;
-    document.getElementById(`adm-post-${postId}`)?.remove();
+    if (postShowDeleted) {
+      const q = document.getElementById('adm-post-q').value.trim();
+      q ? runPostSearch(q) : loadRecentPosts();
+    } else {
+      document.getElementById(`adm-post-${postId}`)?.remove();
+    }
     toast('Post deleted.');
     loadStats();
   } catch (e) {
     toast(e.message || 'Could not delete that post.', 'error');
+  }
+}
+
+async function adminRestorePost(postId) {
+  try {
+    const { error } = await sb.rpc('admin_restore_post', { post_id: postId });
+    if (error) throw error;
+    const q = document.getElementById('adm-post-q').value.trim();
+    q ? runPostSearch(q) : loadRecentPosts();
+    toast('Post restored.');
+    loadStats();
+  } catch (e) {
+    toast(e.message || 'Could not restore that post.', 'error');
   }
 }
 
@@ -295,14 +323,22 @@ function wireReplySearch() {
   });
 }
 
+let replyShowDeleted = false;
+function toggleReplyShowDeleted() {
+  replyShowDeleted = document.getElementById('adm-reply-showdel').checked;
+  const q = document.getElementById('adm-reply-q').value.trim();
+  q ? runReplySearch(q) : loadRecentReplies();
+}
+
 async function loadRecentReplies() {
   const box = document.getElementById('adm-reply-results');
   box.innerHTML = `<div class="no-t">Loading&hellip;</div>`;
-  const { data, error } = await sb.from('replies')
+  let query = sb.from('replies')
     .select('id,body,created_at,post_id,author_id,is_deleted,profile:profiles(username,display_name,avatar_url,verified)')
-    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(20);
+  if (!replyShowDeleted) query = query.eq('is_deleted', false);
+  const { data, error } = await query;
   if (error) { box.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
   box.innerHTML = (data || []).map(adminReplyRowHtml).join('') || `<div class="no-t">No replies yet.</div>`;
 }
@@ -312,9 +348,9 @@ async function runReplySearch(q) {
   box.innerHTML = `<div class="no-t">Searching&hellip;</div>`;
   let query = sb.from('replies')
     .select('id,body,created_at,post_id,author_id,is_deleted,profile:profiles(username,display_name,avatar_url,verified)')
-    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(30);
+  if (!replyShowDeleted) query = query.eq('is_deleted', false);
 
   query = q.startsWith('@')
     ? query.ilike('profile.username', `%${q.slice(1)}%`)
@@ -330,14 +366,16 @@ function adminReplyRowHtml(r) {
   const uname = r.profile?.username || 'unknown';
   const name = esc(r.profile?.display_name || uname);
   return `
-  <div class="adm-row adm-post-row" id="adm-reply-${r.id}">
+  <div class="adm-row adm-post-row${r.is_deleted ? ' adm-row-deleted' : ''}" id="adm-reply-${r.id}">
     <img class="avatar pfp-md" src="${esc(avatarUrl(r.profile?.avatar_url))}" alt="">
     <div class="adm-row-txt">
-      <span class="adm-row-name">${name}${vBadge(r.profile)} <span class="adm-row-handle">@${esc(uname)}</span> &middot; <span class="adm-row-dt">${timeAgo(r.created_at)}</span></span>
+      <span class="adm-row-name">${name}${vBadge(r.profile)} <span class="adm-row-handle">@${esc(uname)}</span> &middot; <span class="adm-row-dt">${timeAgo(r.created_at)}</span>${r.is_deleted ? '<span class="adm-tag adm-tag-banned">Deleted</span>' : ''}</span>
       <a class="adm-post-body" href="${postUrlById(r.post_id)}" target="_blank" rel="noopener">${esc((r.body || '').slice(0, 200))}</a>
     </div>
     <div class="adm-row-acts">
-      <button class="adm-btn adm-btn-danger" onclick="adminDeleteReply('${r.id}')">Delete</button>
+      ${r.is_deleted
+        ? `<button class="adm-btn adm-btn-primary" onclick="adminRestoreReply('${r.id}')">Restore</button>`
+        : `<button class="adm-btn adm-btn-danger" onclick="adminDeleteReply('${r.id}')">Delete</button>`}
     </div>
   </div>`;
 }
@@ -353,11 +391,29 @@ async function adminDeleteReply(replyId) {
   try {
     const { error } = await sb.rpc('admin_delete_reply', { reply_id: replyId });
     if (error) throw error;
-    document.getElementById(`adm-reply-${replyId}`)?.remove();
+    if (replyShowDeleted) {
+      const q = document.getElementById('adm-reply-q').value.trim();
+      q ? runReplySearch(q) : loadRecentReplies();
+    } else {
+      document.getElementById(`adm-reply-${replyId}`)?.remove();
+    }
     toast('Reply deleted.');
     loadStats();
   } catch (e) {
     toast(e.message || 'Could not delete that reply.', 'error');
+  }
+}
+
+async function adminRestoreReply(replyId) {
+  try {
+    const { error } = await sb.rpc('admin_restore_reply', { reply_id: replyId });
+    if (error) throw error;
+    const q = document.getElementById('adm-reply-q').value.trim();
+    q ? runReplySearch(q) : loadRecentReplies();
+    toast('Reply restored.');
+    loadStats();
+  } catch (e) {
+    toast(e.message || 'Could not restore that reply.', 'error');
   }
 }
 
@@ -375,14 +431,22 @@ function wireArticleSearch() {
   });
 }
 
+let articleShowDeleted = false;
+function toggleArticleShowDeleted() {
+  articleShowDeleted = document.getElementById('adm-article-showdel').checked;
+  const q = document.getElementById('adm-article-q').value.trim();
+  q ? runArticleSearch(q) : loadRecentArticles();
+}
+
 async function loadRecentArticles() {
   const box = document.getElementById('adm-article-results');
   box.innerHTML = `<div class="no-t">Loading&hellip;</div>`;
-  const { data, error } = await sb.from('articles')
+  let query = sb.from('articles')
     .select('id,title,created_at,author_id,is_deleted,profile:profiles!articles_author_id_fkey(username,display_name,avatar_url,verified)')
-    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(20);
+  if (!articleShowDeleted) query = query.eq('is_deleted', false);
+  const { data, error } = await query;
   if (error) { box.innerHTML = `<div class="errmsg">${esc(error.message)}</div>`; return; }
   box.innerHTML = (data || []).map(adminArticleRowHtml).join('') || `<div class="no-t">No articles yet.</div>`;
 }
@@ -392,9 +456,9 @@ async function runArticleSearch(q) {
   box.innerHTML = `<div class="no-t">Searching&hellip;</div>`;
   let query = sb.from('articles')
     .select('id,title,created_at,author_id,is_deleted,profile:profiles!articles_author_id_fkey(username,display_name,avatar_url,verified)')
-    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(30);
+  if (!articleShowDeleted) query = query.eq('is_deleted', false);
 
   query = q.startsWith('@')
     ? query.ilike('profile.username', `%${q.slice(1)}%`)
@@ -410,14 +474,16 @@ function adminArticleRowHtml(a) {
   const uname = a.profile?.username || 'unknown';
   const name = esc(a.profile?.display_name || uname);
   return `
-  <div class="adm-row adm-post-row" id="adm-article-${a.id}">
+  <div class="adm-row adm-post-row${a.is_deleted ? ' adm-row-deleted' : ''}" id="adm-article-${a.id}">
     <img class="avatar pfp-md" src="${esc(avatarUrl(a.profile?.avatar_url))}" alt="">
     <div class="adm-row-txt">
-      <span class="adm-row-name">${name}${vBadge(a.profile)} <span class="adm-row-handle">@${esc(uname)}</span> &middot; <span class="adm-row-dt">${timeAgo(a.created_at)}</span></span>
+      <span class="adm-row-name">${name}${vBadge(a.profile)} <span class="adm-row-handle">@${esc(uname)}</span> &middot; <span class="adm-row-dt">${timeAgo(a.created_at)}</span>${a.is_deleted ? '<span class="adm-tag adm-tag-banned">Deleted</span>' : ''}</span>
       <a class="adm-post-body" href="${articleUrl(a.id)}" target="_blank" rel="noopener">${esc(a.title || '(untitled)')}</a>
     </div>
     <div class="adm-row-acts">
-      <button class="adm-btn adm-btn-danger" onclick="adminDeleteArticle('${a.id}')">Delete</button>
+      ${a.is_deleted
+        ? `<button class="adm-btn adm-btn-primary" onclick="adminRestoreArticle('${a.id}')">Restore</button>`
+        : `<button class="adm-btn adm-btn-danger" onclick="adminDeleteArticle('${a.id}')">Delete</button>`}
     </div>
   </div>`;
 }
@@ -433,11 +499,29 @@ async function adminDeleteArticle(articleId) {
   try {
     const { error } = await sb.rpc('admin_delete_article', { article_id: articleId });
     if (error) throw error;
-    document.getElementById(`adm-article-${articleId}`)?.remove();
+    if (articleShowDeleted) {
+      const q = document.getElementById('adm-article-q').value.trim();
+      q ? runArticleSearch(q) : loadRecentArticles();
+    } else {
+      document.getElementById(`adm-article-${articleId}`)?.remove();
+    }
     toast('Article deleted.');
     loadStats();
   } catch (e) {
     toast(e.message || 'Could not delete that article.', 'error');
+  }
+}
+
+async function adminRestoreArticle(articleId) {
+  try {
+    const { error } = await sb.rpc('admin_restore_article', { article_id: articleId });
+    if (error) throw error;
+    const q = document.getElementById('adm-article-q').value.trim();
+    q ? runArticleSearch(q) : loadRecentArticles();
+    toast('Article restored.');
+    loadStats();
+  } catch (e) {
+    toast(e.message || 'Could not restore that article.', 'error');
   }
 }
 
