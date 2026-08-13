@@ -145,7 +145,14 @@ begin
     author_id uuid,
     used      boolean not null default false
   ) on commit drop;
-  delete from _fy_candidates;
+  -- `where true` is not decorative — some Postgres setups (including
+  -- this Supabase project) run with a safe-update guard that rejects
+  -- any UPDATE/DELETE with no WHERE clause at all, even against a
+  -- per-transaction temp table like this one. An unqualified
+  -- `delete from _fy_candidates;` throws "DELETE requires a WHERE
+  -- clause" every time this function runs, which is what was
+  -- surfacing as "Failed to load posts" on every feed load.
+  delete from _fy_candidates where true;
 
   insert into _fy_candidates (ord, post_row, author_id)
   select row_number() over (order by c._score desc, c.id desc), c.post_row, c.author_id

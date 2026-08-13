@@ -47,3 +47,9 @@ $$;
 -- Let logged-in users call it; the function itself enforces ownership,
 -- so this grant does not open up deleting other people's articles.
 grant execute on function public.delete_own_article(uuid) to authenticated;
+
+-- Force PostgREST (Supabase's auto-generated API layer) to reload its
+-- schema cache immediately. Without this, a newly created function can
+-- return "Could not find the function ... in the schema cache" until
+-- PostgREST's next automatic refresh.
+notify pgrst, 'reload schema';
