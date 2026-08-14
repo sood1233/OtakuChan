@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Iniciar sesión — InteractInk</title>
-<meta name="description" content="Inicia sesión en tu cuenta de InteractInk.">
+<title>ログイン — InteractInk</title>
+<meta name="description" content="InteractInkアカウントにログインします。">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="InteractInk">
-<meta property="og:title" content="Iniciar sesión — InteractInk">
-<meta property="og:description" content="Inicia sesión en tu cuenta de InteractInk.">
+<meta property="og:title" content="ログイン — InteractInk">
+<meta property="og:description" content="InteractInkアカウントにログインします。">
 <meta property="og:image" content="/img/logo-light.png">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Iniciar sesión — InteractInk">
-<meta name="twitter:description" content="Inicia sesión en tu cuenta de InteractInk.">
+<meta name="twitter:title" content="ログイン — InteractInk">
+<meta name="twitter:description" content="InteractInkアカウントにログインします。">
 <meta name="twitter:image" content="/img/logo-light.png">
-<link rel="canonical" href="https://otakuchan.vercel.app/es/login">
-<meta property="og:url" content="https://otakuchan.vercel.app/es/login">
+<link rel="canonical" href="https://otakuchan.vercel.app/ja/login">
+<meta property="og:url" content="https://otakuchan.vercel.app/ja/login">
 <link rel="alternate" hreflang="en" href="https://otakuchan.vercel.app/login">
 <link rel="alternate" hreflang="es" href="https://otakuchan.vercel.app/es/login">
 <link rel="alternate" hreflang="fr" href="https://otakuchan.vercel.app/fr/login">
 <link rel="alternate" hreflang="de" href="https://otakuchan.vercel.app/de/login">
 <link rel="alternate" hreflang="pt" href="https://otakuchan.vercel.app/pt/login">
+<link rel="alternate" hreflang="ja" href="https://otakuchan.vercel.app/ja/login">
 <link rel="alternate" hreflang="x-default" href="https://otakuchan.vercel.app/login">
 <base href="/">
 <link rel="icon" type="image/png" href="/img/favicon-32.png" sizes="32x32" id="fav32">
@@ -37,7 +38,7 @@
 <div class="xshell">
   <div id="hdr">
     <div class="sb-top">
-      <a class="logo" href="/es">
+      <a class="logo" href="/ja">
         <span class="badge">
           <img class="logo-mark logo-mark-light" src="/img/logo-light.png" alt="InteractInk logo" width="36" height="36">
           <img class="logo-mark logo-mark-dark" src="/img/logo-dark.png" alt="InteractInk logo" width="36" height="36">
@@ -51,42 +52,42 @@
   <div class="auth-wrap">
   <div class="auth-shell">
     <div class="auth-card">
-      <a class="auth-card-logo" href="/es">
+      <a class="auth-card-logo" href="/ja">
         <span class="badge">
           <img class="logo-mark logo-mark-light" src="/img/logo-light.png" alt="InteractInk logo" width="28" height="28">
           <img class="logo-mark logo-mark-dark" src="/img/logo-dark.png" alt="InteractInk logo" width="28" height="28">
         </span>
         <span class="wordmark">Interact<em>Ink</em></span>
       </a>
-      <h1 data-i18n="auth.logIn">Iniciar sesión</h1>
-      <p class="auth-sub" data-i18n="auth.logInSub">Qué bueno verte de nuevo.</p>
+      <h1 data-i18n="auth.logIn">ログイン</h1>
+      <p class="auth-sub" data-i18n="auth.logInSub">おかえりなさい。</p>
       <div class="auth-body">
         <div class="errmsg" id="li-err" style="display:none;"></div>
         <form id="li-form" onsubmit="doLogIn(event)">
           <div class="auth-field">
-            <label for="li-email" data-i18n="auth.email">Correo electrónico</label>
+            <label for="li-email" data-i18n="auth.email">メールアドレス</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></span>
-              <input type="email" id="li-email" required autocomplete="email" placeholder="tu@ejemplo.com">
+              <input type="email" id="li-email" required autocomplete="email" placeholder="you@example.com">
             </div>
           </div>
           <div class="auth-field">
-            <label for="li-password" data-i18n="auth.password">Contraseña</label>
+            <label for="li-password" data-i18n="auth.password">パスワード</label>
             <div class="auth-input-wrap">
               <span class="auth-fi"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
               <input type="password" id="li-password" required autocomplete="current-password" placeholder="••••••••">
-              <button type="button" class="pw-toggle" aria-label="Mostrar contraseña" onclick="togglePwVis('li-password', this)">
+              <button type="button" class="pw-toggle" aria-label="パスワードを表示" onclick="togglePwVis('li-password', this)">
                 <svg class="eye-on" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg class="eye-off" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
               </button>
             </div>
           </div>
           <div id="li-captcha" class="auth-captcha" style="display:none;"></div>
-          <input type="submit" id="li-btn" class="auth-submit" value="Iniciar sesión" data-i18n-value="auth.logIn">
+          <input type="submit" id="li-btn" class="auth-submit" value="ログイン" data-i18n-value="auth.logIn">
         </form>
-        <div class="auth-switch"><span data-i18n="auth.noAccount">¿Aún no tienes cuenta?</span> <a href="/es/signup" data-i18n="nav.signUp">Registrarse</a></div>
-        <div class="auth-legal" data-i18n="auth.legal">Al continuar aceptas las <a href="/es/rules">normas</a> de InteractInk.</div>
-        <div class="auth-legal" style="margin-top:4px;"><a href="/login">English</a> &mdash; <a href="/fr/login">Français</a> &mdash; <a href="/de/login">Deutsch</a> &mdash; <a href="/pt/login">Português</a></div>
+        <div class="auth-switch"><span data-i18n="auth.noAccount">アカウントをお持ちでないですか?</span> <a href="/ja/signup" data-i18n="nav.signUp">新規登録</a></div>
+        <div class="auth-legal" data-i18n="auth.legal">続行することで、InteractInkの<a href="/ja/rules">ルール</a>に同意したものとみなされます。</div>
+        <div class="auth-legal" style="margin-top:4px;"><a href="/login">English</a> &mdash; <a href="/es/login">Español</a> &mdash; <a href="/fr/login">Français</a> &mdash; <a href="/de/login">Deutsch</a> &mdash; <a href="/pt/login">Português</a></div>
       </div>
     </div>
   </div>

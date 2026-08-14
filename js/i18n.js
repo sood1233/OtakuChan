@@ -222,13 +222,24 @@ const I18N_DICT = {
   }
 };
 
+// Language codes that also have their own set of hand-translated
+// static pages under /<code>/... (see I18N_STATIC_PAGES below), in
+// addition to just a dictionary entry above. To add a new
+// hand-translated language later: add its code here, add its /<code>/
+// pages, and add the hreflang/footer links on the English pages —
+// nothing else in this file needs to change.
+const I18N_STATIC_LANGS = ['es', 'fr', 'de', 'pt', 'ja'];
+
 function getLang() {
   // URL is the source of truth for the language-prefixed static pages
-  // (/es/...) — a Spanish-language page should render as Spanish for
-  // every visitor (and every bot) that lands on it, not just users who
-  // happen to have previously picked Spanish in Settings.
+  // (/es/..., /fr/...) — a localized page should render in that
+  // language for every visitor (and every bot) that lands on it, not
+  // just users who happen to have previously picked it in Settings.
   try {
-    if (typeof location !== 'undefined' && /^\/es(\/|$)/.test(location.pathname)) return 'es';
+    if (typeof location !== 'undefined') {
+      const m = location.pathname.match(/^\/([a-z]{2})(\/|$)/);
+      if (m && I18N_STATIC_LANGS.includes(m[1])) return m[1];
+    }
   } catch (e) {}
   try {
     const stored = localStorage.getItem('site_lang');
@@ -237,33 +248,38 @@ function getLang() {
   return 'en';
 }
 
-// Pages that exist as a dedicated, hand-translated Spanish page under
-// /es/... — the marketing/auth pages a logged-out visitor (or a search
-// bot) lands on. Everything else (the logged-in app screens) has no
-// Spanish twin, so switching language there just re-renders in place
-// using the dictionary above instead of navigating.
-const I18N_ES_PAGES = ['/', '/home', '/about', '/communities', '/contact', '/login', '/privacy', '/rules', '/signup', '/terms'];
+// Pages that exist as dedicated, hand-translated pages under
+// /es/..., /fr/..., etc — the marketing/auth pages a logged-out
+// visitor (or a search bot) lands on. Everything else (the logged-in
+// app screens) has no translated twin, so switching language there
+// just re-renders in place using the dictionary above instead of
+// navigating.
+const I18N_STATIC_PAGES = ['/', '/home', '/about', '/communities', '/contact', '/login', '/privacy', '/rules', '/signup', '/terms'];
 
-// Maps the current URL to its Spanish (or English) equivalent, if one
-// exists. Returns null when the current page has no /es/... twin.
-function esEquivalentPath(lang) {
+// Maps the current URL to its equivalent under a different language,
+// if one exists. Returns null when the current page has no
+// hand-translated /<lang>/... twin (or, for 'en', no bare twin).
+function localizedEquivalentPath(lang) {
   try {
     let path = location.pathname.replace(/\/+$/, '') || '/';
     path = path.replace(/\.html$/, '');
-    const isEs = /^\/es(\/|$)/.test(path);
-    const bare = isEs ? (path.slice(3) || '/') : path;
-    if (!I18N_ES_PAGES.includes(bare)) return null;
-    return lang === 'es' ? (bare === '/' ? '/es' : `/es${bare}`) : bare;
+    const m = path.match(/^\/([a-z]{2})(\/|$)/);
+    const curLang = (m && I18N_STATIC_LANGS.includes(m[1])) ? m[1] : null;
+    const bare = curLang ? (path.slice(1 + curLang.length) || '/') : path;
+    if (!I18N_STATIC_PAGES.includes(bare)) return null;
+    if (lang === 'en') return bare;
+    if (!I18N_STATIC_LANGS.includes(lang)) return null;
+    return bare === '/' ? `/${lang}` : `/${lang}${bare}`;
   } catch (e) { return null; }
 }
 
 function setLang(lang) {
   if (!I18N_DICT[lang]) return;
   try { localStorage.setItem('site_lang', lang); } catch (e) {}
-  // If the page you're on has a real Spanish/English twin, navigate
+  // If the page you're on has a real translated/English twin, navigate
   // there so the site actually reloads into that language's version
-  // instead of just re-rendering nav labels on the same English page.
-  const target = esEquivalentPath(lang);
+  // instead of just re-rendering nav labels on the same page.
+  const target = localizedEquivalentPath(lang);
   if (target && target !== location.pathname) {
     location.href = target;
     return;

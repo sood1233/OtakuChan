@@ -457,12 +457,17 @@ function currentNavKey() {
   return null;
 }
 
-// Current page is under /es/? Prefix internal links to the static
-// pages so a visitor browsing the Spanish pages stays on the Spanish
-// versions instead of being bounced back to English by the shared
-// nav (see js/i18n.js getLang() for the matching URL-is-truth rule).
+// Current page is under /es/, /fr/, etc? Prefix internal links to the
+// static pages so a visitor browsing a localized version of the site
+// stays on that language's pages instead of being bounced back to
+// English by the shared nav (see js/i18n.js getLang() for the
+// matching URL-is-truth rule, and I18N_STATIC_LANGS there for the
+// list of supported prefixes — add a code there to extend this).
 function esPrefix() {
-  try { return /^\/es(\/|$)/.test(location.pathname) ? '/es' : ''; } catch (e) { return ''; }
+  try {
+    const m = location.pathname.match(/^\/([a-z]{2})(\/|$)/);
+    return (m && typeof I18N_STATIC_LANGS !== 'undefined' && I18N_STATIC_LANGS.includes(m[1])) ? `/${m[1]}` : '';
+  } catch (e) { return ''; }
 }
 
 function renderSideNav() {
@@ -481,7 +486,7 @@ function renderSideNav() {
     ? `<button class="sidebar-post-btn" onclick="mobileCompose();return false;">${ICON_COMPOSE}<span>${t('nav.post')}</span></button>`
     : `<a class="sidebar-post-btn" href="${lp}/signup">${ICON_COMPOSE}<span>${t('nav.post')}</span></a>`;
   el.innerHTML =
-    item(lp ? '/es/home' : '/home', NAV_ICON.home, t('nav.home'), 'home') +
+    item(lp ? `${lp}/home` : '/home', NAV_ICON.home, t('nav.home'), 'home') +
     item('/search', NAV_ICON.search, t('nav.explore'), 'search') +
     item('/notifications', NAV_ICON.bell, t('nav.notifications'), 'notifications', notifBadge) +
     item('/messages', NAV_ICON.chat, t('nav.chat'), 'messages', chatBadge) +
