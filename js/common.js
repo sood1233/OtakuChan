@@ -1245,12 +1245,26 @@ async function toggleLike(id, btn, isReply = false) {
       if (error) throw error;
     } else {
       const { error } = await sb.from('likes').insert({ [col]: id, user_id: currentSession.user.id });
-      if (error && error.code !== '23505') throw error; // 23505 = already liked elsewhere, treat as success
+      // A duplicate-key error here means a like row already existed
+      // for this id — most likely liked.has(id) was stale (e.g. liked
+      // from another device/tab since this tab last loaded) rather
+      // than the insert being genuinely rejected. Recognize that case
+      // by more than an exact '23505' code match — some setups
+      // surface it as a 409 or just a "duplicate key" message — and
+      // treat it as "already liked", not a failure: leave the
+      // optimistic UI as liked instead of rolling back.
+      const isDuplicate = error && (error.code === '23505' || /duplicate key/i.test(error.message || ''));
+      if (error && !isDuplicate) throw error;
+      // Row already existed — the optimistic +1 above assumed this was
+      // a brand new like, but it wasn't, so the count is one too high
+      // now. Correct it back down without touching the liked state.
+      if (isDuplicate) setLikeUiState(btn, true, -1);
     }
   } catch (e) {
     // Roll back the optimistic update.
     if (wasLiked) { liked.add(id); setLikeUiState(btn, true, 1); }
     else { liked.delete(id); setLikeUiState(btn, false, -1); }
+    console.error('toggleLike failed:', e);
     alert(e.message || 'Could not update like.');
   }
 }
@@ -1345,6 +1359,39 @@ async function ensureOwnedCommunitiesLoaded() {
 async function ensureFeedPrereqsLoaded() {
   await Promise.all([ensureLikesLoaded(), ensureBookmarksLoaded(), ensureRepostsLoaded(), ensureOwnedCommunitiesLoaded()]);
 }
+
+// `liked`/`bookmarked` are fetched ONCE per page load. That's fine for
+// the tab that does the liking (toggleLike() keeps its own Set in
+// sync as you click), but a tab that's just been sitting open has no
+// way to find out a post got liked/unliked from somewhere else —
+// another device, another tab, or the like button on a completely
+// different page in this same tab. Concretely: like a post on your
+// phone, then come back to a laptop tab that's been open since before
+// that happened — the heart still shows hollow because `liked` never
+// heard about it, and *tapping* it then races an insert against a row
+// that already exists (the earlier like), so the optimistic UI can
+// flip right back.
+//
+// Fix: re-pull liked/bookmarked/reposted and repaint every rendered
+// action button whenever this tab regains focus or comes back into
+// view — cheap (three small id-only queries), and means "switch back
+// to this tab" is enough to pick up state changed elsewhere, without
+// needing a full page reload.
+async function resyncFeedPrereqsUi() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  await ensureFeedPrereqsLoaded();
+  document.querySelectorAll('.act.like[data-id]').forEach(btn => {
+    btn.classList.toggle('liked', liked.has(btn.dataset.id));
+  });
+  document.querySelectorAll('.act.bookmark[data-id]').forEach(btn => {
+    btn.classList.toggle('bookmarked', bookmarked.has(btn.dataset.id));
+  });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') resyncFeedPrereqsUi();
+});
+window.addEventListener('focus', resyncFeedPrereqsUi);
 
 // Every post rendered as a card is stashed here by id, so the Quote
 // modal (opened from a plain onclick with just the post id) can pull
@@ -1679,10 +1726,10 @@ function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount 
     <div class="acts">
       ${replyTag}${ICON.reply}<span class="act-label">${fmtCount(rc)}</span>${replyClose}
       ${repostable ? repostMenuHtml(p) : ''}
-      <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this, ${isReply})">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
+      <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" data-id="${p.id}" data-reply="${isReply}" onclick="toggleLike('${p.id}', this, ${isReply})">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
       <span class="act views" title="${p.view_count || 0} views">${ICON.views}<span class="act-label">${fmtCount(p.view_count)}</span></span>
       <button class="act share" onclick="sharePost('${p.id}', this)">${ICON.share}<span class="act-label">Share</span></button>
-      ${bookmarkable ? `<button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}</button>` : ''}
+      ${bookmarkable ? `<button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" data-id="${p.id}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}</button>` : ''}
     </div>`;
 }
 
@@ -1705,8 +1752,8 @@ function opDetailActionsHtml(p, replyOnclick) {
     <div class="op-stats">
       ${replyBtn}
       ${repostMenuHtml(p)}
-      <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this)">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
-      <button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" data-count="${p.bookmark_count || 0}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}<span class="bc act-label">${fmtCount(p.bookmark_count || 0)}</span></button>
+      <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" data-id="${p.id}" data-reply="false" onclick="toggleLike('${p.id}', this)">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
+      <button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" data-count="${p.bookmark_count || 0}" data-id="${p.id}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}<span class="bc act-label">${fmtCount(p.bookmark_count || 0)}</span></button>
       <button class="act share" onclick="sharePost('${p.id}', this)">${ICON.share}</button>
     </div>`;
 }
