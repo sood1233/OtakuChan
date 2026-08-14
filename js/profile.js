@@ -444,7 +444,7 @@ function replyCardHtml(r, replyingToProfile, opUsername = null) {
         </div>
         <div class="pb" data-pb="${r.id}">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type, '', r)}
-        ${postActionsHtml(r, { replyHref: threadHref, bookmarkable: false, repostable: false })}
+        ${postActionsHtml(r, { replyHref: threadHref, bookmarkable: false, repostable: false, isReply: true })}
       </div>
     </div>
   </div>`;

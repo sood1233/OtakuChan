@@ -375,7 +375,7 @@ function renderConversation() {
       <div class="op-detail-divider"></div>
       ${postActionsHtml(focused, {
         replyOnclick: "document.getElementById('rf-body')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('rf-body')?.focus();",
-        replyCount: kids.length, bookmarkable: false, repostable: false
+        replyCount: kids.length, bookmarkable: false, repostable: false, isReply: true
       })}
       <div class="op-detail-divider"></div>
     </div>
@@ -462,7 +462,7 @@ function replyHtml(r, depth) {
         </div>
         <div class="pb" data-pb="${r.id}">${renderBody(r.body)}</div>
         ${renderMedia(r.media_url, r.media_type, '', r)}
-        ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false, repostable: false })}
+        ${postActionsHtml(r, { replyOnclick: `toggleReplyBox('${r.id}')`, replyCount: kids.length, bookmarkable: false, repostable: false, isReply: true })}
       </div>
     </div>
   </div>

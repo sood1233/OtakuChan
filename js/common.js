@@ -1203,8 +1203,12 @@ let liked = new Set();
 async function ensureLikesLoaded() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { liked = new Set(); return; }
-  const { data } = await sb.from('likes').select('post_id').eq('user_id', session.user.id);
-  liked = new Set((data || []).map(l => l.post_id));
+  // Likes can point at either a post or a reply (see toggleLike() below),
+  // so both columns come back and we fold them into one Set — `liked`
+  // is only ever queried by id (`.has(p.id)`), and post/reply ids never
+  // collide, so there's no need to track which table an id belongs to.
+  const { data } = await sb.from('likes').select('post_id,reply_id').eq('user_id', session.user.id);
+  liked = new Set((data || []).flatMap(l => [l.post_id, l.reply_id]).filter(Boolean));
 }
 
 function setLikeUiState(btn, isLiked, delta) {
@@ -1220,24 +1224,33 @@ function setLikeUiState(btn, isLiked, delta) {
 // the network call resolves — same as X/Bluesky, and what actually
 // makes a like feel instant instead of laggy. If the write fails, it
 // quietly rolls back to the pre-tap state and surfaces the error.
-async function toggleLike(postId, btn) {
+//
+// `isReply` picks which column the row goes in. Replies aren't rows in
+// `posts`, so an insert/delete that always targeted post_id would send
+// a reply's id into a column with a FK to posts(id) — Postgres rejects
+// that with "violates foreign key constraint likes_post_id_fkey" since
+// no such post exists. See supabase/likes_support_replies.sql for the
+// matching schema change (post_id/reply_id both nullable, exactly one
+// set).
+async function toggleLike(id, btn, isReply = false) {
   if (!requireLogin()) return;
-  const wasLiked = liked.has(postId);
-  if (wasLiked) { liked.delete(postId); setLikeUiState(btn, false, -1); }
-  else { liked.add(postId); setLikeUiState(btn, true, 1); }
+  const wasLiked = liked.has(id);
+  if (wasLiked) { liked.delete(id); setLikeUiState(btn, false, -1); }
+  else { liked.add(id); setLikeUiState(btn, true, 1); }
+  const col = isReply ? 'reply_id' : 'post_id';
   try {
     if (wasLiked) {
       const { error } = await sb.from('likes').delete()
-        .eq('post_id', postId).eq('user_id', currentSession.user.id);
+        .eq(col, id).eq('user_id', currentSession.user.id);
       if (error) throw error;
     } else {
-      const { error } = await sb.from('likes').insert({ post_id: postId, user_id: currentSession.user.id });
+      const { error } = await sb.from('likes').insert({ [col]: id, user_id: currentSession.user.id });
       if (error && error.code !== '23505') throw error; // 23505 = already liked elsewhere, treat as success
     }
   } catch (e) {
     // Roll back the optimistic update.
-    if (wasLiked) { liked.add(postId); setLikeUiState(btn, true, 1); }
-    else { liked.delete(postId); setLikeUiState(btn, false, -1); }
+    if (wasLiked) { liked.add(id); setLikeUiState(btn, true, 1); }
+    else { liked.delete(id); setLikeUiState(btn, false, -1); }
     alert(e.message || 'Could not update like.');
   }
 }
@@ -1646,7 +1659,7 @@ function pcNameHtml(profile) {
 // "···" menu with Report — matches the reference layout's icon+count row.
 // `replyAttr` is the href or onclick to use for the reply icon (feed cards
 // link out to the thread; the thread's own OP scrolls to the reply box).
-function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null, bookmarkable = true, repostable = true } = {}) {
+function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount = null, bookmarkable = true, repostable = true, isReply = false } = {}) {
   const isLiked = liked.has(p.id);
   const isBookmarked = bookmarkable && bookmarked.has(p.id);
   // A post with reply_audience === 'none' gets a hard-disabled,
@@ -1666,7 +1679,7 @@ function postActionsHtml(p, { replyHref = null, replyOnclick = null, replyCount 
     <div class="acts">
       ${replyTag}${ICON.reply}<span class="act-label">${fmtCount(rc)}</span>${replyClose}
       ${repostable ? repostMenuHtml(p) : ''}
-      <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this)">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
+      <button class="act like${isLiked ? ' liked' : ''}" data-count="${p.like_count || 0}" onclick="toggleLike('${p.id}', this, ${isReply})">${ICON.heart}<span class="lc act-label">${fmtCount(p.like_count)}</span></button>
       <span class="act views" title="${p.view_count || 0} views">${ICON.views}<span class="act-label">${fmtCount(p.view_count)}</span></span>
       <button class="act share" onclick="sharePost('${p.id}', this)">${ICON.share}<span class="act-label">Share</span></button>
       ${bookmarkable ? `<button class="act bookmark${isBookmarked ? ' bookmarked' : ''}" onclick="toggleBookmark('${p.id}', this)">${ICON.bookmark}</button>` : ''}
@@ -3520,29 +3533,40 @@ function clearErr(el) {
   el.classList.remove('auth-ok');
 }
 
-// ── "I'm not a robot" CAPTCHA (Google reCAPTCHA v2 checkbox) ──
+// ── "I'm not a robot" CAPTCHA (Cloudflare Turnstile) ──
 // Gates sign up, log in, and every posting action (new post, community
 // post, top-level reply, inline comment reply). Shared across all of
 // them instead of duplicated per-page so there's exactly one place
 // that knows how to render/verify a widget and one place to update if
 // the site ever swaps providers.
 //
+// Was Google reCAPTCHA v2 — switched to Turnstile because privacy
+// extensions/blockers (Privacy Badger, uBlock Origin's privacy lists,
+// etc.) commonly block Google's recaptcha/api.js and its tracking
+// cookie, which left the checkbox never rendering and the person
+// stuck unable to post. Turnstile is privacy-first (no tracking
+// cookie, doesn't fingerprint across sites) so it isn't caught by the
+// same blocklists, and it's a near drop-in: same "tick a box" UX, same
+// render/getResponse/reset widget API, same secret+siteverify
+// server-side check.
+//
 // SETUP REQUIRED — this ships disabled-safe (fails OPEN, not closed)
 // until you fill in a real site key here, so the site keeps working
 // out of the box:
-//   1. Create a reCAPTCHA v2 ("I'm not a robot" checkbox) key pair at
-//      https://www.google.com/recaptcha/admin for your domain(s).
+//   1. Create a Turnstile widget (Managed / "checkbox" mode) at
+//      https://dash.cloudflare.com/?to=/:account/turnstile for your
+//      domain(s) — free, no Cloudflare-hosted DNS required.
 //   2. Paste the SITE key below.
-//   3. Set the SECRET key as the RECAPTCHA_SECRET_KEY environment
+//   3. Set the SECRET key as the TURNSTILE_SECRET_KEY environment
 //      variable in your Vercel project (Settings → Environment
 //      Variables) — see api/verify-captcha.js. Never put the secret
 //      key in client code.
 // Until both are done, renderCaptchaIfNeeded()/verifyHuman() silently
 // no-op (widgets stay hidden, checks pass) so nothing breaks — but
 // posting/signup/login are NOT actually bot-protected yet.
-const RECAPTCHA_SITE_KEY = '6Ldp74MtAAAAAHHlqrPXLGfet7U30wpfsT85uO1B';
+const TURNSTILE_SITE_KEY = 'YOUR_TURNSTILE_SITE_KEY';
 function captchaConfigured() {
-  return !!RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('YOUR_');
+  return !!TURNSTILE_SITE_KEY && !TURNSTILE_SITE_KEY.startsWith('YOUR_');
 }
 
 // Passing one checkbox re-verifies the person for a little while
@@ -3559,7 +3583,7 @@ function markHumanVerified() {
   catch (e) {}
 }
 
-const _captchaWidgets = {}; // containerId -> grecaptcha widget id
+const _captchaWidgets = {}; // containerId -> turnstile widget id
 
 // Renders (once) the checkbox into #<containerId> if a check is
 // actually still needed right now; hides/no-ops otherwise. Safe to
@@ -3570,15 +3594,15 @@ function renderCaptchaIfNeeded(containerId, _attempt = 0) {
   if (!captchaConfigured() || isHumanVerified()) { el.style.display = 'none'; return; }
   el.style.display = '';
   if (_captchaWidgets[containerId] != null) return;
-  if (window.grecaptcha?.render) {
-    _captchaWidgets[containerId] = grecaptcha.render(containerId, { sitekey: RECAPTCHA_SITE_KEY });
+  if (window.turnstile?.render) {
+    _captchaWidgets[containerId] = turnstile.render(`#${containerId}`, { sitekey: TURNSTILE_SITE_KEY });
   } else if (_attempt < 20) {
-    // google's recaptcha script loads async — it may not be ready yet
-    // the first time a composer/auth form appears, so retry briefly.
+    // turnstile's script loads async — it may not be ready yet the
+    // first time a composer/auth form appears, so retry briefly.
     setTimeout(() => renderCaptchaIfNeeded(containerId, _attempt + 1), 250);
   }
 }
-// Passed as ?onload=initAllCaptchas to the recaptcha <script> tag on
+// Passed as ?onload=initAllCaptchas to the turnstile <script> tag on
 // every page that has one or more containers below — each call is a
 // no-op for any id not present on the current page.
 function initAllCaptchas() {
@@ -3594,7 +3618,7 @@ async function verifyHuman(containerId, errEl) {
   if (!captchaConfigured() || isHumanVerified()) return true;
   renderCaptchaIfNeeded(containerId);
   const widgetId = _captchaWidgets[containerId];
-  const token = widgetId != null && window.grecaptcha ? grecaptcha.getResponse(widgetId) : '';
+  const token = widgetId != null && window.turnstile ? turnstile.getResponse(widgetId) : '';
   if (!token) {
     showErr(errEl, "Please check the box to confirm you're not a robot.");
     return false;
@@ -3608,7 +3632,7 @@ async function verifyHuman(containerId, errEl) {
     const out = await res.json();
     if (!out.success) {
       showErr(errEl, 'Captcha check failed — please try again.');
-      if (widgetId != null) grecaptcha.reset(widgetId);
+      if (widgetId != null) turnstile.reset(widgetId);
       return false;
     }
     markHumanVerified();
@@ -3990,7 +4014,7 @@ function renderLbSidebar(owner) {
   const href = lbOwnerHref(owner);
   const uname = owner.profile?.username || 'unknown';
   const actions = isReply
-    ? postActionsHtml(owner, { replyOnclick: `location.href='${href}'`, bookmarkable: false, repostable: false })
+    ? postActionsHtml(owner, { replyOnclick: `location.href='${href}'`, bookmarkable: false, repostable: false, isReply: true })
     : opDetailActionsHtml(owner, `location.href='${href}'`);
   sidebar.innerHTML = `
     <div class="lb-sb-head">
@@ -4022,7 +4046,7 @@ function renderLbMobileBar(owner) {
   if (!owner) { bar.innerHTML = ''; bar.hidden = true; return; }
   bar.hidden = false;
   const isReply = lbIsReply(owner);
-  bar.innerHTML = postActionsHtml(owner, { replyHref: lbOwnerHref(owner), bookmarkable: !isReply, repostable: !isReply });
+  bar.innerHTML = postActionsHtml(owner, { replyHref: lbOwnerHref(owner), bookmarkable: !isReply, repostable: !isReply, isReply });
 }
 
 // ── ZOOM / PAN ──
