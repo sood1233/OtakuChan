@@ -14,15 +14,15 @@
 <meta name="twitter:title" content="Log In — InteractInk">
 <meta name="twitter:description" content="Log in to your InteractInk account.">
 <meta name="twitter:image" content="/img/logo-light.png">
-<link rel="canonical" href="https://otakuchan.vercel.app/login">
-<meta property="og:url" content="https://otakuchan.vercel.app/login">
-<link rel="alternate" hreflang="en" href="https://otakuchan.vercel.app/login">
-<link rel="alternate" hreflang="es" href="https://otakuchan.vercel.app/es/login">
-<link rel="alternate" hreflang="fr" href="https://otakuchan.vercel.app/fr/login">
-<link rel="alternate" hreflang="de" href="https://otakuchan.vercel.app/de/login">
-<link rel="alternate" hreflang="pt" href="https://otakuchan.vercel.app/pt/login">
-<link rel="alternate" hreflang="ja" href="https://otakuchan.vercel.app/ja/login">
-<link rel="alternate" hreflang="x-default" href="https://otakuchan.vercel.app/login">
+<link rel="canonical" href="https://interactink.com/login">
+<meta property="og:url" content="https://interactink.com/login">
+<link rel="alternate" hreflang="en" href="https://interactink.com/login">
+<link rel="alternate" hreflang="es" href="https://interactink.com/es/login">
+<link rel="alternate" hreflang="fr" href="https://interactink.com/fr/login">
+<link rel="alternate" hreflang="de" href="https://interactink.com/de/login">
+<link rel="alternate" hreflang="pt" href="https://interactink.com/pt/login">
+<link rel="alternate" hreflang="ja" href="https://interactink.com/ja/login">
+<link rel="alternate" hreflang="x-default" href="https://interactink.com/login">
 <base href="/">
 <link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
 <link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512" id="fav512">
@@ -82,7 +82,19 @@
               </button>
             </div>
           </div>
-          <div id="li-captcha" class="auth-captcha" style="display:none;"></div>
+          <div id="li-captcha" class="captcha-card" style="display:none;">
+            <div class="captcha-card-head">
+              <span class="captcha-card-icon">
+                <svg class="cci-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <svg class="cci-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"/></svg>
+              </span>
+              <span class="captcha-card-text">
+                <span class="captcha-card-title">Quick security check</span>
+                <span class="captcha-card-sub">Confirm you're human to continue</span>
+              </span>
+            </div>
+            <div class="captcha-card-body"><div class="captcha-skeleton"></div></div>
+          </div>
           <input type="submit" id="li-btn" class="auth-submit" value="Log In" data-i18n-value="auth.logIn">
         </form>
         <div class="auth-switch"><span data-i18n="auth.noAccount">No account yet?</span> <a href="signup.html" data-i18n="nav.signUp">Sign up</a></div>

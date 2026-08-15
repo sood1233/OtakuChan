@@ -15,8 +15,8 @@
 <meta name="twitter:description" content="Direct messages on InteractInk — real-time one-on-one conversations.">
 <meta name="twitter:image" content="/img/logo-light.png">
 <meta name="robots" content="noindex, follow">
-<link rel="canonical" href="https://otakuchan.vercel.app/messages">
-<meta property="og:url" content="https://otakuchan.vercel.app/messages">
+<link rel="canonical" href="https://interactink.com/messages">
+<meta property="og:url" content="https://interactink.com/messages">
 <base href="/">
 <link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
 <link rel="icon" type="image/png" href="img/favicon.png" sizes="512x512" id="fav512">
@@ -46,8 +46,8 @@
 
   <div id="main">
     <div id="feed" style="max-width:600px;">
-      <h1 class="sr-only">Direct messages</h1>
-      <div class="sec-bar" id="chat-sec-bar">Chat</div>
+      <h1 class="sr-only" data-i18n="chat.directMessages">Direct messages</h1>
+      <div class="sec-bar" id="chat-sec-bar" data-i18n="nav.chat">Chat</div>
       <div id="chat-root"><span class="spinner">Loading&hellip;</span></div>
     </div>
 
@@ -71,6 +71,7 @@
 <script src="js/common.js"></script>
 <script src="js/video-player.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/chat-crypto.js"></script>
 <script src="js/chat.js"></script>
 </body>
 </html>

@@ -14,15 +14,15 @@
 <meta name="twitter:title" content="InteractInk">
 <meta name="twitter:description" content="InteractInk is a real-time social imageboard — post, reply, and follow people with a live For You and Following feed.">
 <meta name="twitter:image" content="/img/logo-light.png">
-<link rel="canonical" href="https://otakuchan.vercel.app/">
-<meta property="og:url" content="https://otakuchan.vercel.app/">
-<link rel="alternate" hreflang="en" href="https://otakuchan.vercel.app/">
-<link rel="alternate" hreflang="es" href="https://otakuchan.vercel.app/es">
-<link rel="alternate" hreflang="fr" href="https://otakuchan.vercel.app/fr">
-<link rel="alternate" hreflang="de" href="https://otakuchan.vercel.app/de">
-<link rel="alternate" hreflang="pt" href="https://otakuchan.vercel.app/pt">
-<link rel="alternate" hreflang="ja" href="https://otakuchan.vercel.app/ja">
-<link rel="alternate" hreflang="x-default" href="https://otakuchan.vercel.app/">
+<link rel="canonical" href="https://interactink.com/">
+<meta property="og:url" content="https://interactink.com/">
+<link rel="alternate" hreflang="en" href="https://interactink.com/">
+<link rel="alternate" hreflang="es" href="https://interactink.com/es">
+<link rel="alternate" hreflang="fr" href="https://interactink.com/fr">
+<link rel="alternate" hreflang="de" href="https://interactink.com/de">
+<link rel="alternate" hreflang="pt" href="https://interactink.com/pt">
+<link rel="alternate" hreflang="ja" href="https://interactink.com/ja">
+<link rel="alternate" hreflang="x-default" href="https://interactink.com/">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"InteractInk","url":"/"}</script>
 <base href="/">
 <link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" id="fav32">
@@ -95,7 +95,19 @@
             </div>
           </div>
           <div id="pf-ga-slot"></div>
-          <div id="pf-captcha" class="auth-captcha" style="display:none;"></div>
+          <div id="pf-captcha" class="captcha-card" style="display:none;">
+            <div class="captcha-card-head">
+              <span class="captcha-card-icon">
+                <svg class="cci-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+                <svg class="cci-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"/></svg>
+              </span>
+              <span class="captcha-card-text">
+                <span class="captcha-card-title">Quick security check</span>
+                <span class="captcha-card-sub">Confirm you're human to continue</span>
+              </span>
+            </div>
+            <div class="captcha-card-body"><div class="captcha-skeleton"></div></div>
+          </div>
           <div class="pf-toolbar">
             <div class="pf-icons">
               <button type="button" class="pf-ic" title="Media" aria-label="Media" onclick="document.getElementById('pf-file').click();return false;">
